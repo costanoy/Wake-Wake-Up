@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Wake Wake Up</string>
+    <string name="tagline">really wake up</string>
+
+    <!-- Alarm list -->
+    <string name="alarms">Alarms</string>
+    <string name="next_alarm_in">Next alarm in %1$s</string>
+    <string name="duration_h_min">%1$d h %2$d min</string>
+    <string name="duration_min_only">%1$d min</string>
+    <string name="simulate_ring">Simulate the alarm ringing →</string>
+    <string name="cd_stats_icon">Stats</string>
+    <string name="cd_add_alarm">New alarm</string>
+
+    <!-- Edit alarm -->
+    <string name="new_alarm">New alarm</string>
+    <string name="edit_alarm">Edit alarm</string>
+    <string name="cancel">Cancel</string>
+    <string name="save">Save</string>
+    <string name="label">Name</string>
+    <string name="sound">Sound</string>
+    <string name="sound_name">Daybreak ↑</string>
+    <string name="task">Task</string>
+    <string name="delete_alarm">Delete alarm</string>
+    <string name="cd_back">Back</string>
+
+    <!-- Task setup -->
+    <string name="task_setup_title">Task setup</string>
+    <string name="difficulty">Difficulty</string>
+    <string name="easy">Easy</string>
+    <string name="medium">Medium</string>
+    <string name="hard">Hard</string>
+    <string name="how_many">How many problems</string>
+    <string name="preview">Preview</string>
+
+    <string name="task_math_name">Math</string>
+    <string name="task_math_desc">Problems with adjustable difficulty</string>
+    <string name="task_phrase_name">Type a phrase</string>
+    <string name="task_phrase_desc">Copy a short sentence</string>
+    <string name="task_memory_name">Memory sequence</string>
+    <string name="task_memory_desc">Repeat a sequence of lights</string>
+    <string name="task_shake_name">Shake / steps</string>
+    <string name="task_shake_desc">Move until you hit the goal</string>
+
+    <!-- Ringing -->
+    <string name="ringing">Alarm ringing</string>
+    <string name="volume">Volume</string>
+    <string name="volume_pct">Volume %1$d%%</string>
+    <string name="start_mission">Start mission</string>
+    <string name="wait_5">Hold on · 5 min</string>
+    <string name="wait_used">Hold on used %1$d× this morning</string>
+    <string name="no_snooze">No snooze — only Hold on and the mission</string>
+    <string name="cd_speaker">Alarm sound</string>
+
+    <!-- Mission -->
+    <string name="cant_solve">I can\'t solve this</string>
+    <string name="sound_paused">Sound paused while you solve</string>
+    <string name="step_of">%1$d of %2$d</string>
+    <string name="confirm">Confirm</string>
+    <string name="type_phrase">Type the phrase to turn it off</string>
+    <string name="space">space</string>
+
+    <!-- Good morning -->
+    <string name="good_morning">Good morning</string>
+    <string name="woke_in">It took you %1$s from first ring to off.</string>
+    <string name="start_day">Start the day</string>
+    <string name="see_stats">See stats</string>
+    <string name="alarm_at">Alarm</string>
+    <string name="woke_at">Woke up</string>
+    <string name="waits_count">Hold on</string>
+
+    <!-- Stats -->
+    <string name="stats">Stats</string>
+    <string name="time_to_wake">Time to wake</string>
+    <string name="time_to_wake_sub">From first ring until fully off, including every Hold on.</string>
+    <string name="today_time">Today</string>
+    <string name="waits_today">Hold on today</string>
+    <string name="avg_7">7-day average</string>
+    <string name="woke_vs">Woke up vs. alarm</string>
+
+    <!-- Time formatting -->
+    <string name="duration_min_sec">%1$d min %2$02d s</string>
+
+    <!-- System -->
+    <string name="notification_channel_name">Alarms</string>
+    <string name="notification_channel_desc">Alarm ringing and mission notifications</string>
+    <string name="alarm_notification_title">%1$s is ringing</string>
+    <string name="alarm_notification_text">Tap to open the alarm</string>
+
+    <string-array name="day_letters">
+        <item>M</item>
+        <item>T</item>
+        <item>W</item>
+        <item>T</item>
+        <item>F</item>
+        <item>S</item>
+        <item>S</item>
+    </string-array>
+
+    <string-array name="day_short">
+        <item>Mon</item>
+        <item>Tue</item>
+        <item>Wed</item>
+        <item>Thu</item>
+        <item>Fri</item>
+        <item>Sat</item>
+        <item>Sun</item>
+    </string-array>
+</resources>
