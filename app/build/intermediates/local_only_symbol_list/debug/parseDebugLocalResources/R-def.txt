@@ -36,7 +36,6 @@ string label
 string medium
 string new_alarm
 string next_alarm_in
-string no_snooze
 string notification_channel_desc
 string notification_channel_name
 string preview
@@ -45,12 +44,11 @@ string save
 string see_stats
 string simulate_ring
 string sound
-string sound_name
-string sound_paused
-string space
+string sound_default
 string start_day
 string start_mission
 string stats
+string stats_empty
 string step_of
 string tagline
 string task

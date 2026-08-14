@@ -327,7 +327,6 @@
     <string name="navigation_menu">"Navigation menu"</string>
     <string name="new_alarm">New alarm</string>
     <string name="next_alarm_in">Next alarm in %1$s</string>
-    <string name="no_snooze">No snooze — only Hold on and the mission</string>
     <string name="not_selected">Not selected</string>
     <string name="notification_channel_desc">Alarm ringing and mission notifications</string>
     <string name="notification_channel_name">Alarms</string>
@@ -341,15 +340,14 @@
     <string name="simulate_ring">Simulate the alarm ringing →</string>
     <string name="snackbar_pane_title">Alert</string>
     <string name="sound">Sound</string>
-    <string name="sound_name">Daybreak ↑</string>
-    <string name="sound_paused">Sound paused while you solve</string>
-    <string name="space">space</string>
+    <string name="sound_default">System default</string>
     <string name="start_day">Start the day</string>
     <string name="start_mission">Start mission</string>
     <string name="state_empty">Empty</string>
     <string name="state_off">Off</string>
     <string name="state_on">On</string>
     <string name="stats">Stats</string>
+    <string name="stats_empty">No wake-ups yet. Once an alarm rings, it shows up here.</string>
     <string name="status_bar_notification_info_overflow">999+</string>
     <string name="step_of">%1$d of %2$d</string>
     <string name="switch_role">Switch</string>
@@ -375,7 +373,7 @@
     <string name="volume">Volume</string>
     <string name="volume_pct">Volume %1$d%%</string>
     <string name="wait_5">Hold on · 5 min</string>
-    <string name="wait_used">Hold on used %1$d× this morning</string>
+    <string name="wait_used">Hold on used %1$d×</string>
     <string name="waits_count">Hold on</string>
     <string name="waits_today">Hold on today</string>
     <string name="woke_at">Woke up</string>

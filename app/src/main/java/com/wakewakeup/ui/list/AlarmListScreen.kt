@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -26,11 +27,15 @@ import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -62,6 +67,19 @@ fun AlarmListScreen(
 ) {
     val alarms by viewModel.alarms.collectAsStateWithLifecycle()
     val nextTrigger = remember(alarms) { viewModel.nextAlarmMillis(alarms) }
+    val listState = rememberLazyListState()
+
+    // Enabling an alarm moves it up into the enabled group — scroll up to reveal
+    // where it landed. Disabling one must NOT auto-scroll; the list stays put.
+    var justEnabledId by remember { mutableStateOf<Long?>(null) }
+    LaunchedEffect(alarms) {
+        val id = justEnabledId
+        if (id != null) {
+            justEnabledId = null
+            val index = alarms.indexOfFirst { it.id == id }
+            if (index >= 0) listState.animateScrollToItem(index)
+        }
+    }
 
     Box(modifier = Modifier.fillMaxSize().background(BgBase).statusBarsPadding().navigationBarsPadding()) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -76,6 +94,7 @@ fun AlarmListScreen(
                     modifier = Modifier
                         .align(Alignment.CenterEnd)
                         .size(54.dp)
+                        .clip(WwuShape.textField)
                         .border(1.dp, TextPrimary.copy(alpha = 0.14f), WwuShape.textField)
                         .clickable { onStats() },
                     contentAlignment = Alignment.Center,
@@ -89,34 +108,43 @@ fun AlarmListScreen(
                 }
             }
 
-            if (nextTrigger != null) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 22.dp)
-                        .padding(bottom = 16.dp)
-                        .background(accentAlpha(0.08f), WwuShape.banner)
-                        .border(1.dp, accentAlpha(0.18f), WwuShape.banner)
-                        .padding(14.dp, 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Box(modifier = Modifier.size(7.dp).background(AccentPrimary, CircleShape))
-                    Spacer(Modifier.width(10.dp))
-                    Text(
-                        nextAlarmInText(System.currentTimeMillis(), nextTrigger),
-                        style = WwuType.cardLabel,
-                        color = AccentLight,
-                    )
-                }
+            // Always reserved, even with nothing to show, so toggling an alarm on/off
+            // never shifts the list up or down by adding/removing this banner.
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 22.dp)
+                    .padding(bottom = 16.dp)
+                    .background(accentAlpha(0.08f), WwuShape.banner)
+                    .border(1.dp, accentAlpha(0.18f), WwuShape.banner)
+                    .padding(14.dp, 12.dp)
+                    .alpha(if (nextTrigger != null) 1f else 0f),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(modifier = Modifier.size(7.dp).background(AccentPrimary, CircleShape))
+                Spacer(Modifier.width(10.dp))
+                Text(
+                    if (nextTrigger != null) nextAlarmInText(System.currentTimeMillis(), nextTrigger) else "",
+                    style = WwuType.cardLabel,
+                    color = AccentLight,
+                )
             }
 
             LazyColumn(
+                state = listState,
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(start = 22.dp, end = 22.dp, top = 6.dp, bottom = 120.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 items(alarms, key = { it.id }) { alarm ->
-                    AlarmCard(alarm = alarm, onToggle = { viewModel.toggleEnabled(alarm) }, onOpen = { onEditAlarm(alarm.id) })
+                    AlarmCard(
+                        alarm = alarm,
+                        onToggle = {
+                            if (!alarm.enabled) justEnabledId = alarm.id
+                            viewModel.toggleEnabled(alarm)
+                        },
+                        onOpen = { onEditAlarm(alarm.id) },
+                    )
                 }
             }
         }
@@ -126,6 +154,7 @@ fun AlarmListScreen(
                 .align(Alignment.BottomEnd)
                 .padding(end = 36.dp, bottom = 44.dp)
                 .size(62.dp)
+                .clip(WwuShape.fab)
                 .background(AccentPrimary, WwuShape.fab)
                 .clickable { onNewAlarm() },
             contentAlignment = Alignment.Center,
@@ -141,6 +170,7 @@ private fun AlarmCard(alarm: Alarm, onToggle: () -> Unit, onOpen: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .clip(WwuShape.alarmCard)
             .background(BgCard, WwuShape.alarmCard)
             .border(1.dp, TextPrimary.copy(alpha = 0.10f), WwuShape.alarmCard)
             .clickable { onOpen() }

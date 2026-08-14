@@ -7,6 +7,7 @@ import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.LaunchedEffect
@@ -38,6 +39,10 @@ class RingActivity : ComponentActivity() {
                 val session by viewModel.session.collectAsStateWithLifecycle()
                 var wantsStats by remember { mutableStateOf(false) }
 
+                // No dismiss gesture: the ring/mission screens can only be left by actually
+                // completing them (Start Mission -> Confirm, or Hold On), never by back.
+                BackHandler(enabled = true) {}
+
                 LaunchedEffect(session) {
                     if (session == null) {
                         val intent = Intent(this@RingActivity, MainActivity::class.java)
@@ -55,6 +60,7 @@ class RingActivity : ComponentActivity() {
                         mission = current.mission,
                         onGiveUp = viewModel::giveUp,
                         onKey = viewModel::pressKey,
+                        onTypedChange = viewModel::setTypedText,
                         onConfirm = viewModel::confirm,
                     )
                     current.screen == SessionScreen.GOOD_MORNING && current.finished != null -> GoodMorningScreen(

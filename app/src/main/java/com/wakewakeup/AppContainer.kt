@@ -19,5 +19,6 @@ class AppContainer(context: Context) {
 
     init {
         applicationScope.launch { alarmRepository.seedDefaultsIfEmpty() }
+        applicationScope.launch { wakeHistoryRepository.seedDefaultsIfEmpty() }
     }
 }

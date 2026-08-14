@@ -35,7 +35,7 @@ public class AlarmDao_Impl(
   init {
     this.__db = __db
     this.__insertAdapterOfAlarmEntity = object : EntityInsertAdapter<AlarmEntity>() {
-      protected override fun createQuery(): String = "INSERT OR ABORT INTO `alarms` (`id`,`hour`,`minute`,`label`,`days`,`enabled`,`taskType`,`difficulty`,`taskCount`) VALUES (nullif(?, 0),?,?,?,?,?,?,?,?)"
+      protected override fun createQuery(): String = "INSERT OR ABORT INTO `alarms` (`id`,`hour`,`minute`,`label`,`days`,`enabled`,`taskType`,`difficulty`,`taskCount`,`soundUri`,`soundName`) VALUES (nullif(?, 0),?,?,?,?,?,?,?,?,?,?)"
 
       protected override fun bind(statement: SQLiteStatement, entity: AlarmEntity) {
         statement.bindLong(1, entity.id)
@@ -48,6 +48,18 @@ public class AlarmDao_Impl(
         statement.bindText(7, entity.taskType)
         statement.bindText(8, entity.difficulty)
         statement.bindLong(9, entity.taskCount.toLong())
+        val _tmpSoundUri: String? = entity.soundUri
+        if (_tmpSoundUri == null) {
+          statement.bindNull(10)
+        } else {
+          statement.bindText(10, _tmpSoundUri)
+        }
+        val _tmpSoundName: String? = entity.soundName
+        if (_tmpSoundName == null) {
+          statement.bindNull(11)
+        } else {
+          statement.bindText(11, _tmpSoundName)
+        }
       }
     }
     this.__deleteAdapterOfAlarmEntity = object : EntityDeleteOrUpdateAdapter<AlarmEntity>() {
@@ -58,7 +70,7 @@ public class AlarmDao_Impl(
       }
     }
     this.__updateAdapterOfAlarmEntity = object : EntityDeleteOrUpdateAdapter<AlarmEntity>() {
-      protected override fun createQuery(): String = "UPDATE OR ABORT `alarms` SET `id` = ?,`hour` = ?,`minute` = ?,`label` = ?,`days` = ?,`enabled` = ?,`taskType` = ?,`difficulty` = ?,`taskCount` = ? WHERE `id` = ?"
+      protected override fun createQuery(): String = "UPDATE OR ABORT `alarms` SET `id` = ?,`hour` = ?,`minute` = ?,`label` = ?,`days` = ?,`enabled` = ?,`taskType` = ?,`difficulty` = ?,`taskCount` = ?,`soundUri` = ?,`soundName` = ? WHERE `id` = ?"
 
       protected override fun bind(statement: SQLiteStatement, entity: AlarmEntity) {
         statement.bindLong(1, entity.id)
@@ -71,7 +83,19 @@ public class AlarmDao_Impl(
         statement.bindText(7, entity.taskType)
         statement.bindText(8, entity.difficulty)
         statement.bindLong(9, entity.taskCount.toLong())
-        statement.bindLong(10, entity.id)
+        val _tmpSoundUri: String? = entity.soundUri
+        if (_tmpSoundUri == null) {
+          statement.bindNull(10)
+        } else {
+          statement.bindText(10, _tmpSoundUri)
+        }
+        val _tmpSoundName: String? = entity.soundName
+        if (_tmpSoundName == null) {
+          statement.bindNull(11)
+        } else {
+          statement.bindText(11, _tmpSoundName)
+        }
+        statement.bindLong(12, entity.id)
       }
     }
   }
@@ -103,6 +127,8 @@ public class AlarmDao_Impl(
         val _columnIndexOfTaskType: Int = getColumnIndexOrThrow(_stmt, "taskType")
         val _columnIndexOfDifficulty: Int = getColumnIndexOrThrow(_stmt, "difficulty")
         val _columnIndexOfTaskCount: Int = getColumnIndexOrThrow(_stmt, "taskCount")
+        val _columnIndexOfSoundUri: Int = getColumnIndexOrThrow(_stmt, "soundUri")
+        val _columnIndexOfSoundName: Int = getColumnIndexOrThrow(_stmt, "soundName")
         val _result: MutableList<AlarmEntity> = mutableListOf()
         while (_stmt.step()) {
           val _item: AlarmEntity
@@ -126,7 +152,19 @@ public class AlarmDao_Impl(
           _tmpDifficulty = _stmt.getText(_columnIndexOfDifficulty)
           val _tmpTaskCount: Int
           _tmpTaskCount = _stmt.getLong(_columnIndexOfTaskCount).toInt()
-          _item = AlarmEntity(_tmpId,_tmpHour,_tmpMinute,_tmpLabel,_tmpDaysCsv,_tmpEnabled,_tmpTaskType,_tmpDifficulty,_tmpTaskCount)
+          val _tmpSoundUri: String?
+          if (_stmt.isNull(_columnIndexOfSoundUri)) {
+            _tmpSoundUri = null
+          } else {
+            _tmpSoundUri = _stmt.getText(_columnIndexOfSoundUri)
+          }
+          val _tmpSoundName: String?
+          if (_stmt.isNull(_columnIndexOfSoundName)) {
+            _tmpSoundName = null
+          } else {
+            _tmpSoundName = _stmt.getText(_columnIndexOfSoundName)
+          }
+          _item = AlarmEntity(_tmpId,_tmpHour,_tmpMinute,_tmpLabel,_tmpDaysCsv,_tmpEnabled,_tmpTaskType,_tmpDifficulty,_tmpTaskCount,_tmpSoundUri,_tmpSoundName)
           _result.add(_item)
         }
         _result
@@ -150,6 +188,8 @@ public class AlarmDao_Impl(
         val _columnIndexOfTaskType: Int = getColumnIndexOrThrow(_stmt, "taskType")
         val _columnIndexOfDifficulty: Int = getColumnIndexOrThrow(_stmt, "difficulty")
         val _columnIndexOfTaskCount: Int = getColumnIndexOrThrow(_stmt, "taskCount")
+        val _columnIndexOfSoundUri: Int = getColumnIndexOrThrow(_stmt, "soundUri")
+        val _columnIndexOfSoundName: Int = getColumnIndexOrThrow(_stmt, "soundName")
         val _result: MutableList<AlarmEntity> = mutableListOf()
         while (_stmt.step()) {
           val _item: AlarmEntity
@@ -173,7 +213,19 @@ public class AlarmDao_Impl(
           _tmpDifficulty = _stmt.getText(_columnIndexOfDifficulty)
           val _tmpTaskCount: Int
           _tmpTaskCount = _stmt.getLong(_columnIndexOfTaskCount).toInt()
-          _item = AlarmEntity(_tmpId,_tmpHour,_tmpMinute,_tmpLabel,_tmpDaysCsv,_tmpEnabled,_tmpTaskType,_tmpDifficulty,_tmpTaskCount)
+          val _tmpSoundUri: String?
+          if (_stmt.isNull(_columnIndexOfSoundUri)) {
+            _tmpSoundUri = null
+          } else {
+            _tmpSoundUri = _stmt.getText(_columnIndexOfSoundUri)
+          }
+          val _tmpSoundName: String?
+          if (_stmt.isNull(_columnIndexOfSoundName)) {
+            _tmpSoundName = null
+          } else {
+            _tmpSoundName = _stmt.getText(_columnIndexOfSoundName)
+          }
+          _item = AlarmEntity(_tmpId,_tmpHour,_tmpMinute,_tmpLabel,_tmpDaysCsv,_tmpEnabled,_tmpTaskType,_tmpDifficulty,_tmpTaskCount,_tmpSoundUri,_tmpSoundName)
           _result.add(_item)
         }
         _result
@@ -219,6 +271,8 @@ public class AlarmDao_Impl(
         val _columnIndexOfTaskType: Int = getColumnIndexOrThrow(_stmt, "taskType")
         val _columnIndexOfDifficulty: Int = getColumnIndexOrThrow(_stmt, "difficulty")
         val _columnIndexOfTaskCount: Int = getColumnIndexOrThrow(_stmt, "taskCount")
+        val _columnIndexOfSoundUri: Int = getColumnIndexOrThrow(_stmt, "soundUri")
+        val _columnIndexOfSoundName: Int = getColumnIndexOrThrow(_stmt, "soundName")
         val _result: AlarmEntity?
         if (_stmt.step()) {
           val _tmpId: Long
@@ -241,7 +295,19 @@ public class AlarmDao_Impl(
           _tmpDifficulty = _stmt.getText(_columnIndexOfDifficulty)
           val _tmpTaskCount: Int
           _tmpTaskCount = _stmt.getLong(_columnIndexOfTaskCount).toInt()
-          _result = AlarmEntity(_tmpId,_tmpHour,_tmpMinute,_tmpLabel,_tmpDaysCsv,_tmpEnabled,_tmpTaskType,_tmpDifficulty,_tmpTaskCount)
+          val _tmpSoundUri: String?
+          if (_stmt.isNull(_columnIndexOfSoundUri)) {
+            _tmpSoundUri = null
+          } else {
+            _tmpSoundUri = _stmt.getText(_columnIndexOfSoundUri)
+          }
+          val _tmpSoundName: String?
+          if (_stmt.isNull(_columnIndexOfSoundName)) {
+            _tmpSoundName = null
+          } else {
+            _tmpSoundName = _stmt.getText(_columnIndexOfSoundName)
+          }
+          _result = AlarmEntity(_tmpId,_tmpHour,_tmpMinute,_tmpLabel,_tmpDaysCsv,_tmpEnabled,_tmpTaskType,_tmpDifficulty,_tmpTaskCount,_tmpSoundUri,_tmpSoundName)
         } else {
           _result = null
         }

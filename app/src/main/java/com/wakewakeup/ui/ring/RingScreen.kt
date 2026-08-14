@@ -29,9 +29,14 @@ import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
@@ -47,6 +52,7 @@ import com.wakewakeup.ui.theme.WwuShape
 import com.wakewakeup.ui.theme.WwuType
 import com.wakewakeup.ui.theme.onGradientAlpha
 import com.wakewakeup.ui.theme.wwuRingGradient
+import kotlinx.coroutines.delay
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -93,6 +99,7 @@ fun RingScreen(session: RingSession, onStartMission: () -> Unit, onHoldOn: () ->
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .clip(WwuShape.cta)
                     .background(BgDeep, WwuShape.cta)
                     .clickable { onStartMission() }
                     .padding(20.dp),
@@ -100,24 +107,61 @@ fun RingScreen(session: RingSession, onStartMission: () -> Unit, onHoldOn: () ->
             ) {
                 Text(stringResource(R.string.start_mission), style = WwuType.ctaPrimary, color = AccentLight)
             }
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .border(1.dp, onGradientAlpha(0.42f), WwuShape.cta)
-                    .clickable { onHoldOn() }
-                    .padding(18.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(stringResource(R.string.wait_5), style = WwuType.ctaSecondary, color = TextOnGradient)
+
+            val holdUntil = session.holdUntilMillis
+            if (holdUntil != null) {
+                HoldCountdown(holdUntilMillis = holdUntil)
+            } else {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(WwuShape.cta)
+                        .border(1.dp, onGradientAlpha(0.42f), WwuShape.cta)
+                        .clickable { onHoldOn() }
+                        .padding(18.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(stringResource(R.string.wait_5), style = WwuType.ctaSecondary, color = TextOnGradient)
+                }
             }
-            Text(
-                if (session.waits > 0) stringResource(R.string.wait_used, session.waits) else stringResource(R.string.no_snooze),
-                style = WwuType.taskDesc,
-                color = onGradientAlpha(0.6f),
-                modifier = Modifier.fillMaxWidth(),
-                textAlign = TextAlign.Center,
-            )
+
+            if (session.waits > 0) {
+                Text(
+                    stringResource(R.string.wait_used, session.waits),
+                    style = WwuType.taskDesc,
+                    color = onGradientAlpha(0.6f),
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.Center,
+                )
+            }
         }
+    }
+}
+
+@Composable
+private fun HoldCountdown(holdUntilMillis: Long) {
+    var remainingMs by remember(holdUntilMillis) { mutableLongStateOf(holdUntilMillis - System.currentTimeMillis()) }
+    LaunchedEffect(holdUntilMillis) {
+        while (true) {
+            remainingMs = holdUntilMillis - System.currentTimeMillis()
+            if (remainingMs <= 0) break
+            delay(200)
+        }
+    }
+    val totalSec = (remainingMs / 1000).coerceAtLeast(0)
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(WwuShape.cta)
+            .border(1.dp, onGradientAlpha(0.42f), WwuShape.cta)
+            .padding(18.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            "%d:%02d".format(totalSec / 60, totalSec % 60),
+            style = WwuType.ctaSecondary,
+            color = TextOnGradient,
+        )
     }
 }
 

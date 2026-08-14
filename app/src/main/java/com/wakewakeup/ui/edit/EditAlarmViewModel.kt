@@ -13,7 +13,7 @@ import com.wakewakeup.data.TaskType
 import com.wakewakeup.ui.navigation.Destinations
 import kotlinx.coroutines.launch
 
-private fun defaultDraft() = Alarm(hour = 7, minute = 0, label = "", days = setOf(0, 1, 2, 3, 4))
+private fun defaultDraft() = Alarm(hour = 7, minute = 0, label = "", days = emptySet())
 
 /**
  * Activity-scoped so the same instance backs both the Edit-alarm and
@@ -68,6 +68,10 @@ class EditAlarmViewModel(application: Application) : AndroidViewModel(applicatio
         draft = draft.copy(days = days)
     }
 
+    fun setSound(uri: String?, name: String?) {
+        draft = draft.copy(soundUri = uri, soundName = name)
+    }
+
     fun setTaskType(type: TaskType) {
         draft = draft.copy(taskType = type)
     }
@@ -80,9 +84,13 @@ class EditAlarmViewModel(application: Application) : AndroidViewModel(applicatio
         draft = draft.copy(taskCount = (draft.taskCount + delta).coerceIn(1, 5))
     }
 
+    /**
+     * There's no on/off switch inside this screen — only the alarm-list card
+     * has one — so confirming a configuration here always turns the alarm on.
+     */
     fun save(onSaved: () -> Unit) {
         viewModelScope.launch {
-            repository.save(draft)
+            repository.save(draft.copy(enabled = true))
             loadedForId = null
             onSaved()
         }

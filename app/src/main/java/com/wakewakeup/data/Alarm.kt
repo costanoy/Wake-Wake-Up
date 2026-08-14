@@ -1,6 +1,6 @@
 package com.wakewakeup.data
 
-enum class TaskType { MATH, PHRASE, MEMORY, SHAKE }
+enum class TaskType { MATH, PHRASE }
 
 enum class Difficulty { EASY, MEDIUM, HARD }
 
@@ -17,4 +17,7 @@ data class Alarm(
     val taskType: TaskType = TaskType.MATH,
     val difficulty: Difficulty = Difficulty.MEDIUM,
     val taskCount: Int = 3,
+    /** Null means "use the system's default alarm sound". */
+    val soundUri: String? = null,
+    val soundName: String? = null,
 )

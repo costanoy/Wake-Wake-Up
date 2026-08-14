@@ -7,6 +7,7 @@ import android.content.Intent
 import android.media.AudioAttributes
 import android.media.MediaPlayer
 import android.media.RingtoneManager
+import android.net.Uri
 import android.os.Build
 import android.os.PowerManager
 import androidx.core.app.NotificationCompat
@@ -46,6 +47,7 @@ class AlarmRingService : LifecycleService() {
             ACTION_START_MISSION -> onStartMission()
             ACTION_HOLD_ON -> onHoldOn()
             ACTION_MISSION_KEY -> onMissionKey(intent.getStringExtra(EXTRA_KEY).orEmpty())
+            ACTION_MISSION_SET_TYPED -> onMissionSetTyped(intent.getStringExtra(EXTRA_TYPED_VALUE).orEmpty())
             ACTION_MISSION_CONFIRM -> onMissionConfirm()
             ACTION_GIVE_UP -> onGiveUp()
             ACTION_FINISH -> onFinish()
@@ -59,6 +61,12 @@ class AlarmRingService : LifecycleService() {
         lifecycleScope.launch {
             val alarm = container.alarmRepository.getById(alarmId) ?: return@launch
             currentAlarm = alarm
+            // A non-repeating alarm only ever fires once — disable it the moment it rings
+            // (not just when the ritual finishes), so a reboot before the user completes it
+            // can't reschedule and fire it again.
+            if (alarm.days.isEmpty()) {
+                container.alarmRepository.setEnabled(alarm, false)
+            }
             AlarmSessionState.start(alarm)
             acquireWakeLock()
             startForeground(NOTIFICATION_ID, buildNotification(alarm))
@@ -103,20 +111,33 @@ class AlarmRingService : LifecycleService() {
 
     private fun startAudio(level: Int) {
         stopAudio()
-        val uri = RingtoneManager.getActualDefaultRingtoneUri(this, RingtoneManager.TYPE_ALARM)
+        val chosenUri = currentAlarm?.soundUri?.let { runCatching { Uri.parse(it) }.getOrNull() }
+        val defaultUri = RingtoneManager.getActualDefaultRingtoneUri(this, RingtoneManager.TYPE_ALARM)
             ?: RingtoneManager.getValidRingtoneUri(this)
-        mediaPlayer = MediaPlayer().apply {
-            setAudioAttributes(
-                AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_ALARM)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                    .build(),
-            )
-            isLooping = true
-            setVolume(volumeForLevel(level), volumeForLevel(level))
-            setDataSource(this@AlarmRingService, uri)
-            prepare()
-            start()
+        // The saved sound might no longer be accessible (uninstalled app, revoked
+        // permission) — fall back to the system default rather than staying silent.
+        mediaPlayer = chosenUri?.let { buildPlayer(it, level) } ?: buildPlayer(defaultUri, level)
+    }
+
+    private fun buildPlayer(uri: Uri, level: Int): MediaPlayer? {
+        val player = MediaPlayer()
+        return try {
+            player.apply {
+                setAudioAttributes(
+                    AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_ALARM)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                        .build(),
+                )
+                isLooping = true
+                setVolume(volumeForLevel(level), volumeForLevel(level))
+                setDataSource(this@AlarmRingService, uri)
+                prepare()
+                start()
+            }
+        } catch (e: Exception) {
+            player.release()
+            null
         }
     }
 
@@ -155,7 +176,7 @@ class AlarmRingService : LifecycleService() {
             if (now >= holdUntil) {
                 holdUntilMillis = null
                 tickAtMillis = now
-                AlarmSessionState.update { it.copy(level = 1) }
+                AlarmSessionState.update { it.copy(level = 1, holdUntilMillis = null) }
                 startAudio(level = 1)
             }
             return
@@ -208,9 +229,11 @@ class AlarmRingService : LifecycleService() {
     }
 
     private fun onHoldOn() {
-        holdUntilMillis = System.currentTimeMillis() + HOLD_ON_SECONDS * 1000L
+        if (holdUntilMillis != null) return
+        val until = System.currentTimeMillis() + HOLD_ON_SECONDS * 1000L
+        holdUntilMillis = until
         stopAudio()
-        AlarmSessionState.update { it.copy(waits = it.waits + 1) }
+        AlarmSessionState.update { it.copy(waits = it.waits + 1, holdUntilMillis = until) }
     }
 
     private fun onMissionKey(key: String) {
@@ -225,6 +248,14 @@ class AlarmRingService : LifecycleService() {
                 } else mission.typed
             }
             session.copy(mission = mission.copy(typed = typed, wrong = false))
+        }
+    }
+
+    private fun onMissionSetTyped(text: String) {
+        AlarmSessionState.update { session ->
+            val mission = session.mission ?: return@update session
+            val maxLen = if (mission.type == TaskType.PHRASE) 40 else 6
+            session.copy(mission = mission.copy(typed = text.take(maxLen), wrong = false))
         }
     }
 
@@ -260,7 +291,9 @@ class AlarmRingService : LifecycleService() {
 
     private fun finishSession(session: RingSession) {
         val now = System.currentTimeMillis()
-        val elapsedSec = ((now - session.startedAtMillis) / 1000).toInt() + session.waits * HOLD_ON_SECONDS
+        // Real wall-clock time already includes however long any "hold on" pauses lasted —
+        // don't add HOLD_ON_SECONDS per wait on top of that, or it double-counts.
+        val elapsedSec = ((now - session.startedAtMillis) / 1000).toInt()
         val nowTime = LocalTime.now()
         val took = getString(R.string.duration_min_sec, elapsedSec / 60, elapsedSec % 60)
         AlarmSessionState.update {
@@ -319,14 +352,23 @@ class AlarmRingService : LifecycleService() {
         const val ACTION_START_MISSION = "com.wakewakeup.action.START_MISSION"
         const val ACTION_HOLD_ON = "com.wakewakeup.action.HOLD_ON"
         const val ACTION_MISSION_KEY = "com.wakewakeup.action.MISSION_KEY"
+        const val ACTION_MISSION_SET_TYPED = "com.wakewakeup.action.MISSION_SET_TYPED"
         const val ACTION_MISSION_CONFIRM = "com.wakewakeup.action.MISSION_CONFIRM"
         const val ACTION_GIVE_UP = "com.wakewakeup.action.GIVE_UP"
         const val ACTION_FINISH = "com.wakewakeup.action.FINISH"
         const val EXTRA_KEY = "extra_key"
+        const val EXTRA_TYPED_VALUE = "extra_typed_value"
 
         fun sendAction(context: Context, action: String, key: String? = null) {
             val intent = Intent(context, AlarmRingService::class.java).setAction(action)
             if (key != null) intent.putExtra(EXTRA_KEY, key)
+            context.startService(intent)
+        }
+
+        fun sendTypedText(context: Context, text: String) {
+            val intent = Intent(context, AlarmRingService::class.java)
+                .setAction(ACTION_MISSION_SET_TYPED)
+                .putExtra(EXTRA_TYPED_VALUE, text)
             context.startService(intent)
         }
     }

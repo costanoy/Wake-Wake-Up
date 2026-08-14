@@ -13,6 +13,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.unit.dp
@@ -55,6 +56,7 @@ fun DaySelectorRow(activeDays: Set<Int>, onToggle: (Int) -> Unit, modifier: Modi
                 modifier = Modifier
                     .weight(1f)
                     .aspectRatio(1f)
+                    .clip(WwuShape.textField)
                     .background(if (active) accentAlpha(0.16f) else Color.Transparent, WwuShape.textField)
                     .border(1.dp, if (active) accentAlpha(0.45f) else TextPrimary.copy(alpha = 0.10f), WwuShape.textField)
                     .clickable { onToggle(index) },

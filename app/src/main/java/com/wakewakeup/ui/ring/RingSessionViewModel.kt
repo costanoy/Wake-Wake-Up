@@ -14,6 +14,7 @@ class RingSessionViewModel(application: Application) : AndroidViewModel(applicat
     fun startMission() = send(AlarmRingService.ACTION_START_MISSION)
     fun holdOn() = send(AlarmRingService.ACTION_HOLD_ON)
     fun pressKey(key: String) = send(AlarmRingService.ACTION_MISSION_KEY, key)
+    fun setTypedText(text: String) = AlarmRingService.sendTypedText(getApplication(), text)
     fun confirm() = send(AlarmRingService.ACTION_MISSION_CONFIRM)
     fun giveUp() = send(AlarmRingService.ACTION_GIVE_UP)
     fun finishSession() = send(AlarmRingService.ACTION_FINISH)

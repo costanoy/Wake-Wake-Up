@@ -1,26 +1,33 @@
 package com.wakewakeup.ui.mission
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.VolumeOff
-import androidx.compose.material3.Icon
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -28,7 +35,6 @@ import com.wakewakeup.R
 import com.wakewakeup.data.TaskType
 import com.wakewakeup.session.MissionState
 import com.wakewakeup.ui.components.NumericKeypad
-import com.wakewakeup.ui.components.QwertyKeyboard
 import com.wakewakeup.ui.theme.AccentAlert
 import com.wakewakeup.ui.theme.AccentPrimary
 import com.wakewakeup.ui.theme.BgBase
@@ -45,6 +51,7 @@ fun MissionScreen(
     mission: MissionState,
     onGiveUp: () -> Unit,
     onKey: (String) -> Unit,
+    onTypedChange: (String) -> Unit,
     onConfirm: () -> Unit,
 ) {
     val urgent = mission.secondsLeft <= 30
@@ -91,15 +98,11 @@ fun MissionScreen(
                         .background(accentColor, WwuShape.dayChip),
                 )
             }
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                Icon(Icons.AutoMirrored.Filled.VolumeOff, contentDescription = null, tint = TextTertiary, modifier = Modifier.height(12.dp))
-                Text(stringResource(R.string.sound_paused), style = WwuType.taskDesc, color = TextTertiary)
-            }
         }
 
         Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
             when (mission.type) {
-                TaskType.PHRASE -> PhraseBody(mission, onKey)
+                TaskType.PHRASE -> PhraseBody(mission, onTypedChange)
                 else -> MathBody(mission, onKey)
             }
         }
@@ -107,6 +110,7 @@ fun MissionScreen(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
+                .clip(WwuShape.cta)
                 .background(if (hasInput) AccentPrimary else accentAlpha(0.22f), WwuShape.cta)
                 .clickable(enabled = hasInput) { onConfirm() }
                 .padding(19.dp),
@@ -123,6 +127,15 @@ fun MissionScreen(
 
 @Composable
 private fun MathBody(mission: MissionState, onKey: (String) -> Unit) {
+    val shakeX = remember { Animatable(0f) }
+    LaunchedEffect(mission.wrong) {
+        if (mission.wrong) {
+            listOf(-12f, 12f, -8f, 8f, -4f, 0f).forEach {
+                shakeX.animateTo(it, animationSpec = tween(45))
+            }
+        }
+    }
+
     Column(modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier.weight(1f).fillMaxWidth(),
@@ -136,7 +149,9 @@ private fun MathBody(mission: MissionState, onKey: (String) -> Unit) {
                 style = WwuType.mathAnswerField,
                 color = if (mission.wrong) AccentAlert else TextPrimary,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.padding(horizontal = 22.dp, vertical = 14.dp),
+                modifier = Modifier
+                    .graphicsLayer { translationX = shakeX.value }
+                    .padding(horizontal = 22.dp, vertical = 14.dp),
             )
         }
         NumericKeypad(onKey = onKey)
@@ -144,35 +159,32 @@ private fun MathBody(mission: MissionState, onKey: (String) -> Unit) {
 }
 
 @Composable
-private fun PhraseBody(mission: MissionState, onKey: (String) -> Unit) {
-    Column(modifier = Modifier.fillMaxSize()) {
-        Column(
-            modifier = Modifier.weight(1f).fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
+private fun PhraseBody(mission: MissionState, onTypedChange: (String) -> Unit) {
+    val focusRequester = remember { FocusRequester() }
+    LaunchedEffect(Unit) { focusRequester.requestFocus() }
+
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Text(stringResource(R.string.type_phrase), style = WwuType.eyebrow, color = TextTertiary)
+        Spacer(Modifier.height(18.dp))
+        Text(mission.phrase, style = WwuType.phraseTarget, color = TextSecondary, textAlign = TextAlign.Center)
+        Spacer(Modifier.height(18.dp))
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(TextPrimary.copy(alpha = 0.05f), WwuShape.textField)
+                .padding(14.dp),
         ) {
-            Text(stringResource(R.string.type_phrase), style = WwuType.eyebrow, color = TextTertiary)
-            Spacer(Modifier.height(18.dp))
-            Text(mission.phrase, style = WwuType.phraseTarget, color = TextSecondary, textAlign = TextAlign.Center)
-            Spacer(Modifier.height(18.dp))
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(TextPrimary.copy(alpha = 0.05f), WwuShape.textField)
-                    .padding(14.dp),
-            ) {
-                Text(
-                    mission.typed,
-                    style = WwuType.phraseField,
-                    color = if (mission.wrong) AccentAlert else TextPrimary,
-                )
-            }
+            BasicTextField(
+                value = mission.typed,
+                onValueChange = onTypedChange,
+                textStyle = WwuType.phraseField.copy(color = if (mission.wrong) AccentAlert else TextPrimary),
+                cursorBrush = SolidColor(AccentPrimary),
+                modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
+            )
         }
-        QwertyKeyboard(
-            onKey = onKey,
-            onSpace = { onKey(" ") },
-            onBackspace = { onKey("⌫") },
-            spaceLabel = stringResource(R.string.space),
-        )
     }
 }

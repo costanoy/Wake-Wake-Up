@@ -128,7 +128,6 @@
     <string msgid="542007171693138492" name="navigation_menu">"Menu de navegação"</string>
     <string name="new_alarm">Novo alarme</string>
     <string name="next_alarm_in">Próximo alarme em %1$s</string>
-    <string name="no_snooze">Sem snooze — só Espere e a missão</string>
     <string msgid="6610465462668679431" name="not_selected">"Não selecionado"</string>
     <string name="notification_channel_desc">Notificações do alarme tocando e da missão</string>
     <string name="notification_channel_name">Alarmes</string>
@@ -142,15 +141,14 @@
     <string name="simulate_ring">Simular alarme tocando →</string>
     <string msgid="2792228137354697160" name="snackbar_pane_title">"Alerta"</string>
     <string name="sound">Som</string>
-    <string name="sound_name">Amanhecer ↑</string>
-    <string name="sound_paused">Som pausado enquanto você resolve</string>
-    <string name="space">espaço</string>
+    <string name="sound_default">Padrão do sistema</string>
     <string name="start_day">Começar o dia</string>
     <string name="start_mission">Começar missão</string>
     <string msgid="4139871816613051306" name="state_empty">"Vazio"</string>
     <string msgid="5834637030682409883" name="state_off">"Desativado"</string>
     <string msgid="1490883874751719580" name="state_on">"Ativado"</string>
     <string name="stats">Estatísticas</string>
+    <string name="stats_empty">Ainda sem despertares. Assim que um alarme tocar, ele aparece aqui.</string>
     <string msgid="6277540029070332960" name="status_bar_notification_info_overflow">"999+"</string>
     <string name="step_of">%1$d de %2$d</string>
     <string msgid="2561197295334830845" name="switch_role">"Chave"</string>
@@ -176,7 +174,7 @@
     <string name="volume">Volume</string>
     <string name="volume_pct">Volume %1$d%%</string>
     <string name="wait_5">Espere 5 min</string>
-    <string name="wait_used">Espere usado %1$d× nesta manhã</string>
+    <string name="wait_used">Espere usado %1$d×</string>
     <string name="waits_count">Espere</string>
     <string name="waits_today">Espere hoje</string>
     <string name="woke_at">Acordou</string>

@@ -36,12 +36,12 @@ public class AppDatabase_Impl : AppDatabase() {
   }
 
   protected override fun createOpenDelegate(): RoomOpenDelegate {
-    val _openDelegate: RoomOpenDelegate = object : RoomOpenDelegate(1, "74252c4e9a12260e8f5ea4802805c155", "9cf262287fb48a4027db45d028164217") {
+    val _openDelegate: RoomOpenDelegate = object : RoomOpenDelegate(2, "6044a68008c1ce3eadd1486ff56964f4", "cf145a4c87db5a22efd31e274e674b99") {
       public override fun createAllTables(connection: SQLiteConnection) {
-        connection.execSQL("CREATE TABLE IF NOT EXISTS `alarms` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `hour` INTEGER NOT NULL, `minute` INTEGER NOT NULL, `label` TEXT NOT NULL, `days` TEXT NOT NULL, `enabled` INTEGER NOT NULL, `taskType` TEXT NOT NULL, `difficulty` TEXT NOT NULL, `taskCount` INTEGER NOT NULL)")
+        connection.execSQL("CREATE TABLE IF NOT EXISTS `alarms` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `hour` INTEGER NOT NULL, `minute` INTEGER NOT NULL, `label` TEXT NOT NULL, `days` TEXT NOT NULL, `enabled` INTEGER NOT NULL, `taskType` TEXT NOT NULL, `difficulty` TEXT NOT NULL, `taskCount` INTEGER NOT NULL, `soundUri` TEXT, `soundName` TEXT)")
         connection.execSQL("CREATE TABLE IF NOT EXISTS `wake_history` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `epochDay` INTEGER NOT NULL, `alarmHour` INTEGER NOT NULL, `alarmMinute` INTEGER NOT NULL, `wokeHour` INTEGER NOT NULL, `wokeMinute` INTEGER NOT NULL, `waits` INTEGER NOT NULL, `durationSec` INTEGER NOT NULL)")
         connection.execSQL("CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)")
-        connection.execSQL("INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '74252c4e9a12260e8f5ea4802805c155')")
+        connection.execSQL("INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '6044a68008c1ce3eadd1486ff56964f4')")
       }
 
       public override fun dropAllTables(connection: SQLiteConnection) {
@@ -74,6 +74,8 @@ public class AppDatabase_Impl : AppDatabase() {
         _columnsAlarms.put("taskType", TableInfo.Column("taskType", "TEXT", true, 0, null, TableInfo.CREATED_FROM_ENTITY))
         _columnsAlarms.put("difficulty", TableInfo.Column("difficulty", "TEXT", true, 0, null, TableInfo.CREATED_FROM_ENTITY))
         _columnsAlarms.put("taskCount", TableInfo.Column("taskCount", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY))
+        _columnsAlarms.put("soundUri", TableInfo.Column("soundUri", "TEXT", false, 0, null, TableInfo.CREATED_FROM_ENTITY))
+        _columnsAlarms.put("soundName", TableInfo.Column("soundName", "TEXT", false, 0, null, TableInfo.CREATED_FROM_ENTITY))
         val _foreignKeysAlarms: MutableSet<TableInfo.ForeignKey> = mutableSetOf()
         val _indicesAlarms: MutableSet<TableInfo.Index> = mutableSetOf()
         val _infoAlarms: TableInfo = TableInfo("alarms", _columnsAlarms, _foreignKeysAlarms, _indicesAlarms)

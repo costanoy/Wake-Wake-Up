@@ -17,7 +17,7 @@ class AlarmListViewModel(application: Application) : AndroidViewModel(applicatio
     private val repository = (application as WakeWakeUpApplication).container.alarmRepository
 
     val alarms: StateFlow<List<Alarm>> = repository.observeAll()
-        .map { it.sortedBy { a -> a.hour * 60 + a.minute } }
+        .map { list -> list.sortedWith(compareByDescending<Alarm> { it.enabled }.thenBy { it.hour * 60 + it.minute }) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun toggleEnabled(alarm: Alarm) {

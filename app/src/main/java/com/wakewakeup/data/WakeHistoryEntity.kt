@@ -49,4 +49,7 @@ interface WakeHistoryDao {
 
     @Insert
     suspend fun insert(entry: WakeHistoryEntity): Long
+
+    @Query("SELECT COUNT(*) FROM wake_history")
+    suspend fun count(): Int
 }

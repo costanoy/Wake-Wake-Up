@@ -21,6 +21,8 @@ data class AlarmEntity(
     val taskType: String,
     val difficulty: String,
     val taskCount: Int,
+    val soundUri: String? = null,
+    val soundName: String? = null,
 )
 
 fun AlarmEntity.toDomain() = Alarm(
@@ -33,6 +35,8 @@ fun AlarmEntity.toDomain() = Alarm(
     taskType = runCatching { TaskType.valueOf(taskType) }.getOrDefault(TaskType.MATH),
     difficulty = runCatching { Difficulty.valueOf(difficulty) }.getOrDefault(Difficulty.MEDIUM),
     taskCount = taskCount,
+    soundUri = soundUri,
+    soundName = soundName,
 )
 
 fun Alarm.toEntity() = AlarmEntity(
@@ -45,6 +49,8 @@ fun Alarm.toEntity() = AlarmEntity(
     taskType = taskType.name,
     difficulty = difficulty.name,
     taskCount = taskCount,
+    soundUri = soundUri,
+    soundName = soundName,
 )
 
 @Dao

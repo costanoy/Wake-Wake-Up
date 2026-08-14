@@ -99,29 +99,39 @@ private fun ChartCard(bars: List<BarPoint>, dayShort: Array<String>) {
             Text(stringResource(R.string.time_to_wake), style = WwuType.taskName, color = TextPrimary)
             Text(stringResource(R.string.time_to_wake_sub), style = WwuType.timeToWakeSub, color = TextTertiary)
         }
-        val maxValue = (bars.maxOfOrNull { it.minutesValue } ?: 1.0).coerceAtLeast(1.0)
-        Row(
-            modifier = Modifier.fillMaxWidth().height(150.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.Bottom,
-        ) {
-            bars.forEach { bar ->
-                val heightFraction = (bar.minutesValue / maxValue).toFloat().coerceIn(0.08f, 1f)
-                val color = if (bar.isToday) AccentLight else TextPrimary.copy(alpha = 0.13f)
-                val captionColor = if (bar.isToday) AccentLight else TextQuaternary
-                Column(
-                    modifier = Modifier.weight(1f).fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Bottom,
-                ) {
-                    Text(bar.label, style = WwuType.chartCaption, color = captionColor)
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height((150 * heightFraction).dp)
-                            .background(color, WwuShape.dayChip),
-                    )
-                    Text(dayShort.getOrElse(bar.dayIndex) { "" }, style = WwuType.chartCaption, color = captionColor)
+        if (bars.isEmpty()) {
+            Box(modifier = Modifier.fillMaxWidth().height(150.dp), contentAlignment = Alignment.Center) {
+                Text(
+                    stringResource(R.string.stats_empty),
+                    style = WwuType.timeToWakeSub,
+                    color = TextTertiary,
+                )
+            }
+        } else {
+            val maxValue = (bars.maxOfOrNull { it.minutesValue } ?: 1.0).coerceAtLeast(1.0)
+            Row(
+                modifier = Modifier.fillMaxWidth().height(150.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.Bottom,
+            ) {
+                bars.forEach { bar ->
+                    val heightFraction = (bar.minutesValue / maxValue).toFloat().coerceIn(0.08f, 1f)
+                    val color = if (bar.isToday) AccentLight else TextPrimary.copy(alpha = 0.13f)
+                    val captionColor = if (bar.isToday) AccentLight else TextQuaternary
+                    Column(
+                        modifier = Modifier.weight(1f).fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Bottom,
+                    ) {
+                        Text(bar.label, style = WwuType.chartCaption, color = captionColor)
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height((150 * heightFraction).dp)
+                                .background(color, WwuShape.dayChip),
+                        )
+                        Text(dayShort.getOrElse(bar.dayIndex) { "" }, style = WwuType.chartCaption, color = captionColor)
+                    }
                 }
             }
         }

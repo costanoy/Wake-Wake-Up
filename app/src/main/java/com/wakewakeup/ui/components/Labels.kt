@@ -11,8 +11,6 @@ fun taskTypeName(type: TaskType): String = stringResource(
     when (type) {
         TaskType.MATH -> R.string.task_math_name
         TaskType.PHRASE -> R.string.task_phrase_name
-        TaskType.MEMORY -> R.string.task_memory_name
-        TaskType.SHAKE -> R.string.task_shake_name
     },
 )
 
@@ -21,8 +19,6 @@ fun taskTypeDesc(type: TaskType): String = stringResource(
     when (type) {
         TaskType.MATH -> R.string.task_math_desc
         TaskType.PHRASE -> R.string.task_phrase_desc
-        TaskType.MEMORY -> R.string.task_memory_desc
-        TaskType.SHAKE -> R.string.task_shake_desc
     },
 )
 

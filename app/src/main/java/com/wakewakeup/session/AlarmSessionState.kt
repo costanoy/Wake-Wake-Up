@@ -43,6 +43,7 @@ data class RingSession(
     val screen: SessionScreen = SessionScreen.RINGING,
     val level: Int = 1,
     val waits: Int = 0,
+    val holdUntilMillis: Long? = null,
     val startedAtMillis: Long = System.currentTimeMillis(),
     val mission: MissionState? = null,
     val finished: FinishedInfo? = null,

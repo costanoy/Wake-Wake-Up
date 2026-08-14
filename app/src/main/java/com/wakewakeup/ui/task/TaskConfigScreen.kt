@@ -75,7 +75,7 @@ fun TaskConfigScreen(onBack: () -> Unit, viewModel: EditAlarmViewModel) {
             Spacer(Modifier.height(20.dp))
 
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                listOf(TaskType.MATH, TaskType.PHRASE, TaskType.MEMORY, TaskType.SHAKE).forEach { type ->
+                listOf(TaskType.MATH, TaskType.PHRASE).forEach { type ->
                     TaskOptionCard(
                         selected = draft.taskType == type,
                         name = taskTypeName(type),
@@ -104,6 +104,7 @@ private fun TaskOptionCard(selected: Boolean, name: String, desc: String, onClic
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .clip(WwuShape.taskCard)
             .background(bg, WwuShape.taskCard)
             .border(1.dp, borderColor, WwuShape.taskCard)
             .clickable { onClick() }
@@ -146,6 +147,7 @@ private fun DifficultyBlock(difficulty: Difficulty, count: Int, onDifficulty: (D
                 Box(
                     modifier = Modifier
                         .weight(1f)
+                        .clip(WwuShape.chip)
                         .background(if (active) AccentPrimary else TextPrimary.copy(alpha = 0.06f), WwuShape.chip)
                         .clickable { onDifficulty(diff) }
                         .padding(vertical = 11.dp),
@@ -193,6 +195,7 @@ private fun StepperButton(symbol: String, onClick: () -> Unit) {
     Box(
         modifier = Modifier
             .size(30.dp)
+            .clip(WwuShape.smallButton)
             .background(TextPrimary.copy(alpha = 0.08f), WwuShape.smallButton)
             .clickable { onClick() },
         contentAlignment = Alignment.Center,
