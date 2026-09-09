@@ -26,6 +26,12 @@ class AlarmListViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
+    fun toggleSkipNext(alarm: Alarm) {
+        viewModelScope.launch {
+            repository.setSkipNext(alarm, alarm.skipDate == null)
+        }
+    }
+
     fun nextAlarmMillis(alarms: List<Alarm>): Long? =
         alarms.filter { it.enabled }.minOfOrNull { nextTriggerMillis(it) }
 }

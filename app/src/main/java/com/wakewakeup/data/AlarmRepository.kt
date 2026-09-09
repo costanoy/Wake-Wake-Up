@@ -1,6 +1,7 @@
 package com.wakewakeup.data
 
 import com.wakewakeup.session.AlarmScheduler
+import com.wakewakeup.session.nextTriggerEpochDay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -32,6 +33,12 @@ class AlarmRepository(
         dao.setEnabled(alarm.id, enabled)
         val updated = alarm.copy(enabled = enabled)
         if (enabled) scheduler.schedule(updated) else scheduler.cancel(updated)
+    }
+
+    /** Marks (or clears) the alarm's very next occurrence to ring skipped, without touching its recurring schedule. */
+    suspend fun setSkipNext(alarm: Alarm, skip: Boolean) {
+        val date = if (skip) nextTriggerEpochDay(alarm) else null
+        dao.setSkipDate(alarm.id, date)
     }
 
     suspend fun rescheduleAll() {

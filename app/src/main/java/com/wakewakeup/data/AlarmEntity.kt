@@ -23,6 +23,7 @@ data class AlarmEntity(
     val taskCount: Int,
     val soundUri: String? = null,
     val soundName: String? = null,
+    val skipDate: Long? = null,
 )
 
 fun AlarmEntity.toDomain() = Alarm(
@@ -37,6 +38,7 @@ fun AlarmEntity.toDomain() = Alarm(
     taskCount = taskCount,
     soundUri = soundUri,
     soundName = soundName,
+    skipDate = skipDate,
 )
 
 fun Alarm.toEntity() = AlarmEntity(
@@ -51,6 +53,7 @@ fun Alarm.toEntity() = AlarmEntity(
     taskCount = taskCount,
     soundUri = soundUri,
     soundName = soundName,
+    skipDate = skipDate,
 )
 
 @Dao
@@ -78,4 +81,7 @@ interface AlarmDao {
 
     @Query("UPDATE alarms SET enabled = :enabled WHERE id = :id")
     suspend fun setEnabled(id: Long, enabled: Boolean)
+
+    @Query("UPDATE alarms SET skipDate = :skipDate WHERE id = :id")
+    suspend fun setSkipDate(id: Long, skipDate: Long?)
 }

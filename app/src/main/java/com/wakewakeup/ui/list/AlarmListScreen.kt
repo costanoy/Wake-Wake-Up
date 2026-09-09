@@ -36,6 +36,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -43,6 +44,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.wakewakeup.R
 import com.wakewakeup.data.Alarm
+import com.wakewakeup.session.isoDayIndexOf
+import com.wakewakeup.session.nextTriggerEpochDay
 import com.wakewakeup.ui.components.DayChipRow
 import com.wakewakeup.ui.components.WwuToggle
 import com.wakewakeup.ui.components.formatClock
@@ -57,6 +60,7 @@ import com.wakewakeup.ui.theme.TextSecondary
 import com.wakewakeup.ui.theme.WwuShape
 import com.wakewakeup.ui.theme.WwuType
 import com.wakewakeup.ui.theme.accentAlpha
+import java.time.LocalDate
 
 @Composable
 fun AlarmListScreen(
@@ -143,6 +147,7 @@ fun AlarmListScreen(
                             if (!alarm.enabled) justEnabledId = alarm.id
                             viewModel.toggleEnabled(alarm)
                         },
+                        onToggleSkip = { viewModel.toggleSkipNext(alarm) },
                         onOpen = { onEditAlarm(alarm.id) },
                     )
                 }
@@ -165,7 +170,7 @@ fun AlarmListScreen(
 }
 
 @Composable
-private fun AlarmCard(alarm: Alarm, onToggle: () -> Unit, onOpen: () -> Unit) {
+private fun AlarmCard(alarm: Alarm, onToggle: () -> Unit, onToggleSkip: () -> Unit, onOpen: () -> Unit) {
     val dim = if (alarm.enabled) 1f else 0.42f
     Column(
         modifier = Modifier
@@ -197,6 +202,26 @@ private fun AlarmCard(alarm: Alarm, onToggle: () -> Unit, onOpen: () -> Unit) {
                     .padding(9.dp, 5.dp),
             ) {
                 Text(taskCardLabel(alarm.taskType, alarm.difficulty), style = WwuType.dayChipCard, color = TextSecondary)
+            }
+        }
+        if (alarm.enabled && alarm.days.isNotEmpty()) {
+            val skipped = alarm.skipDate != null
+            val dayShort = stringArrayResource(R.array.day_short)
+            val dayIndex = remember(alarm.skipDate, alarm.hour, alarm.minute, alarm.days) {
+                isoDayIndexOf(LocalDate.ofEpochDay(alarm.skipDate ?: nextTriggerEpochDay(alarm)))
+            }
+            Box(
+                modifier = Modifier
+                    .clip(WwuShape.chip)
+                    .background(if (skipped) accentAlpha(0.16f) else TextPrimary.copy(alpha = 0.06f), WwuShape.chip)
+                    .clickable { onToggleSkip() }
+                    .padding(9.dp, 5.dp),
+            ) {
+                Text(
+                    stringResource(if (skipped) R.string.skip_next_on else R.string.skip_next_off, dayShort.getOrElse(dayIndex) { "" }),
+                    style = WwuType.dayChipCard,
+                    color = if (skipped) AccentPrimary else TextSecondary,
+                )
             }
         }
     }

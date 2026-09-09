@@ -10,6 +10,8 @@
     <string name="simulate_ring">Simular alarme tocando →</string>
     <string name="cd_stats_icon">Estatísticas</string>
     <string name="cd_add_alarm">Novo alarme</string>
+    <string name="skip_next_off">Pular %1$s</string>
+    <string name="skip_next_on">Pulando %1$s</string>
 
     <string name="new_alarm">Novo alarme</string>
     <string name="edit_alarm">Editar alarme</string>

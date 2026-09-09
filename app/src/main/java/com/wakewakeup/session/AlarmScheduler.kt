@@ -6,6 +6,8 @@ import android.content.Context
 import android.content.Intent
 import com.wakewakeup.data.Alarm
 import java.time.DayOfWeek
+import java.time.Instant
+import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneId
 
@@ -62,10 +64,18 @@ fun nextTriggerMillis(alarm: Alarm, from: LocalDateTime = LocalDateTime.now()): 
         val candidateDate = from.toLocalDate().plusDays(offset.toLong())
         val candidate = candidateDate.atTime(alarm.hour, alarm.minute)
         if (candidate.isBefore(from) || candidate.isEqual(from)) continue
-        val isoDayIndex = candidateDate.dayOfWeek.let { if (it == DayOfWeek.SUNDAY) 6 else it.value - 1 }
+        val isoDayIndex = isoDayIndexOf(candidateDate)
         if (alarm.days.isEmpty() || alarm.days.contains(isoDayIndex)) {
             return candidate.atZone(zone).toInstant().toEpochMilli()
         }
     }
     return from.plusDays(1).atZone(zone).toInstant().toEpochMilli()
 }
+
+/** 0 = Monday .. 6 = Sunday, matching [Alarm.days]. */
+fun isoDayIndexOf(date: LocalDate): Int =
+    date.dayOfWeek.let { if (it == DayOfWeek.SUNDAY) 6 else it.value - 1 }
+
+/** Calendar date (epoch day) of the alarm's next occurrence. */
+fun nextTriggerEpochDay(alarm: Alarm, from: LocalDateTime = LocalDateTime.now()): Long =
+    Instant.ofEpochMilli(nextTriggerMillis(alarm, from)).atZone(ZoneId.systemDefault()).toLocalDate().toEpochDay()

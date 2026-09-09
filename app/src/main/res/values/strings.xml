@@ -11,6 +11,8 @@
     <string name="simulate_ring">Simulate the alarm ringing →</string>
     <string name="cd_stats_icon">Stats</string>
     <string name="cd_add_alarm">New alarm</string>
+    <string name="skip_next_off">Skip %1$s</string>
+    <string name="skip_next_on">Skipping %1$s</string>
 
     <!-- Edit alarm -->
     <string name="new_alarm">New alarm</string>
