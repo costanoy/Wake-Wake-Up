@@ -24,10 +24,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.BarChart
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -86,9 +84,6 @@ fun AlarmListScreen(
             if (index >= 0) listState.animateScrollToItem(index)
         }
     }
-
-    // Turning off a recurring alarm asks whether to skip just the next ring or disable it outright.
-    var confirmDisable by remember { mutableStateOf<Alarm?>(null) }
 
     Box(modifier = Modifier.fillMaxSize().background(BgBase).statusBarsPadding().navigationBarsPadding()) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -149,16 +144,11 @@ fun AlarmListScreen(
                     AlarmCard(
                         alarm = alarm,
                         onToggle = {
-                            if (!alarm.enabled) {
-                                justEnabledId = alarm.id
-                                viewModel.toggleEnabled(alarm)
-                            } else if (alarm.days.isNotEmpty()) {
-                                confirmDisable = alarm
-                            } else {
-                                viewModel.toggleEnabled(alarm)
-                            }
+                            if (!alarm.enabled) justEnabledId = alarm.id
+                            viewModel.toggleEnabled(alarm)
                         },
-                        onCancelSkip = { viewModel.toggleSkipNext(alarm) },
+                        onScheduleResume = { viewModel.scheduleResume(alarm) },
+                        onCancelResume = { viewModel.cancelResume(alarm) },
                         onOpen = { onEditAlarm(alarm.id) },
                     )
                 }
@@ -177,33 +167,11 @@ fun AlarmListScreen(
         ) {
             Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.cd_add_alarm), tint = BgBase)
         }
-
-        confirmDisable?.let { alarm ->
-            val dayShort = stringArrayResource(R.array.day_short)
-            val dayIndex = remember(alarm) { isoDayIndexOf(LocalDate.ofEpochDay(nextTriggerEpochDay(alarm))) }
-            AlertDialog(
-                onDismissRequest = { confirmDisable = null },
-                title = { Text(stringResource(R.string.disable_alarm_title)) },
-                text = { Text(stringResource(R.string.disable_alarm_body, dayShort.getOrElse(dayIndex) { "" })) },
-                confirmButton = {
-                    TextButton(onClick = {
-                        viewModel.toggleSkipNext(alarm)
-                        confirmDisable = null
-                    }) { Text(stringResource(R.string.disable_skip_once)) }
-                },
-                dismissButton = {
-                    TextButton(onClick = {
-                        viewModel.toggleEnabled(alarm)
-                        confirmDisable = null
-                    }) { Text(stringResource(R.string.disable_completely)) }
-                },
-            )
-        }
     }
 }
 
 @Composable
-private fun AlarmCard(alarm: Alarm, onToggle: () -> Unit, onCancelSkip: () -> Unit, onOpen: () -> Unit) {
+private fun AlarmCard(alarm: Alarm, onToggle: () -> Unit, onScheduleResume: () -> Unit, onCancelResume: () -> Unit, onOpen: () -> Unit) {
     val dim = if (alarm.enabled) 1f else 0.42f
     Column(
         modifier = Modifier
@@ -237,22 +205,48 @@ private fun AlarmCard(alarm: Alarm, onToggle: () -> Unit, onCancelSkip: () -> Un
                 Text(taskCardLabel(alarm.taskType, alarm.difficulty), style = WwuType.dayChipCard, color = TextSecondary)
             }
         }
-        val skipDate = alarm.skipDate
-        if (skipDate != null) {
+        // Expands only for a disabled, recurring alarm: offers to silently turn itself back
+        // on at its next would-be occurrence, or shows that it's already armed to do so.
+        if (!alarm.enabled && alarm.days.isNotEmpty()) {
             val dayShort = stringArrayResource(R.array.day_short)
-            val dayIndex = remember(skipDate) { isoDayIndexOf(LocalDate.ofEpochDay(skipDate)) }
-            Box(
-                modifier = Modifier
-                    .clip(WwuShape.chip)
-                    .background(accentAlpha(0.16f), WwuShape.chip)
-                    .clickable { onCancelSkip() }
-                    .padding(9.dp, 5.dp),
-            ) {
-                Text(
-                    stringResource(R.string.skip_next_on, dayShort.getOrElse(dayIndex) { "" }),
-                    style = WwuType.dayChipCard,
-                    color = AccentPrimary,
-                )
+            val resumeDate = alarm.resumeDate
+            if (resumeDate == null) {
+                val dayIndex = remember(alarm.hour, alarm.minute, alarm.days) {
+                    isoDayIndexOf(LocalDate.ofEpochDay(nextTriggerEpochDay(alarm)))
+                }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(WwuShape.chip)
+                        .background(TextPrimary.copy(alpha = 0.06f), WwuShape.chip)
+                        .border(1.dp, TextPrimary.copy(alpha = 0.14f), WwuShape.chip)
+                        .clickable { onScheduleResume() }
+                        .padding(12.dp, 10.dp),
+                    horizontalArrangement = Arrangement.Center,
+                ) {
+                    Text(
+                        stringResource(R.string.resume_prompt, dayShort.getOrElse(dayIndex) { "" }),
+                        style = WwuType.dayChipCard,
+                        color = TextSecondary,
+                    )
+                }
+            } else {
+                val dayIndex = remember(resumeDate) { isoDayIndexOf(LocalDate.ofEpochDay(resumeDate)) }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(WwuShape.chip)
+                        .background(accentAlpha(0.14f), WwuShape.chip)
+                        .clickable { onCancelResume() }
+                        .padding(12.dp, 10.dp),
+                    horizontalArrangement = Arrangement.Center,
+                ) {
+                    Text(
+                        stringResource(R.string.resume_scheduled, dayShort.getOrElse(dayIndex) { "" }),
+                        style = WwuType.dayChipCard,
+                        color = AccentPrimary,
+                    )
+                }
             }
         }
     }

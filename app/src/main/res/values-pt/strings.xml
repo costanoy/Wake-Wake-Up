@@ -10,11 +10,8 @@
     <string name="simulate_ring">Simular alarme tocando →</string>
     <string name="cd_stats_icon">Estatísticas</string>
     <string name="cd_add_alarm">Novo alarme</string>
-    <string name="skip_next_on">Pulando %1$s</string>
-    <string name="disable_alarm_title">Desativar alarme recorrente</string>
-    <string name="disable_alarm_body">Esse alarme se repete. Quer pular só a próxima vez (%1$s), ou desativar ele por completo?</string>
-    <string name="disable_skip_once">Só dessa vez</string>
-    <string name="disable_completely">Desativar tudo</string>
+    <string name="resume_prompt">Ativar novamente para %1$s</string>
+    <string name="resume_scheduled">O alarme tocará %1$s</string>
 
     <string name="new_alarm">Novo alarme</string>
     <string name="edit_alarm">Editar alarme</string>

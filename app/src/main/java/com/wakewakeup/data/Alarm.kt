@@ -20,6 +20,9 @@ data class Alarm(
     /** Null means "use the system's default alarm sound". */
     val soundUri: String? = null,
     val soundName: String? = null,
-    /** Epoch day of a single date this recurring alarm should not ring on. Consumed (cleared) once that date passes. */
-    val skipDate: Long? = null,
+    /**
+     * Epoch day this disabled alarm should silently turn itself back on at (at [hour]:[minute]).
+     * Only meaningful while [enabled] is false; cleared once resumed or manually re-enabled.
+     */
+    val resumeDate: Long? = null,
 )

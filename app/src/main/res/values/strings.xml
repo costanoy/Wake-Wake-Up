@@ -11,11 +11,8 @@
     <string name="simulate_ring">Simulate the alarm ringing →</string>
     <string name="cd_stats_icon">Stats</string>
     <string name="cd_add_alarm">New alarm</string>
-    <string name="skip_next_on">Skipping %1$s</string>
-    <string name="disable_alarm_title">Turn off recurring alarm</string>
-    <string name="disable_alarm_body">This alarm repeats. Skip just the next time (%1$s), or turn it off completely?</string>
-    <string name="disable_skip_once">Just this once</string>
-    <string name="disable_completely">Turn off completely</string>
+    <string name="resume_prompt">Turn on again for %1$s</string>
+    <string name="resume_scheduled">The alarm will ring %1$s</string>
 
     <!-- Edit alarm -->
     <string name="new_alarm">New alarm</string>

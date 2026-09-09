@@ -25,10 +25,23 @@ class AlarmScheduler(private val context: Context) {
 
     fun schedule(alarm: Alarm) {
         if (!alarm.enabled) {
-            cancel(alarm)
+            // A disabled alarm normally has nothing scheduled — unless it's paused with a
+            // pending auto-resume, in which case we still need a wake at that exact moment
+            // (AlarmReceiver recognizes this case and turns it back on without ringing).
+            val resumeDate = alarm.resumeDate
+            if (resumeDate == null) {
+                cancel(alarm)
+            } else {
+                val resumeAt = LocalDate.ofEpochDay(resumeDate).atTime(alarm.hour, alarm.minute)
+                    .atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                scheduleExact(alarm, resumeAt)
+            }
             return
         }
-        val triggerAt = nextTriggerMillis(alarm)
+        scheduleExact(alarm, nextTriggerMillis(alarm))
+    }
+
+    private fun scheduleExact(alarm: Alarm, triggerAt: Long) {
         val showIntent = PendingIntent.getActivity(
             context, alarm.id.toInt(),
             Intent(context, com.wakewakeup.MainActivity::class.java),

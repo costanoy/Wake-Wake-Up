@@ -20,7 +20,7 @@ class AlarmRepository(
             alarm.id
         }
         val saved = alarm.copy(id = id)
-        if (saved.enabled) scheduler.schedule(saved) else scheduler.cancel(saved)
+        scheduler.schedule(saved)
         return id
     }
 
@@ -31,18 +31,33 @@ class AlarmRepository(
 
     suspend fun setEnabled(alarm: Alarm, enabled: Boolean) {
         dao.setEnabled(alarm.id, enabled)
-        val updated = alarm.copy(enabled = enabled)
-        if (enabled) scheduler.schedule(updated) else scheduler.cancel(updated)
+        if (enabled) dao.setResumeDate(alarm.id, null)
+        val updated = alarm.copy(enabled = enabled, resumeDate = if (enabled) null else alarm.resumeDate)
+        scheduler.schedule(updated)
     }
 
-    /** Marks (or clears) the alarm's very next occurrence to ring skipped, without touching its recurring schedule. */
-    suspend fun setSkipNext(alarm: Alarm, skip: Boolean) {
-        val date = if (skip) nextTriggerEpochDay(alarm) else null
-        dao.setSkipDate(alarm.id, date)
+    /** Turns the alarm off now but arms it to silently turn itself back on at its next would-be occurrence. */
+    suspend fun scheduleResume(alarm: Alarm) {
+        val date = nextTriggerEpochDay(alarm)
+        dao.setResumeDate(alarm.id, date)
+        scheduler.schedule(alarm.copy(resumeDate = date))
+    }
+
+    /** Cancels a pending auto-resume, leaving the alarm off indefinitely. */
+    suspend fun cancelResume(alarm: Alarm) {
+        dao.setResumeDate(alarm.id, null)
+        scheduler.schedule(alarm.copy(resumeDate = null))
+    }
+
+    /** The paused alarm's scheduled resume wake fired: turn it back on and resume normal recurrence. */
+    suspend fun resumeFromPause(alarm: Alarm) {
+        dao.setEnabled(alarm.id, true)
+        dao.setResumeDate(alarm.id, null)
+        scheduler.schedule(alarm.copy(enabled = true, resumeDate = null))
     }
 
     suspend fun rescheduleAll() {
-        dao.getAllEnabled().forEach { scheduler.schedule(it.toDomain()) }
+        dao.getAllSchedulable().forEach { scheduler.schedule(it.toDomain()) }
     }
 
     /** First-run sample content: a few disabled alarms so the list isn't empty on first open. */

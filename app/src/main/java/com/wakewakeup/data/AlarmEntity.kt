@@ -23,7 +23,7 @@ data class AlarmEntity(
     val taskCount: Int,
     val soundUri: String? = null,
     val soundName: String? = null,
-    val skipDate: Long? = null,
+    val resumeDate: Long? = null,
 )
 
 fun AlarmEntity.toDomain() = Alarm(
@@ -38,7 +38,7 @@ fun AlarmEntity.toDomain() = Alarm(
     taskCount = taskCount,
     soundUri = soundUri,
     soundName = soundName,
-    skipDate = skipDate,
+    resumeDate = resumeDate,
 )
 
 fun Alarm.toEntity() = AlarmEntity(
@@ -53,7 +53,7 @@ fun Alarm.toEntity() = AlarmEntity(
     taskCount = taskCount,
     soundUri = soundUri,
     soundName = soundName,
-    skipDate = skipDate,
+    resumeDate = resumeDate,
 )
 
 @Dao
@@ -61,8 +61,8 @@ interface AlarmDao {
     @Query("SELECT * FROM alarms ORDER BY hour, minute")
     fun observeAll(): Flow<List<AlarmEntity>>
 
-    @Query("SELECT * FROM alarms WHERE enabled = 1")
-    suspend fun getAllEnabled(): List<AlarmEntity>
+    @Query("SELECT * FROM alarms WHERE enabled = 1 OR resumeDate IS NOT NULL")
+    suspend fun getAllSchedulable(): List<AlarmEntity>
 
     @Query("SELECT COUNT(*) FROM alarms")
     suspend fun count(): Int
@@ -82,6 +82,6 @@ interface AlarmDao {
     @Query("UPDATE alarms SET enabled = :enabled WHERE id = :id")
     suspend fun setEnabled(id: Long, enabled: Boolean)
 
-    @Query("UPDATE alarms SET skipDate = :skipDate WHERE id = :id")
-    suspend fun setSkipDate(id: Long, skipDate: Long?)
+    @Query("UPDATE alarms SET resumeDate = :resumeDate WHERE id = :id")
+    suspend fun setResumeDate(id: Long, resumeDate: Long?)
 }

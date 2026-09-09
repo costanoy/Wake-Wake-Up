@@ -26,9 +26,15 @@ class AlarmListViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
-    fun toggleSkipNext(alarm: Alarm) {
+    fun scheduleResume(alarm: Alarm) {
         viewModelScope.launch {
-            repository.setSkipNext(alarm, alarm.skipDate == null)
+            repository.scheduleResume(alarm)
+        }
+    }
+
+    fun cancelResume(alarm: Alarm) {
+        viewModelScope.launch {
+            repository.cancelResume(alarm)
         }
     }
 
