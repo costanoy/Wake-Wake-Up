@@ -85,6 +85,11 @@ fun AlarmListScreen(
         }
     }
 
+    // The "turn on again for <day>" prompt only makes sense right after disabling a
+    // recurring alarm — not for every recurring alarm that already happens to be off
+    // (e.g. the sample alarms, which start disabled). Track just the most recent one.
+    var justDisabledId by remember { mutableStateOf<Long?>(null) }
+
     Box(modifier = Modifier.fillMaxSize().background(BgBase).statusBarsPadding().navigationBarsPadding()) {
         Column(modifier = Modifier.fillMaxSize()) {
             Box(modifier = Modifier.fillMaxWidth().padding(22.dp, 24.dp, 22.dp, 30.dp)) {
@@ -143,11 +148,20 @@ fun AlarmListScreen(
                 items(alarms, key = { it.id }) { alarm ->
                     AlarmCard(
                         alarm = alarm,
+                        showResumePrompt = alarm.id == justDisabledId,
                         onToggle = {
-                            if (!alarm.enabled) justEnabledId = alarm.id
+                            if (!alarm.enabled) {
+                                justEnabledId = alarm.id
+                                if (justDisabledId == alarm.id) justDisabledId = null
+                            } else if (alarm.days.isNotEmpty()) {
+                                justDisabledId = alarm.id
+                            }
                             viewModel.toggleEnabled(alarm)
                         },
-                        onScheduleResume = { viewModel.scheduleResume(alarm) },
+                        onScheduleResume = {
+                            justDisabledId = null
+                            viewModel.scheduleResume(alarm)
+                        },
                         onCancelResume = { viewModel.cancelResume(alarm) },
                         onOpen = { onEditAlarm(alarm.id) },
                     )
@@ -171,7 +185,14 @@ fun AlarmListScreen(
 }
 
 @Composable
-private fun AlarmCard(alarm: Alarm, onToggle: () -> Unit, onScheduleResume: () -> Unit, onCancelResume: () -> Unit, onOpen: () -> Unit) {
+private fun AlarmCard(
+    alarm: Alarm,
+    showResumePrompt: Boolean,
+    onToggle: () -> Unit,
+    onScheduleResume: () -> Unit,
+    onCancelResume: () -> Unit,
+    onOpen: () -> Unit,
+) {
     val dim = if (alarm.enabled) 1f else 0.42f
     Column(
         modifier = Modifier
@@ -205,11 +226,12 @@ private fun AlarmCard(alarm: Alarm, onToggle: () -> Unit, onScheduleResume: () -
                 Text(taskCardLabel(alarm.taskType, alarm.difficulty), style = WwuType.dayChipCard, color = TextSecondary)
             }
         }
-        // Expands only for a disabled, recurring alarm: offers to silently turn itself back
-        // on at its next would-be occurrence, or shows that it's already armed to do so.
-        if (!alarm.enabled && alarm.days.isNotEmpty()) {
+        // Expands for a disabled, recurring alarm that already has an auto-resume armed, or
+        // (transiently) right after the alarm you just disabled — not for every recurring
+        // alarm that merely happens to be off, like the sample alarms.
+        val resumeDate = alarm.resumeDate
+        if (!alarm.enabled && alarm.days.isNotEmpty() && (resumeDate != null || showResumePrompt)) {
             val dayShort = stringArrayResource(R.array.day_short)
-            val resumeDate = alarm.resumeDate
             if (resumeDate == null) {
                 val dayIndex = remember(alarm.hour, alarm.minute, alarm.days) {
                     isoDayIndexOf(LocalDate.ofEpochDay(nextTriggerEpochDay(alarm)))
