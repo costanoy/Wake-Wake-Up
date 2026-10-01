@@ -24,6 +24,7 @@ data class AlarmEntity(
     val soundUri: String? = null,
     val soundName: String? = null,
     val resumeDate: Long? = null,
+    @ColumnInfo(defaultValue = "1") val rampUp: Boolean = true,
 )
 
 fun AlarmEntity.toDomain() = Alarm(
@@ -39,6 +40,7 @@ fun AlarmEntity.toDomain() = Alarm(
     soundUri = soundUri,
     soundName = soundName,
     resumeDate = resumeDate,
+    rampUp = rampUp,
 )
 
 fun Alarm.toEntity() = AlarmEntity(
@@ -54,6 +56,7 @@ fun Alarm.toEntity() = AlarmEntity(
     soundUri = soundUri,
     soundName = soundName,
     resumeDate = resumeDate,
+    rampUp = rampUp,
 )
 
 @Dao
@@ -63,9 +66,6 @@ interface AlarmDao {
 
     @Query("SELECT * FROM alarms WHERE enabled = 1 OR resumeDate IS NOT NULL")
     suspend fun getAllSchedulable(): List<AlarmEntity>
-
-    @Query("SELECT COUNT(*) FROM alarms")
-    suspend fun count(): Int
 
     @Query("SELECT * FROM alarms WHERE id = :id")
     suspend fun getById(id: Long): AlarmEntity?

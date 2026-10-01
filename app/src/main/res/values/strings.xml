@@ -1,81 +1,185 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Wake Wake Up</string>
-    <string name="tagline">really wake up</string>
 
     <!-- Alarm list -->
     <string name="alarms">Alarms</string>
-    <string name="next_alarm_in">Next alarm in %1$s</string>
+    <string name="next_label">Next</string>
+    <string name="next_in">In %1$s</string>
+    <string name="next_none">None</string>
     <string name="duration_h_min">%1$d h %2$d min</string>
     <string name="duration_min_only">%1$d min</string>
-    <string name="simulate_ring">Simulate the alarm ringing →</string>
     <string name="cd_stats_icon">Stats</string>
     <string name="cd_add_alarm">New alarm</string>
-    <string name="resume_prompt">Turn on again for %1$s</string>
+    <string name="new_short">New</string>
+    <string name="resume_prompt">Turn on again for %1$s?</string>
     <string name="resume_scheduled">The alarm will ring %1$s</string>
+    <string name="cd_cancel_resume">Cancel turning it back on</string>
+    <string name="activate">Turn on</string>
+    <string name="day_today">today</string>
+    <string name="day_tomorrow">tomorrow, %1$s</string>
+    <string name="task_label_math">Math</string>
+    <string name="task_label_phrase">Phrase</string>
+    <string name="empty_title">No alarms yet</string>
+    <string name="empty_body">Create your first one and pick the mission that will get you out of bed.</string>
+    <string name="create_alarm">Create alarm</string>
+    <string name="switch_on">on</string>
+    <string name="switch_off">off</string>
+    <string name="cd_alarm_switch">%1$s alarm</string>
+    <string name="untitled_alarm">Alarm</string>
 
     <!-- Edit alarm -->
     <string name="new_alarm">New alarm</string>
     <string name="edit_alarm">Edit alarm</string>
-    <string name="cancel">Cancel</string>
     <string name="save">Save</string>
     <string name="label">Name</string>
+    <string name="name_hint">Alarm name</string>
     <string name="sound">Sound</string>
     <string name="sound_default">System default</string>
     <string name="task">Task</string>
-    <string name="delete_alarm">Delete alarm</string>
+    <string name="days">Days</string>
+    <string name="hour">Hour</string>
+    <string name="minute">Min</string>
+    <string name="cd_hour_down">Previous hour</string>
+    <string name="cd_hour_up">Next hour</string>
+    <string name="cd_minute_down">Previous minute</string>
+    <string name="cd_minute_up">Next minute</string>
+    <string name="delete">Delete</string>
+    <string name="delete_confirm">Tap again</string>
     <string name="cd_back">Back</string>
+    <plurals name="task_summary_math">
+        <item quantity="one">Math, %d problem</item>
+        <item quantity="other">Math, %d problems</item>
+    </plurals>
+    <string name="task_summary_phrase">Type a phrase</string>
 
     <!-- Task setup -->
-    <string name="task_setup_title">Task setup</string>
+    <string name="task_setup_title">Task</string>
+    <string name="mode_math">Math</string>
+    <string name="mode_phrase">Type phrase</string>
     <string name="difficulty">Difficulty</string>
     <string name="easy">Easy</string>
     <string name="medium">Medium</string>
     <string name="hard">Hard</string>
     <string name="how_many">How many problems</string>
-    <string name="preview">Preview</string>
+    <string name="cd_fewer">Fewer problems</string>
+    <string name="cd_more">More problems</string>
+    <string name="phrase_today">Today\'s phrase</string>
+    <string name="phrase_note">A different phrase every day. Capitals and punctuation don\'t count.</string>
 
-    <string name="task_math_name">Math</string>
-    <string name="task_math_desc">Problems with adjustable difficulty</string>
-    <string name="task_phrase_name">Type a phrase</string>
-    <string name="task_phrase_desc">Copy a short sentence</string>
-
-    <!-- Ringing -->
-    <string name="ringing">Alarm ringing</string>
+    <!-- Ringing / Snooze -->
+    <string name="espere_title">Snooze 5 min</string>
+    <string name="espere_sub">No limit</string>
+    <string name="espere_active">Snooze on</string>
     <string name="volume">Volume</string>
-    <string name="volume_pct">Volume %1$d%%</string>
+    <string name="volume_rising">Rising</string>
+    <string name="volume_max">Max</string>
     <string name="start_mission">Start mission</string>
-    <string name="wait_5">Hold on · 5 min</string>
-    <string name="wait_used">Hold on used %1$d×</string>
-    <string name="cd_speaker">Alarm sound</string>
+    <string name="espere_returns_in">The alarm rings again in</string>
+    <string name="espere_used">Snooze used</string>
+    <string name="awake_start_mission">I\'m up, start mission</string>
+    <string name="times">%1$d×</string>
 
     <!-- Mission -->
+    <string name="mission">Mission</string>
+    <string name="mission_seconds">Mission · %1$d s</string>
+    <string name="problem_of">Problem %1$d of %2$d</string>
+    <string name="type_phrase_short">Type the phrase</string>
+    <string name="enter_result">Enter the result</string>
+    <string name="wrong_try_again">Wrong. Try again.</string>
+    <string name="correct_next">Right. Next problem.</string>
+    <string name="chars_of">%1$d of %2$d characters</string>
     <string name="cant_solve">I can\'t solve this</string>
-    <string name="step_of">%1$d of %2$d</string>
     <string name="confirm">Confirm</string>
-    <string name="type_phrase">Type the phrase to turn it off</string>
+    <string name="cd_key_clear">Clear</string>
+    <string name="cd_key_backspace">Delete</string>
+    <string name="cd_key_sign">Minus sign</string>
 
     <!-- Good morning -->
-    <string name="good_morning">Good morning</string>
-    <string name="woke_in">It took you %1$s from first ring to off.</string>
-    <string name="start_day">Start the day</string>
-    <string name="see_stats">See stats</string>
+    <string name="good_morning">Good morning.</string>
+    <string name="you_took">It took you</string>
+    <string name="min_unit">min</string>
+    <string name="to_really_wake">to really wake up.</string>
+    <plurals name="minutes_spoken">
+        <item quantity="one">%d minute</item>
+        <item quantity="other">%d minutes</item>
+    </plurals>
     <string name="alarm_at">Alarm</string>
     <string name="woke_at">Woke up</string>
-    <string name="waits_count">Hold on</string>
+    <string name="waits_count">Snooze</string>
+    <string name="see_stats">See stats</string>
+    <string name="done">Done</string>
 
     <!-- Stats -->
     <string name="stats">Stats</string>
-    <string name="time_to_wake">Time to wake</string>
-    <string name="time_to_wake_sub">From first ring until fully off, including every Hold on.</string>
-    <string name="stats_empty">No wake-ups yet. Once an alarm rings, it shows up here.</string>
-    <string name="today_time">Today</string>
-    <string name="waits_today">Hold on today</string>
+    <string name="today">Today</string>
     <string name="avg_7">7-day average</string>
-    <string name="woke_vs">Woke up vs. alarm</string>
+    <string name="woke_at_time">woke up %1$s</string>
+    <string name="waits_per_wake">%1$s snoozes a day</string>
+    <string name="minutes_to_wake">Minutes to wake up</string>
+    <string name="seven_days">7 days</string>
+    <string name="col_alarm">Alarm</string>
+    <string name="col_woke">Woke</string>
+    <string name="col_plus_min">+Min</string>
+    <string name="stats_empty">No wake-ups yet. Once an alarm rings, it shows up here.</string>
 
-    <!-- Time formatting -->
-    <string name="duration_min_sec">%1$d min %2$02d s</string>
+    <!-- Permissions -->
+    <string name="perm_eyebrow">Before you start</string>
+    <string name="perm_title">So the alarm really rings</string>
+    <string name="perm_body">Android holds alarms back to save battery. Allow these four and it rings even with the phone locked.</string>
+    <string name="perm_granted_label">Allowed</string>
+    <string name="perm_count">%1$d of %2$d</string>
+    <string name="perm_notifications_title">Notifications</string>
+    <string name="perm_notifications_desc">Shows the alarm and an active snooze.</string>
+    <string name="perm_exact_title">Exact alarms</string>
+    <string name="perm_exact_desc">Rings on the minute, never late.</string>
+    <string name="perm_fullscreen_title">Full screen when locked</string>
+    <string name="perm_fullscreen_desc">Opens the mission over the lock screen.</string>
+    <string name="perm_battery_title">No battery limit</string>
+    <string name="perm_battery_desc">Keeps the system from shutting the app down at night.</string>
+    <string name="allow">Allow</string>
+    <string name="allowed">Allowed</string>
+    <string name="continue_label">Continue</string>
+    <string name="perm_all_set">All set.</string>
+    <string name="perm_nag">Without these the alarm may not ring. You can allow them later in Settings.</string>
+
+    <!-- Sound picker -->
+    <string name="preview_label">● Preview</string>
+    <string name="selected_label">Selected</string>
+    <string name="phone_music">Music on this phone</string>
+    <string name="ramp_title">Increase gradually</string>
+    <string name="ramp_desc">From low to full in 60 s</string>
+    <string name="cd_play_preview">Play %1$s</string>
+
+    <!-- Bundled sounds -->
+    <string name="sound_bell_name">Mechanical bell</string>
+    <string name="sound_bell_desc">Twin hammers, very loud</string>
+    <string name="sound_phone_name">Rotary phone</string>
+    <string name="sound_phone_desc">Old telephone ring</string>
+    <string name="sound_beep1_name">Digital beep</string>
+    <string name="sound_beep1_desc">Short and insistent</string>
+    <string name="sound_beep2_name">Digital beep 2</string>
+    <string name="sound_beep2_desc">Another take on the beep</string>
+    <string name="sound_siren1_name">Siren</string>
+    <string name="sound_siren1_desc">For the heaviest sleepers</string>
+    <string name="sound_siren2_name">Siren 2</string>
+    <string name="sound_siren2_desc">Another take on the siren</string>
+    <string name="sound_birds_name">Birds</string>
+    <string name="sound_birds_desc">Birdsong at dawn</string>
+
+    <!-- Radio -->
+    <string name="radio_title">Radio</string>
+    <string name="radio_row">Radio</string>
+    <string name="radio_row_desc">Wake up to an internet station</string>
+    <string name="radio_search_hint">Search stations by name</string>
+    <string name="radio_note">If the station doesn\'t play, or you don\'t react within 3 minutes, the system default alarm sounds instead.</string>
+    <string name="radio_popular">Most listened</string>
+    <string name="radio_results">Results</string>
+    <string name="radio_loading">Searching</string>
+    <string name="radio_offline">No signal</string>
+    <string name="radio_empty">No stations</string>
+    <string name="radio_error">Couldn\'t search for stations. Check your connection and try again.</string>
+    <string name="radio_retry">Try again</string>
 
     <!-- System -->
     <string name="notification_channel_name">Alarms</string>
@@ -83,6 +187,7 @@
     <string name="alarm_notification_title">%1$s is ringing</string>
     <string name="alarm_notification_text">Tap to open the alarm</string>
 
+    <!-- Indexed Monday (0) to Sunday (6), like Alarm.days -->
     <string-array name="day_letters">
         <item>M</item>
         <item>T</item>
@@ -101,5 +206,15 @@
         <item>Fri</item>
         <item>Sat</item>
         <item>Sun</item>
+    </string-array>
+
+    <string-array name="day_full">
+        <item>Monday</item>
+        <item>Tuesday</item>
+        <item>Wednesday</item>
+        <item>Thursday</item>
+        <item>Friday</item>
+        <item>Saturday</item>
+        <item>Sunday</item>
     </string-array>
 </resources>

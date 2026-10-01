@@ -10,6 +10,10 @@ import kotlinx.coroutines.flow.asStateFlow
 const val MISSION_TOTAL_SECONDS = 120
 const val HOLD_ON_SECONDS = 300
 
+/** "Aumentar aos poucos": from [RAMP_START_VOLUME] to full over this many seconds. */
+const val RAMP_SECONDS = 60
+const val RAMP_START_VOLUME = 0.15f
+
 enum class SessionScreen { RINGING, MISSION, GOOD_MORNING }
 
 data class MissionState(
@@ -22,10 +26,11 @@ data class MissionState(
     val typed: String = "",
     val phrase: String = "",
     val wrong: Boolean = false,
+    /** The previous problem was just answered correctly and this is the next one. */
+    val justCorrect: Boolean = false,
 )
 
 data class FinishedInfo(
-    val tookText: String,
     val waits: Int,
     val alarmHour: Int,
     val alarmMinute: Int,
@@ -40,11 +45,15 @@ data class RingSession(
     val alarmHour: Int,
     val alarmMinute: Int,
     val difficulty: Difficulty,
+    val rampUp: Boolean = true,
     val screen: SessionScreen = SessionScreen.RINGING,
-    val level: Int = 1,
+    /** Current playback volume, 0..1 (drives the LED volume meter). */
+    val volume: Float = 1f,
     val waits: Int = 0,
     val holdUntilMillis: Long? = null,
     val startedAtMillis: Long = System.currentTimeMillis(),
+    /** When the current stretch of ringing began (resets after an Espere or a timed-out mission). */
+    val ringingSinceMillis: Long = System.currentTimeMillis(),
     val mission: MissionState? = null,
     val finished: FinishedInfo? = null,
 )
@@ -66,6 +75,8 @@ object AlarmSessionState {
             alarmHour = alarm.hour,
             alarmMinute = alarm.minute,
             difficulty = alarm.difficulty,
+            rampUp = alarm.rampUp,
+            volume = if (alarm.rampUp) RAMP_START_VOLUME else 1f,
         )
     }
 

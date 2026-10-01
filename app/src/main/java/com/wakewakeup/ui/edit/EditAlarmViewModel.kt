@@ -81,7 +81,11 @@ class EditAlarmViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     fun changeTaskCount(delta: Int) {
-        draft = draft.copy(taskCount = (draft.taskCount + delta).coerceIn(1, 5))
+        draft = draft.copy(taskCount = (draft.taskCount + delta).coerceIn(1, 10))
+    }
+
+    fun setRampUp(rampUp: Boolean) {
+        draft = draft.copy(rampUp = rampUp)
     }
 
     /**

@@ -17,27 +17,28 @@ import com.wakewakeup.ALARM_NOTIFICATION_CHANNEL_ID
 import com.wakewakeup.R
 import com.wakewakeup.WakeWakeUpApplication
 import com.wakewakeup.data.Alarm
-import com.wakewakeup.data.Difficulty
 import com.wakewakeup.data.TaskType
 import com.wakewakeup.data.WakeHistoryEntry
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.LocalTime
-import java.util.Locale
 
 private const val NOTIFICATION_ID = 42
 private const val WAKE_LOCK_TAG = "wakewakeup:ring"
 private const val WAKE_LOCK_TIMEOUT_MS = 15 * 60 * 1000L
+private const val STREAM_TIMEOUT_MS = 8_000L
+private const val RADIO_GRACE_MS = 3 * 60 * 1000L
 
 class AlarmRingService : LifecycleService() {
 
     private val container get() = (application as WakeWakeUpApplication).container
 
     private var mediaPlayer: MediaPlayer? = null
+    private var streamTimeout: Job? = null
     private var wakeLock: PowerManager.WakeLock? = null
     private var currentAlarm: Alarm? = null
-    private var tickAtMillis: Long = 0L
     private var holdUntilMillis: Long? = null
     private var tickerStarted = false
 
@@ -71,7 +72,7 @@ class AlarmRingService : LifecycleService() {
             acquireWakeLock()
             startForeground(NOTIFICATION_ID, buildNotification(alarm))
             startRingActivity()
-            startAudio(level = 1)
+            startAudio(AlarmSessionState.session.value?.volume ?: 1f)
             startTicker()
         }
     }
@@ -92,7 +93,7 @@ class AlarmRingService : LifecycleService() {
         )
         return NotificationCompat.Builder(this, ALARM_NOTIFICATION_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification_sun)
-            .setContentTitle(getString(R.string.alarm_notification_title, alarm.label))
+            .setContentTitle(getString(R.string.alarm_notification_title, alarm.label.ifBlank { getString(R.string.untitled_alarm) }))
             .setContentText(getString(R.string.alarm_notification_text))
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
@@ -109,17 +110,79 @@ class AlarmRingService : LifecycleService() {
         }
     }
 
-    private fun startAudio(level: Int) {
+    private fun startAudio(volume: Float) {
         stopAudio()
         val chosenUri = currentAlarm?.soundUri?.let { runCatching { Uri.parse(it) }.getOrNull() }
-        val defaultUri = RingtoneManager.getActualDefaultRingtoneUri(this, RingtoneManager.TYPE_ALARM)
-            ?: RingtoneManager.getValidRingtoneUri(this)
+        if (chosenUri != null && chosenUri.isStream()) {
+            startStream(chosenUri, volume)
+            return
+        }
         // The saved sound might no longer be accessible (uninstalled app, revoked
         // permission) — fall back to the system default rather than staying silent.
-        mediaPlayer = chosenUri?.let { buildPlayer(it, level) } ?: buildPlayer(defaultUri, level)
+        mediaPlayer = chosenUri?.let { buildPlayer(it, volume) } ?: buildPlayer(defaultAlarmUri(), volume)
     }
 
-    private fun buildPlayer(uri: Uri, level: Int): MediaPlayer? {
+    private fun defaultAlarmUri(): Uri =
+        RingtoneManager.getActualDefaultRingtoneUri(this, RingtoneManager.TYPE_ALARM)
+            ?: RingtoneManager.getValidRingtoneUri(this)
+
+    private fun Uri.isStream() = scheme == "http" || scheme == "https"
+
+    /**
+     * Internet radio as the alarm sound. A stream can't be trusted to be there at wake-up time
+     * (no connection, station offline, stream drops), so anything short of audio actually
+     * playing within [STREAM_TIMEOUT_MS] — or a stream that later errors or ends — falls back
+     * to the system's default alarm sound. An alarm must never stay silent.
+     *
+     * A radio that does play is still easy to sleep through, so if it has been on for
+     * [RADIO_GRACE_MS] with no reaction (no Espere, no mission started — either would have
+     * stopped this player), the real alarm takes over at full volume.
+     */
+    private fun startStream(uri: Uri, volume: Float) {
+        val player = MediaPlayer()
+        mediaPlayer = player
+        fun fallback(fullVolume: Boolean = false) {
+            if (mediaPlayer !== player) return
+            streamTimeout?.cancel()
+            runCatching { player.release() }
+            if (fullVolume) AlarmSessionState.update { it.copy(volume = 1f) }
+            val current = AlarmSessionState.session.value?.volume ?: volume
+            mediaPlayer = buildPlayer(defaultAlarmUri(), current)
+        }
+        try {
+            player.setAudioAttributes(
+                AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_ALARM)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                    .build(),
+            )
+            player.setVolume(volume, volume)
+            player.setDataSource(this, uri)
+            player.setOnPreparedListener {
+                if (mediaPlayer !== player) return@setOnPreparedListener
+                streamTimeout?.cancel()
+                val current = AlarmSessionState.session.value?.volume ?: volume
+                it.setVolume(current, current)
+                it.start()
+                streamTimeout = lifecycleScope.launch {
+                    delay(RADIO_GRACE_MS)
+                    fallback(fullVolume = true)
+                }
+            }
+            player.setOnErrorListener { _, _, _ -> fallback(); true }
+            player.setOnCompletionListener { fallback() }
+            player.prepareAsync()
+        } catch (e: Exception) {
+            fallback()
+            return
+        }
+        streamTimeout = lifecycleScope.launch {
+            delay(STREAM_TIMEOUT_MS)
+            fallback()
+        }
+    }
+
+    private fun buildPlayer(uri: Uri, volume: Float): MediaPlayer? {
         val player = MediaPlayer()
         return try {
             player.apply {
@@ -130,7 +193,7 @@ class AlarmRingService : LifecycleService() {
                         .build(),
                 )
                 isLooping = true
-                setVolume(volumeForLevel(level), volumeForLevel(level))
+                setVolume(volume, volume)
                 setDataSource(this@AlarmRingService, uri)
                 prepare()
                 start()
@@ -142,20 +205,23 @@ class AlarmRingService : LifecycleService() {
     }
 
     private fun stopAudio() {
+        streamTimeout?.cancel()
+        streamTimeout = null
         mediaPlayer?.apply {
-            if (isPlaying) stop()
+            // A stream may still be preparing, where stop() isn't a valid call.
+            runCatching { if (isPlaying) stop() }
             release()
         }
         mediaPlayer = null
     }
 
-    private fun volumeForLevel(level: Int): Float =
-        (0.40f + level.coerceIn(1, 4) * 0.20f).coerceAtMost(1f)
+    /** Volume at the start of a stretch of ringing: low when ramping up, full otherwise. */
+    private fun startVolume(session: RingSession?, atLeast: Float = 0f): Float =
+        if (session?.rampUp == false) 1f else maxOf(RAMP_START_VOLUME, atLeast)
 
     private fun startTicker() {
         if (tickerStarted) return
         tickerStarted = true
-        tickAtMillis = System.currentTimeMillis()
         lifecycleScope.launch {
             while (true) {
                 delay(1000)
@@ -175,17 +241,18 @@ class AlarmRingService : LifecycleService() {
         if (holdUntil != null) {
             if (now >= holdUntil) {
                 holdUntilMillis = null
-                tickAtMillis = now
-                AlarmSessionState.update { it.copy(level = 1, holdUntilMillis = null) }
-                startAudio(level = 1)
+                val volume = startVolume(session)
+                AlarmSessionState.update { it.copy(volume = volume, holdUntilMillis = null, ringingSinceMillis = now) }
+                startAudio(volume)
             }
             return
         }
-        if (session.level < 4 && now - tickAtMillis >= 4000) {
-            val nextLevel = session.level + 1
-            tickAtMillis = now
-            AlarmSessionState.update { it.copy(level = nextLevel) }
-            mediaPlayer?.setVolume(volumeForLevel(nextLevel), volumeForLevel(nextLevel))
+        // "Aumentar aos poucos": climb linearly from the start volume to full over RAMP_SECONDS.
+        if (session.volume < 1f) {
+            val step = (1f - RAMP_START_VOLUME) / RAMP_SECONDS
+            val next = (session.volume + step).coerceAtMost(1f)
+            AlarmSessionState.update { it.copy(volume = next) }
+            mediaPlayer?.setVolume(next, next)
         }
     }
 
@@ -194,11 +261,17 @@ class AlarmRingService : LifecycleService() {
         val secondsLeft = mission.secondsLeft - 1
         if (secondsLeft <= 0) {
             val alarm = currentAlarm ?: return
-            tickAtMillis = System.currentTimeMillis()
+            // Ran out of time: back to ringing, already fairly loud this time.
+            val volume = startVolume(session, atLeast = 0.8f)
             AlarmSessionState.update {
-                it.copy(screen = SessionScreen.RINGING, level = 3, mission = freshMission(alarm))
+                it.copy(
+                    screen = SessionScreen.RINGING,
+                    volume = volume,
+                    ringingSinceMillis = System.currentTimeMillis(),
+                    mission = freshMission(alarm),
+                )
             }
-            startAudio(level = 3)
+            startAudio(volume)
         } else {
             AlarmSessionState.update { it.copy(mission = mission.copy(secondsLeft = secondsLeft)) }
         }
@@ -212,7 +285,7 @@ class AlarmRingService : LifecycleService() {
             count = alarm.taskCount,
             question = q.question,
             answer = q.answer,
-            phrase = MissionGenerator.randomPhrase(),
+            phrase = MissionGenerator.phraseOfTheDay(),
         )
     }
 
@@ -223,6 +296,7 @@ class AlarmRingService : LifecycleService() {
         AlarmSessionState.update { session ->
             session.copy(
                 screen = SessionScreen.MISSION,
+                holdUntilMillis = null,
                 mission = session.mission ?: freshMission(alarm),
             )
         }
@@ -236,26 +310,25 @@ class AlarmRingService : LifecycleService() {
         AlarmSessionState.update { it.copy(waits = it.waits + 1, holdUntilMillis = until) }
     }
 
+    /** Calculator keys. After a wrong answer, the next key starts from an empty display. */
     private fun onMissionKey(key: String) {
         AlarmSessionState.update { session ->
             val mission = session.mission ?: return@update session
-            val maxLen = if (mission.type == TaskType.PHRASE) 40 else 6
+            val current = if (mission.wrong) "" else mission.typed
             val typed = when (key) {
-                "⌫" -> mission.typed.dropLast(1)
-                "C" -> ""
-                else -> if (mission.typed.length < maxLen) {
-                    mission.typed + if (mission.type == TaskType.PHRASE) key.lowercase(Locale.getDefault()) else key
-                } else mission.typed
+                KEY_BACKSPACE -> current.dropLast(1)
+                KEY_CLEAR -> ""
+                KEY_SIGN -> if (current.startsWith("-")) current.drop(1) else "-$current"
+                else -> if (key.all { it.isDigit() } && current.trimStart('-').length < MAX_ANSWER_DIGITS) current + key else current
             }
-            session.copy(mission = mission.copy(typed = typed, wrong = false))
+            session.copy(mission = mission.copy(typed = typed, wrong = false, justCorrect = false))
         }
     }
 
     private fun onMissionSetTyped(text: String) {
         AlarmSessionState.update { session ->
             val mission = session.mission ?: return@update session
-            val maxLen = if (mission.type == TaskType.PHRASE) 40 else 6
-            session.copy(mission = mission.copy(typed = text.take(maxLen), wrong = false))
+            session.copy(mission = mission.copy(typed = text.take(MAX_PHRASE_LENGTH), wrong = false))
         }
     }
 
@@ -263,8 +336,9 @@ class AlarmRingService : LifecycleService() {
         val alarm = currentAlarm ?: return
         val session = AlarmSessionState.session.value ?: return
         val mission = session.mission ?: return
+        if (mission.typed.isBlank() || mission.typed == "-") return
         val correct = if (mission.type == TaskType.PHRASE) {
-            mission.typed.trim().lowercase(Locale.getDefault()) == mission.phrase.lowercase(Locale.getDefault())
+            MissionGenerator.phraseMatches(mission.typed, mission.phrase)
         } else {
             mission.typed == mission.answer
         }
@@ -275,7 +349,7 @@ class AlarmRingService : LifecycleService() {
         if (mission.type == TaskType.MATH && mission.index + 1 < mission.count) {
             val q = MissionGenerator.mathQuestion(alarm.difficulty)
             AlarmSessionState.update {
-                it.copy(mission = mission.copy(index = mission.index + 1, question = q.question, answer = q.answer, typed = "", wrong = false))
+                it.copy(mission = mission.copy(index = mission.index + 1, question = q.question, answer = q.answer, typed = "", wrong = false, justCorrect = true))
             }
             return
         }
@@ -285,7 +359,7 @@ class AlarmRingService : LifecycleService() {
     private fun onGiveUp() {
         AlarmSessionState.update { session ->
             val secondsLeft = session.mission?.secondsLeft ?: MISSION_TOTAL_SECONDS
-            session.copy(mission = MissionState(type = TaskType.PHRASE, index = 0, count = 1, secondsLeft = secondsLeft, phrase = MissionGenerator.randomPhrase()))
+            session.copy(mission = MissionState(type = TaskType.PHRASE, index = 0, count = 1, secondsLeft = secondsLeft, phrase = MissionGenerator.phraseOfTheDay()))
         }
     }
 
@@ -295,12 +369,10 @@ class AlarmRingService : LifecycleService() {
         // don't add HOLD_ON_SECONDS per wait on top of that, or it double-counts.
         val elapsedSec = ((now - session.startedAtMillis) / 1000).toInt()
         val nowTime = LocalTime.now()
-        val took = getString(R.string.duration_min_sec, elapsedSec / 60, elapsedSec % 60)
         AlarmSessionState.update {
             it.copy(
                 screen = SessionScreen.GOOD_MORNING,
                 finished = FinishedInfo(
-                    tookText = took,
                     waits = it.waits,
                     alarmHour = it.alarmHour,
                     alarmMinute = it.alarmMinute,
@@ -357,6 +429,11 @@ class AlarmRingService : LifecycleService() {
         const val ACTION_GIVE_UP = "com.wakewakeup.action.GIVE_UP"
         const val ACTION_FINISH = "com.wakewakeup.action.FINISH"
         const val EXTRA_KEY = "extra_key"
+        const val KEY_CLEAR = "C"
+        const val KEY_BACKSPACE = "⌫"
+        const val KEY_SIGN = "−"
+        private const val MAX_ANSWER_DIGITS = 4
+        private const val MAX_PHRASE_LENGTH = 80
         const val EXTRA_TYPED_VALUE = "extra_typed_value"
 
         fun sendAction(context: Context, action: String, key: String? = null) {

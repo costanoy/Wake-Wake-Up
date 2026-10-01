@@ -1,79 +1,195 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Wake Wake Up</string>
-    <string name="tagline">acorde de verdade</string>
 
+    <!-- Lista de alarmes -->
     <string name="alarms">Alarmes</string>
-    <string name="next_alarm_in">Próximo alarme em %1$s</string>
+    <string name="next_label">Próximo</string>
+    <string name="next_in">Em %1$s</string>
+    <string name="next_none">Nenhum</string>
     <string name="duration_h_min">%1$d h %2$d min</string>
     <string name="duration_min_only">%1$d min</string>
-    <string name="simulate_ring">Simular alarme tocando →</string>
     <string name="cd_stats_icon">Estatísticas</string>
     <string name="cd_add_alarm">Novo alarme</string>
-    <string name="resume_prompt">Ativar novamente para %1$s</string>
+    <string name="new_short">Novo</string>
+    <string name="resume_prompt">Ativar novamente para %1$s?</string>
     <string name="resume_scheduled">O alarme tocará %1$s</string>
+    <string name="cd_cancel_resume">Cancelar a reativação</string>
+    <string name="activate">Ativar</string>
+    <string name="day_today">hoje</string>
+    <string name="day_tomorrow">amanhã, %1$s</string>
+    <string name="task_label_math">Matemática</string>
+    <string name="task_label_phrase">Frase</string>
+    <string name="empty_title">Nenhum alarme ainda</string>
+    <string name="empty_body">Crie o primeiro e escolha a missão que vai te tirar da cama.</string>
+    <string name="create_alarm">Criar alarme</string>
+    <string name="switch_on">ligado</string>
+    <string name="switch_off">desligado</string>
+    <string name="cd_alarm_switch">Alarme das %1$s</string>
+    <string name="untitled_alarm">Alarme</string>
 
+    <!-- Editar alarme -->
     <string name="new_alarm">Novo alarme</string>
     <string name="edit_alarm">Editar alarme</string>
-    <string name="cancel">Cancelar</string>
     <string name="save">Salvar</string>
     <string name="label">Nome</string>
+    <string name="name_hint">Nome do alarme</string>
     <string name="sound">Som</string>
     <string name="sound_default">Padrão do sistema</string>
     <string name="task">Tarefa</string>
-    <string name="delete_alarm">Excluir alarme</string>
+    <string name="days">Dias</string>
+    <string name="hour">Hora</string>
+    <string name="minute">Min</string>
+    <string name="cd_hour_down">Hora anterior</string>
+    <string name="cd_hour_up">Próxima hora</string>
+    <string name="cd_minute_down">Minuto anterior</string>
+    <string name="cd_minute_up">Próximo minuto</string>
+    <string name="delete">Excluir</string>
+    <string name="delete_confirm">Toque de novo</string>
     <string name="cd_back">Voltar</string>
+    <plurals name="task_summary_math">
+        <item quantity="one">Matemática, %d conta</item>
+        <item quantity="many">Matemática, %d contas</item>
+        <item quantity="other">Matemática, %d contas</item>
+    </plurals>
+    <string name="task_summary_phrase">Digitar uma frase</string>
 
-    <string name="task_setup_title">Configurar tarefa</string>
+    <!-- Configurar tarefa -->
+    <string name="task_setup_title">Tarefa</string>
+    <string name="mode_math">Matemática</string>
+    <string name="mode_phrase">Digitar frase</string>
     <string name="difficulty">Dificuldade</string>
     <string name="easy">Fácil</string>
     <string name="medium">Médio</string>
     <string name="hard">Difícil</string>
     <string name="how_many">Quantas contas</string>
-    <string name="preview">Prévia</string>
+    <string name="cd_fewer">Menos contas</string>
+    <string name="cd_more">Mais contas</string>
+    <string name="phrase_today">Frase de hoje</string>
+    <string name="phrase_note">Uma frase diferente a cada dia, sempre sem acentos. Maiúsculas e pontuação não contam.</string>
 
-    <string name="task_math_name">Matemática</string>
-    <string name="task_math_desc">Contas com dificuldade ajustável</string>
-    <string name="task_phrase_name">Digitar uma frase</string>
-    <string name="task_phrase_desc">Copiar uma frase curta</string>
-
-    <string name="ringing">Alarme tocando</string>
+    <!-- Alarme tocando / Espere -->
+    <string name="espere_title">Espere 5 min</string>
+    <string name="espere_sub">Sem limite</string>
+    <string name="espere_active">Espere ativo</string>
     <string name="volume">Volume</string>
-    <string name="volume_pct">Volume %1$d%%</string>
+    <string name="volume_rising">Subindo</string>
+    <string name="volume_max">Máximo</string>
     <string name="start_mission">Começar missão</string>
-    <string name="wait_5">Espere 5 min</string>
-    <string name="wait_used">Espere usado %1$d×</string>
-    <string name="cd_speaker">Som do alarme</string>
+    <string name="espere_returns_in">O alarme volta a tocar em</string>
+    <string name="espere_used">Espere usado</string>
+    <string name="awake_start_mission">Já acordei, começar missão</string>
+    <string name="times">%1$d×</string>
 
+    <!-- Missão -->
+    <string name="mission">Missão</string>
+    <string name="mission_seconds">Missão · %1$d s</string>
+    <string name="problem_of">Conta %1$d de %2$d</string>
+    <string name="type_phrase_short">Digite a frase</string>
+    <string name="enter_result">Digite o resultado</string>
+    <string name="wrong_try_again">Errado. Tente de novo.</string>
+    <string name="correct_next">Certo. Próxima conta.</string>
+    <string name="chars_of">%1$d de %2$d caracteres</string>
     <string name="cant_solve">Não consigo resolver</string>
-    <string name="step_of">%1$d de %2$d</string>
     <string name="confirm">Confirmar</string>
-    <string name="type_phrase">Digite a frase para desligar</string>
+    <string name="cd_key_clear">Limpar</string>
+    <string name="cd_key_backspace">Apagar</string>
+    <string name="cd_key_sign">Sinal de menos</string>
 
-    <string name="good_morning">Bom dia</string>
-    <string name="woke_in">Você levou %1$s do primeiro toque até desligar.</string>
-    <string name="start_day">Começar o dia</string>
-    <string name="see_stats">Ver estatísticas</string>
+    <!-- Bom dia -->
+    <string name="good_morning">Bom dia.</string>
+    <string name="you_took">Você levou</string>
+    <string name="min_unit">min</string>
+    <string name="to_really_wake">para acordar de verdade.</string>
+    <plurals name="minutes_spoken">
+        <item quantity="one">%d minuto</item>
+        <item quantity="many">%d minutos</item>
+        <item quantity="other">%d minutos</item>
+    </plurals>
     <string name="alarm_at">Alarme</string>
     <string name="woke_at">Acordou</string>
     <string name="waits_count">Espere</string>
+    <string name="see_stats">Ver estatísticas</string>
+    <string name="done">Concluir</string>
 
+    <!-- Estatísticas -->
     <string name="stats">Estatísticas</string>
-    <string name="time_to_wake">Tempo pra acordar</string>
-    <string name="time_to_wake_sub">Do primeiro toque até desligar de vez, incluindo os Espere.</string>
-    <string name="stats_empty">Ainda sem despertares. Assim que um alarme tocar, ele aparece aqui.</string>
-    <string name="today_time">Hoje</string>
-    <string name="waits_today">Espere hoje</string>
+    <string name="today">Hoje</string>
     <string name="avg_7">Média 7 dias</string>
-    <string name="woke_vs">Acordou vs. alarme</string>
+    <string name="woke_at_time">acordou %1$s</string>
+    <string name="waits_per_wake">%1$s Espere por dia</string>
+    <string name="minutes_to_wake">Minutos até acordar</string>
+    <string name="seven_days">7 dias</string>
+    <string name="col_alarm">Alarme</string>
+    <string name="col_woke">Acordou</string>
+    <string name="col_plus_min">+Min</string>
+    <string name="stats_empty">Ainda sem despertares. Assim que um alarme tocar, ele aparece aqui.</string>
 
-    <string name="duration_min_sec">%1$d min %2$02d s</string>
+    <!-- Permissões -->
+    <string name="perm_eyebrow">Antes de começar</string>
+    <string name="perm_title">Para o alarme tocar de verdade</string>
+    <string name="perm_body">O Android bloqueia alarmes para economizar bateria. Libere estes quatro itens e ele toca mesmo com o celular bloqueado.</string>
+    <string name="perm_granted_label">Liberadas</string>
+    <string name="perm_count">%1$d de %2$d</string>
+    <string name="perm_notifications_title">Notificações</string>
+    <string name="perm_notifications_desc">Mostra o alarme e o Espere ativo.</string>
+    <string name="perm_exact_title">Alarmes exatos</string>
+    <string name="perm_exact_desc">Toca no minuto certo, sem atraso.</string>
+    <string name="perm_fullscreen_title">Tela cheia bloqueado</string>
+    <string name="perm_fullscreen_desc">Abre a missão por cima da tela de bloqueio.</string>
+    <string name="perm_battery_title">Sem limite de bateria</string>
+    <string name="perm_battery_desc">Impede o sistema de desligar o app à noite.</string>
+    <string name="allow">Permitir</string>
+    <string name="allowed">Liberado</string>
+    <string name="continue_label">Continuar</string>
+    <string name="perm_all_set">Tudo pronto.</string>
+    <string name="perm_nag">Sem esses itens o alarme pode não tocar. Você pode liberar depois em Ajustes.</string>
 
+    <!-- Escolher som -->
+    <string name="preview_label">● Prévia</string>
+    <string name="selected_label">Selecionado</string>
+    <string name="phone_music">Música do celular</string>
+    <string name="ramp_title">Aumentar aos poucos</string>
+    <string name="ramp_desc">Do baixo ao máximo em 60 s</string>
+    <string name="cd_play_preview">Ouvir %1$s</string>
+
+    <!-- Sons do app -->
+    <string name="sound_bell_name">Campainha mecânica</string>
+    <string name="sound_bell_desc">Dois martelinhos, bem alto</string>
+    <string name="sound_phone_name">Telefone de disco</string>
+    <string name="sound_phone_desc">Toque de telefone antigo</string>
+    <string name="sound_beep1_name">Bipe digital</string>
+    <string name="sound_beep1_desc">Curto e insistente</string>
+    <string name="sound_beep2_name">Bipe digital 2</string>
+    <string name="sound_beep2_desc">Outra versão do bipe</string>
+    <string name="sound_siren1_name">Sirene</string>
+    <string name="sound_siren1_desc">Para quem dorme pesado mesmo</string>
+    <string name="sound_siren2_name">Sirene 2</string>
+    <string name="sound_siren2_desc">Outra versão da sirene</string>
+    <string name="sound_birds_name">Pássaros</string>
+    <string name="sound_birds_desc">Canto ao amanhecer</string>
+
+    <!-- Rádio -->
+    <string name="radio_title">Rádio</string>
+    <string name="radio_row">Rádio</string>
+    <string name="radio_row_desc">Acordar com uma estação pela internet</string>
+    <string name="radio_search_hint">Buscar rádio pelo nome</string>
+    <string name="radio_note">Se a rádio não tocar, ou se você não reagir em 3 minutos, toca o alarme padrão do sistema.</string>
+    <string name="radio_popular">Mais ouvidas</string>
+    <string name="radio_results">Resultados</string>
+    <string name="radio_loading">Buscando</string>
+    <string name="radio_offline">Sem sinal</string>
+    <string name="radio_empty">Nenhuma rádio</string>
+    <string name="radio_error">Não deu para buscar as rádios. Confira a internet e tente de novo.</string>
+    <string name="radio_retry">Tentar de novo</string>
+
+    <!-- Sistema -->
     <string name="notification_channel_name">Alarmes</string>
     <string name="notification_channel_desc">Notificações do alarme tocando e da missão</string>
     <string name="alarm_notification_title">%1$s está tocando</string>
     <string name="alarm_notification_text">Toque para abrir o alarme</string>
 
+    <!-- Indexados de segunda (0) a domingo (6), como Alarm.days -->
     <string-array name="day_letters">
         <item>S</item>
         <item>T</item>
@@ -92,5 +208,15 @@
         <item>Sex</item>
         <item>Sáb</item>
         <item>Dom</item>
+    </string-array>
+
+    <string-array name="day_full">
+        <item>segunda</item>
+        <item>terça</item>
+        <item>quarta</item>
+        <item>quinta</item>
+        <item>sexta</item>
+        <item>sábado</item>
+        <item>domingo</item>
     </string-array>
 </resources>

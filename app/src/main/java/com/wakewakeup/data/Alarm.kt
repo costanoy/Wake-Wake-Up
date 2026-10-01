@@ -20,6 +20,8 @@ data class Alarm(
     /** Null means "use the system's default alarm sound". */
     val soundUri: String? = null,
     val soundName: String? = null,
+    /** Ramp the ringing volume from low to full over the first minute, instead of starting at full. */
+    val rampUp: Boolean = true,
     /**
      * Epoch day this disabled alarm should silently turn itself back on at (at [hour]:[minute]).
      * Only meaningful while [enabled] is false; cleared once resumed or manually re-enabled.

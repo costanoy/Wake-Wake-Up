@@ -1,32 +1,23 @@
 package com.wakewakeup.ui.ring
 
-import androidx.compose.animation.core.InfiniteTransition
-import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.StartOffset
-import androidx.compose.animation.core.StartOffsetType
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.VolumeUp
-import androidx.compose.material3.Icon
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -36,110 +27,159 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.wakewakeup.R
+import com.wakewakeup.session.RAMP_SECONDS
 import com.wakewakeup.session.RingSession
-import com.wakewakeup.ui.components.EqualizerBars
-import com.wakewakeup.ui.theme.AccentLight
-import com.wakewakeup.ui.theme.BgDeep
-import com.wakewakeup.ui.theme.TextOnGradient
+import com.wakewakeup.ui.components.CardShadow
+import com.wakewakeup.ui.components.ColonDots
+import com.wakewakeup.ui.components.EspereBar
+import com.wakewakeup.ui.components.FlipNumber
+import com.wakewakeup.ui.components.FlipSize
+import com.wakewakeup.ui.components.LabeledRoundButton
+import com.wakewakeup.ui.components.LedMeter
+import com.wakewakeup.ui.components.PlayGlyph
+import com.wakewakeup.ui.components.PrintLabel
+import com.wakewakeup.ui.components.RoundStyle
+import com.wakewakeup.ui.components.VfdText
+import com.wakewakeup.ui.components.formatClock
+import com.wakewakeup.ui.components.nonScaling
+import com.wakewakeup.ui.components.panelDate
+import com.wakewakeup.ui.components.rememberReduceMotion
+import com.wakewakeup.ui.components.softShadow
+import com.wakewakeup.ui.components.visor
+import com.wakewakeup.ui.theme.Ink
+import com.wakewakeup.ui.theme.InkMuted
+import com.wakewakeup.ui.theme.OnAction
+import com.wakewakeup.ui.theme.Vfd
 import com.wakewakeup.ui.theme.WwuShape
 import com.wakewakeup.ui.theme.WwuType
-import com.wakewakeup.ui.theme.onGradientAlpha
-import com.wakewakeup.ui.theme.wwuRingGradient
+import com.wakewakeup.ui.theme.espereSunrise
+import com.wakewakeup.ui.theme.ringSunrise
 import kotlinx.coroutines.delay
-import java.time.LocalDate
-import java.time.format.DateTimeFormatter
-import java.util.Locale
+import kotlin.math.ceil
+
+private const val VOLUME_SEGMENTS = 16
 
 @Composable
 fun RingScreen(session: RingSession, onStartMission: () -> Unit, onHoldOn: () -> Unit) {
-    Column(modifier = Modifier.fillMaxSize().wwuRingGradient().statusBarsPadding().navigationBarsPadding()) {
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(26.dp, 34.dp, 26.dp, 0.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            Text(session.alarmLabel.uppercase(), style = WwuType.ringingEyebrow, color = onGradientAlpha(0.62f))
-            Text(
-                "%02d:%02d".format(session.alarmHour, session.alarmMinute),
-                style = WwuType.ringClock,
-                color = TextOnGradient,
-            )
-            Text(ringDateText(), style = WwuType.listRow, color = onGradientAlpha(0.7f))
-        }
-
-        Column(
-            modifier = Modifier.weight(1f).fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-        ) {
-            PulsingSpeaker()
-            Spacer(Modifier.height(18.dp))
-            Text(stringResource(R.string.ringing), style = WwuType.ctaSecondary, color = TextOnGradient)
-            Spacer(Modifier.height(8.dp))
-            EqualizerBars(level = session.level)
-            Spacer(Modifier.height(8.dp))
-            Text(
-                stringResource(R.string.volume_pct, (40 + session.level * 20).coerceAtMost(100)),
-                style = WwuType.taskDesc,
-                color = onGradientAlpha(0.72f),
-            )
-        }
-
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(26.dp, 0.dp, 26.dp, 34.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(WwuShape.cta)
-                    .background(BgDeep, WwuShape.cta)
-                    .clickable { onStartMission() }
-                    .padding(20.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(stringResource(R.string.start_mission), style = WwuType.ctaPrimary, color = AccentLight)
-            }
-
-            val holdUntil = session.holdUntilMillis
-            if (holdUntil != null) {
-                HoldCountdown(holdUntilMillis = holdUntil)
-            } else {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(WwuShape.cta)
-                        .border(1.dp, onGradientAlpha(0.42f), WwuShape.cta)
-                        .clickable { onHoldOn() }
-                        .padding(18.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(stringResource(R.string.wait_5), style = WwuType.ctaSecondary, color = TextOnGradient)
-                }
-            }
-
-            if (session.waits > 0) {
-                Text(
-                    stringResource(R.string.wait_used, session.waits),
-                    style = WwuType.taskDesc,
-                    color = onGradientAlpha(0.6f),
-                    modifier = Modifier.fillMaxWidth(),
-                    textAlign = TextAlign.Center,
-                )
-            }
-        }
+    val holdUntil = session.holdUntilMillis
+    if (holdUntil != null) {
+        EspereActive(session, holdUntil, onStartMission)
+    } else {
+        Ringing(session, onStartMission, onHoldOn)
     }
 }
 
 @Composable
-private fun HoldCountdown(holdUntilMillis: Long) {
+private fun Ringing(session: RingSession, onStartMission: () -> Unit, onHoldOn: () -> Unit) {
+    val reduce = rememberReduceMotion()
+
+    // The sunrise grows to full over the first minute of ringing.
+    var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(session.ringingSinceMillis, reduce) {
+        if (reduce) return@LaunchedEffect
+        while (true) {
+            now = System.currentTimeMillis()
+            if (now - session.ringingSinceMillis > RAMP_SECONDS * 1000L) break
+            delay(250)
+        }
+    }
+    val grow = if (reduce) 1f else 0.8f + 0.2f * ((now - session.ringingSinceMillis) / (RAMP_SECONDS * 1000f)).coerceIn(0f, 1f)
+
+    // The display pulses like a VFD (100 → 86%, 1.6 s).
+    val pulse = rememberInfiniteTransition(label = "vfdPulse")
+    val pulseAlpha by pulse.animateFloat(
+        initialValue = 1f,
+        targetValue = if (reduce) 1f else 0.86f,
+        animationSpec = infiniteRepeatable(tween(800), RepeatMode.Reverse),
+        label = "pulse",
+    )
+
+    val time = formatClock(session.alarmHour, session.alarmMinute)
+    val label = listOfNotNull(session.alarmLabel.takeIf { it.isNotBlank() }?.uppercase(), panelDate()).joinToString(" · ")
+    val litSegments = ceil(session.volume * VOLUME_SEGMENTS).toInt().coerceIn(1, VOLUME_SEGMENTS)
+
+    Column(
+        Modifier
+            .fillMaxSize()
+            .ringSunrise { grow }
+            .statusBarsPadding()
+            .navigationBarsPadding(),
+    ) {
+        EspereBar(
+            active = false,
+            title = stringResource(R.string.espere_title),
+            subtitle = stringResource(R.string.espere_sub),
+            activeTitle = stringResource(R.string.espere_active),
+            onClick = onHoldOn,
+            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp),
+        )
+
+        Column(
+            Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Spacer(Modifier.height(56.dp))
+            PrintLabel(label, textAlign = TextAlign.Center, modifier = Modifier.padding(horizontal = 24.dp))
+            Spacer(Modifier.height(14.dp))
+            FlipNumber(
+                text = time.replace(":", ""),
+                size = FlipSize.XL,
+                spokenText = time,
+                shadow = CardShadow(10.dp, 4.dp, 0.7f),
+                colon = { ColonDots(8.dp, 14.dp, Vfd, glow = true) },
+                modifier = Modifier.graphicsLayer { alpha = pulseAlpha },
+            )
+
+            Column(
+                Modifier
+                    .padding(start = 24.dp, end = 24.dp, top = 40.dp)
+                    .fillMaxWidth()
+                    .visor(WwuShape.visor, lip = false)
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    PrintLabel(stringResource(R.string.volume))
+                    VfdText(
+                        stringResource(if (session.volume < 1f) R.string.volume_rising else R.string.volume_max).uppercase(),
+                        14.sp.nonScaling(),
+                        glowAlpha = 0.5f,
+                    )
+                }
+                LedMeter(
+                    count = VOLUME_SEGMENTS,
+                    isLit = { it < litSegments },
+                    isHot = { it >= 13 },
+                    segmentHeight = 14.dp,
+                )
+            }
+            Spacer(Modifier.height(24.dp))
+        }
+
+        LabeledRoundButton(
+            label = stringResource(R.string.start_mission),
+            onClick = onStartMission,
+            size = 96.dp,
+            style = RoundStyle.Action,
+            baseDepth = 5.dp,
+            gap = 10.dp,
+            labelColor = OnAction,
+            labelStyle = WwuType.labelWide,
+            softShadow = softShadow(24.dp, 14.dp, 0.45f),
+            modifier = Modifier.align(Alignment.CenterHorizontally).padding(bottom = 36.dp),
+        ) { PlayGlyph(24.dp, 30.dp, nudge = 3.dp) }
+    }
+}
+
+@Composable
+private fun EspereActive(session: RingSession, holdUntilMillis: Long, onStartMission: () -> Unit) {
     var remainingMs by remember(holdUntilMillis) { mutableLongStateOf(holdUntilMillis - System.currentTimeMillis()) }
     LaunchedEffect(holdUntilMillis) {
         while (true) {
@@ -148,73 +188,64 @@ private fun HoldCountdown(holdUntilMillis: Long) {
             delay(200)
         }
     }
-    val totalSec = (remainingMs / 1000).coerceAtLeast(0)
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(WwuShape.cta)
-            .border(1.dp, onGradientAlpha(0.42f), WwuShape.cta)
-            .padding(18.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            "%d:%02d".format(totalSec / 60, totalSec % 60),
-            style = WwuType.ctaSecondary,
-            color = TextOnGradient,
-        )
-    }
-}
+    val totalSec = ((remainingMs + 999) / 1000).coerceAtLeast(0).toInt()
+    val mmss = "%02d%02d".format(totalSec / 60, totalSec % 60)
+    val spoken = pluralStringResource(R.plurals.minutes_spoken, totalSec / 60, totalSec / 60) + " %02d s".format(totalSec % 60)
 
-@Composable
-private fun PulsingSpeaker() {
-    val transition = rememberInfiniteTransition(label = "wwuPulse")
-    Box(modifier = Modifier.size(140.dp), contentAlignment = Alignment.Center) {
-        PulseRing(transition, delayMs = 0)
-        PulseRing(transition, delayMs = 1100)
-        Box(
-            modifier = Modifier
-                .size(74.dp)
-                .background(Color(0xFF141017).copy(alpha = 0.35f), CircleShape)
-                .border(1.dp, onGradientAlpha(0.35f), CircleShape),
-            contentAlignment = Alignment.Center,
+    Column(
+        Modifier
+            .fillMaxSize()
+            .espereSunrise()
+            .statusBarsPadding()
+            .navigationBarsPadding(),
+    ) {
+        EspereBar(
+            active = true,
+            title = stringResource(R.string.espere_title),
+            subtitle = stringResource(R.string.espere_sub),
+            activeTitle = stringResource(R.string.espere_active),
+            onClick = {},
+            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp),
+        )
+
+        Column(
+            Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()),
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Icon(Icons.AutoMirrored.Filled.VolumeUp, contentDescription = stringResource(R.string.cd_speaker), tint = TextOnGradient)
+            Spacer(Modifier.height(72.dp))
+            Text(stringResource(R.string.espere_returns_in), style = WwuType.bodyXS, color = InkMuted)
+            Spacer(Modifier.height(16.dp))
+            FlipNumber(
+                text = mmss,
+                size = FlipSize.L,
+                spokenText = spoken,
+                colon = { ColonDots(8.dp, 14.dp, InkMuted) },
+            )
+            Spacer(Modifier.height(36.dp))
+            Row(
+                Modifier
+                    .visor(WwuShape.visorSmall, lip = false)
+                    .padding(horizontal = 18.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                PrintLabel(stringResource(R.string.espere_used))
+                VfdText(stringResource(R.string.times, session.waits), 24.sp.nonScaling())
+            }
+            Spacer(Modifier.height(24.dp))
+        }
+
+        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+            LabeledRoundButton(
+                label = stringResource(R.string.awake_start_mission),
+                onClick = onStartMission,
+                size = 84.dp,
+                style = RoundStyle.Action,
+                gap = 10.dp,
+                labelColor = Ink,
+                softShadow = softShadow(20.dp, 12.dp, 0.5f),
+                modifier = Modifier.padding(start = 24.dp, end = 24.dp, bottom = 36.dp),
+            ) { PlayGlyph(20.dp, 26.dp, nudge = 2.5.dp) }
         }
     }
-}
-
-@Composable
-private fun PulseRing(transition: InfiniteTransition, delayMs: Int) {
-    val scale by transition.animateFloat(
-        initialValue = 1f,
-        targetValue = 1.9f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(2200, easing = LinearOutSlowInEasing),
-            repeatMode = RepeatMode.Restart,
-            initialStartOffset = StartOffset(delayMs, StartOffsetType.FastForward),
-        ),
-        label = "scale",
-    )
-    val alpha by transition.animateFloat(
-        initialValue = 0.55f,
-        targetValue = 0f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(2200, easing = LinearOutSlowInEasing),
-            repeatMode = RepeatMode.Restart,
-            initialStartOffset = StartOffset(delayMs, StartOffsetType.FastForward),
-        ),
-        label = "alpha",
-    )
-    Box(
-        modifier = Modifier
-            .size(74.dp)
-            .scale(scale)
-            .border(1.dp, onGradientAlpha(alpha), CircleShape),
-    )
-}
-
-private fun ringDateText(): String {
-    val locale = Locale.getDefault()
-    val pattern = if (locale.language == "pt") "EEEE, d 'de' MMMM" else "EEEE, MMMM d"
-    return LocalDate.now().format(DateTimeFormatter.ofPattern(pattern, locale))
 }

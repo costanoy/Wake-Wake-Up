@@ -44,12 +44,9 @@ fun WakeHistoryEntry.toEntity() = WakeHistoryEntity(
 
 @Dao
 interface WakeHistoryDao {
-    @Query("SELECT * FROM wake_history ORDER BY epochDay DESC LIMIT :days")
-    fun observeRecent(days: Int): Flow<List<WakeHistoryEntity>>
+    @Query("SELECT * FROM wake_history WHERE epochDay >= :fromEpochDay ORDER BY epochDay, id")
+    fun observeSince(fromEpochDay: Long): Flow<List<WakeHistoryEntity>>
 
     @Insert
     suspend fun insert(entry: WakeHistoryEntity): Long
-
-    @Query("SELECT COUNT(*) FROM wake_history")
-    suspend fun count(): Int
 }

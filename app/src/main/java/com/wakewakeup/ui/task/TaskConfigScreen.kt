@@ -1,13 +1,10 @@
 package com.wakewakeup.ui.task
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -15,191 +12,222 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.Icon
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.wakewakeup.R
 import com.wakewakeup.data.Difficulty
 import com.wakewakeup.data.TaskType
-import com.wakewakeup.ui.components.taskTypeDesc
-import com.wakewakeup.ui.components.taskTypeName
+import com.wakewakeup.session.MissionGenerator
+import com.wakewakeup.ui.components.BackHeader
+import com.wakewakeup.ui.components.CheckGlyph
+import com.wakewakeup.ui.components.KeyLed
+import com.wakewakeup.ui.components.LabeledRoundButton
+import com.wakewakeup.ui.components.LatchKey
+import com.wakewakeup.ui.components.MinusGlyph
+import com.wakewakeup.ui.components.PlateDivider
+import com.wakewakeup.ui.components.PlusGlyph
+import com.wakewakeup.ui.components.PrintLabel
+import com.wakewakeup.ui.components.RoundButton
+import com.wakewakeup.ui.components.RoundStyle
+import com.wakewakeup.ui.components.VfdText
+import com.wakewakeup.ui.components.difficultyName
+import com.wakewakeup.ui.components.faceplate
+import com.wakewakeup.ui.components.nonScaling
+import com.wakewakeup.ui.components.softShadow
+import com.wakewakeup.ui.components.visor
 import com.wakewakeup.ui.edit.EditAlarmViewModel
-import com.wakewakeup.ui.theme.AccentLight
-import com.wakewakeup.ui.theme.AccentPrimary
-import com.wakewakeup.ui.theme.BgBase
-import com.wakewakeup.ui.theme.TextDisabled2
-import com.wakewakeup.ui.theme.TextPrimary
-import com.wakewakeup.ui.theme.TextSecondary
-import com.wakewakeup.ui.theme.TextTertiary
+import com.wakewakeup.ui.theme.Housing
+import com.wakewakeup.ui.theme.Ink
+import com.wakewakeup.ui.theme.InkMuted
+import com.wakewakeup.ui.theme.VfdBright
+import com.wakewakeup.ui.theme.Vfd
 import com.wakewakeup.ui.theme.WwuShape
 import com.wakewakeup.ui.theme.WwuType
-import com.wakewakeup.ui.theme.accentAlpha
+import androidx.compose.foundation.shape.RoundedCornerShape
 
 @Composable
 fun TaskConfigScreen(onBack: () -> Unit, viewModel: EditAlarmViewModel) {
     val draft = viewModel.draft
 
-    Column(modifier = Modifier.fillMaxSize().background(BgBase).statusBarsPadding().navigationBarsPadding()) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(22.dp, 34.dp, 22.dp, 18.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            Icon(
-                Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = stringResource(R.string.cd_back),
-                tint = TextSecondary,
-                modifier = Modifier.size(28.dp).clickable { onBack() },
-            )
-            Text(stringResource(R.string.task_setup_title), style = WwuType.taskName, color = TextPrimary)
-        }
+    Column(modifier = Modifier.fillMaxSize().background(Housing).statusBarsPadding().navigationBarsPadding()) {
+        BackHeader(
+            title = stringResource(R.string.task_setup_title),
+            backDescription = stringResource(R.string.cd_back),
+            onBack = onBack,
+        )
 
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 22.dp, vertical = 6.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp),
-        ) {
-            Spacer(Modifier.height(20.dp))
-
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                listOf(TaskType.MATH, TaskType.PHRASE).forEach { type ->
-                    TaskOptionCard(
-                        selected = draft.taskType == type,
-                        name = taskTypeName(type),
-                        desc = taskTypeDesc(type),
+        Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
+            // Mode selector: two latching keys in one well.
+            Row(
+                Modifier
+                    .padding(start = 16.dp, end = 16.dp, top = 12.dp)
+                    .fillMaxWidth()
+                    .visor(WwuShape.visorMedium, lip = false)
+                    .padding(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                listOf(TaskType.MATH to R.string.mode_math, TaskType.PHRASE to R.string.mode_phrase).forEach { (type, res) ->
+                    val label = stringResource(res)
+                    LatchKey(
+                        down = draft.taskType == type,
                         onClick = { viewModel.setTaskType(type) },
-                    )
+                        modifier = Modifier.weight(1f).height(72.dp),
+                        shape = RoundedCornerShape(7.dp),
+                        description = label,
+                    ) { down ->
+                        Column(
+                            Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 10.dp),
+                            verticalArrangement = Arrangement.SpaceBetween,
+                        ) {
+                            KeyLed(on = down, width = 16.dp)
+                            PrintLabel(label, color = if (down) Ink else InkMuted)
+                        }
+                    }
                 }
             }
 
             if (draft.taskType == TaskType.MATH) {
-                DifficultyBlock(
+                MathPlate(
                     difficulty = draft.difficulty,
                     count = draft.taskCount,
                     onDifficulty = viewModel::setDifficulty,
                     onCountDelta = viewModel::changeTaskCount,
                 )
+            } else {
+                PhrasePlate()
             }
         }
+
+        LabeledRoundButton(
+            label = stringResource(R.string.save),
+            onClick = onBack,
+            size = 76.dp,
+            style = RoundStyle.Action,
+            softShadow = softShadow(18.dp, 10.dp, 0.55f),
+            modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 8.dp, bottom = 32.dp),
+        ) { CheckGlyph(76.dp) }
     }
 }
 
 @Composable
-private fun TaskOptionCard(selected: Boolean, name: String, desc: String, onClick: () -> Unit) {
-    val borderColor = if (selected) accentAlpha(0.45f) else TextPrimary.copy(alpha = 0.10f)
-    val bg = if (selected) accentAlpha(0.07f) else Color.Transparent
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(WwuShape.taskCard)
-            .background(bg, WwuShape.taskCard)
-            .border(1.dp, borderColor, WwuShape.taskCard)
-            .clickable { onClick() }
-            .padding(16.dp, 15.dp),
-        horizontalArrangement = Arrangement.spacedBy(14.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(
-            modifier = Modifier
-                .size(18.dp)
-                .clip(CircleShape)
-                .border(1.5.dp, if (selected) AccentPrimary else TextDisabled2, CircleShape),
-            contentAlignment = Alignment.Center,
-        ) {
-            if (selected) {
-                Box(modifier = Modifier.size(9.dp).background(AccentPrimary, CircleShape))
-            }
-        }
-        Column {
-            Text(name, style = WwuType.taskName, color = TextPrimary)
-            Text(desc, style = WwuType.taskDesc, color = TextTertiary)
-        }
-    }
-}
+private fun MathPlate(
+    difficulty: Difficulty,
+    count: Int,
+    onDifficulty: (Difficulty) -> Unit,
+    onCountDelta: (Int) -> Unit,
+) {
+    // A real problem from each level's generator, so the preview never promises something else.
+    val examples = remember { Difficulty.entries.associateWith { MissionGenerator.mathQuestion(it).question } }
 
-@Composable
-private fun DifficultyBlock(difficulty: Difficulty, count: Int, onDifficulty: (Difficulty) -> Unit, onCountDelta: (Int) -> Unit) {
     Column(
-        modifier = Modifier
+        Modifier
+            .padding(start = 16.dp, end = 16.dp, top = 18.dp)
             .fillMaxWidth()
-            .background(accentAlpha(0.06f), WwuShape.configBlock)
-            .border(1.dp, accentAlpha(0.16f), WwuShape.configBlock)
-            .padding(18.dp, 16.dp),
+            .faceplate()
+            .padding(horizontal = 14.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text(stringResource(R.string.difficulty), style = WwuType.taskName, color = AccentLight)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-            listOf(Difficulty.EASY to R.string.easy, Difficulty.MEDIUM to R.string.medium, Difficulty.HARD to R.string.hard).forEach { (diff, res) ->
-                val active = difficulty == diff
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .clip(WwuShape.chip)
-                        .background(if (active) AccentPrimary else TextPrimary.copy(alpha = 0.06f), WwuShape.chip)
-                        .clickable { onDifficulty(diff) }
-                        .padding(vertical = 11.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(stringResource(res), style = WwuType.ctaSecondary, color = if (active) BgBase else TextSecondary)
+        PrintLabel(stringResource(R.string.difficulty))
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .visor(WwuShape.visor, lip = false)
+                .padding(6.dp),
+            horizontalArrangement = Arrangement.spacedBy(5.dp),
+        ) {
+            Difficulty.entries.forEach { level ->
+                val name = difficultyName(level)
+                LatchKey(
+                    down = difficulty == level,
+                    onClick = { onDifficulty(level) },
+                    modifier = Modifier.weight(1f).height(76.dp),
+                    shape = WwuShape.key,
+                    description = name,
+                ) { down ->
+                    Column(
+                        Modifier.fillMaxSize().padding(top = 8.dp, bottom = 10.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        KeyLed(on = down)
+                        Text(name, style = WwuType.keyLabel, color = if (down) Ink else InkMuted, maxLines = 1)
+                        VfdText(examples.getValue(level), 15.sp.nonScaling(), glowAlpha = 0.45f, maxLines = 1)
+                    }
                 }
             }
         }
+        PlateDivider(Modifier.padding(vertical = 6.dp))
+        PrintLabel(stringResource(R.string.how_many))
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(stringResource(R.string.how_many), style = WwuType.listRow, color = TextSecondary)
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                StepperButton("−") { onCountDelta(-1) }
-                Text("$count", style = WwuType.stepperCount, color = TextPrimary)
-                StepperButton("+") { onCountDelta(1) }
+            RoundButton(
+                onClick = { onCountDelta(-1) },
+                size = 52.dp,
+                style = RoundStyle.Graphite,
+                contentDescription = stringResource(R.string.cd_fewer),
+                baseDepth = 3.dp,
+                softShadow = softShadow(10.dp, 6.dp, 0.45f),
+            ) { MinusGlyph(16.dp, 3.dp) }
+            Box(
+                Modifier
+                    .size(width = 120.dp, height = 60.dp)
+                    .visor(WwuShape.visorSmall, lip = false)
+                    .clearAndSetSemantics { contentDescription = "$count" },
+                contentAlignment = Alignment.Center,
+            ) {
+                VfdText("$count", 44.sp.nonScaling(), color = VfdBright, glowRadius = 8.dp, glowAlpha = 0.6f)
             }
-        }
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(BgBase, WwuShape.textField)
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Text(stringResource(R.string.preview), style = WwuType.eyebrow, color = TextTertiary)
-            Spacer(Modifier.height(10.dp))
-            Text(previewQuestion(difficulty), style = WwuType.taskPreview, color = TextPrimary)
+            RoundButton(
+                onClick = { onCountDelta(1) },
+                size = 52.dp,
+                style = RoundStyle.Graphite,
+                contentDescription = stringResource(R.string.cd_more),
+                baseDepth = 3.dp,
+                softShadow = softShadow(10.dp, 6.dp, 0.45f),
+            ) { PlusGlyph(16.dp, 3.dp, Ink) }
         }
     }
 }
 
-/** Fixed illustrative examples from the design — not live-generated questions. */
-private fun previewQuestion(difficulty: Difficulty): String = when (difficulty) {
-    Difficulty.EASY -> "7 + 8"
-    Difficulty.MEDIUM -> "47 + 68"
-    Difficulty.HARD -> "38 × 14"
-}
-
 @Composable
-private fun StepperButton(symbol: String, onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .size(30.dp)
-            .clip(WwuShape.smallButton)
-            .background(TextPrimary.copy(alpha = 0.08f), WwuShape.smallButton)
-            .clickable { onClick() },
-        contentAlignment = Alignment.Center,
+private fun PhrasePlate() {
+    val phrase = remember { MissionGenerator.phraseOfTheDay() }
+    Column(
+        Modifier
+            .padding(start = 16.dp, end = 16.dp, top = 18.dp)
+            .fillMaxWidth()
+            .faceplate()
+            .padding(horizontal = 14.dp, vertical = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text(symbol, style = WwuType.numericKey, color = TextPrimary)
+        PrintLabel(stringResource(R.string.phrase_today))
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .visor(WwuShape.visorSmall, lip = false)
+                .padding(14.dp),
+        ) {
+            VfdText(
+                phrase,
+                22.sp,
+                style = WwuType.vfd(22.sp).copy(lineHeight = 27.sp),
+                color = Vfd,
+                glowAlpha = 0.45f,
+            )
+        }
+        Text(stringResource(R.string.phrase_note), style = WwuType.bodyXS, color = InkMuted)
     }
 }

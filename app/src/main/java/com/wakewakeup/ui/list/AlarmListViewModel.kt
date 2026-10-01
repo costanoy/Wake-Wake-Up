@@ -16,9 +16,10 @@ class AlarmListViewModel(application: Application) : AndroidViewModel(applicatio
 
     private val repository = (application as WakeWakeUpApplication).container.alarmRepository
 
-    val alarms: StateFlow<List<Alarm>> = repository.observeAll()
+    /** Null until the first read from the database, so the empty state never flashes on launch. */
+    val alarms: StateFlow<List<Alarm>?> = repository.observeAll()
         .map { list -> list.sortedWith(compareByDescending<Alarm> { it.enabled }.thenBy { it.hour * 60 + it.minute }) }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     fun toggleEnabled(alarm: Alarm) {
         viewModelScope.launch {

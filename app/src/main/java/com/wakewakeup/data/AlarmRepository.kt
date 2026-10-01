@@ -59,16 +59,4 @@ class AlarmRepository(
     suspend fun rescheduleAll() {
         dao.getAllSchedulable().forEach { scheduler.schedule(it.toDomain()) }
     }
-
-    /** First-run sample content: a few disabled alarms so the list isn't empty on first open. */
-    suspend fun seedDefaultsIfEmpty() {
-        if (dao.count() > 0) return
-        val weekdays = setOf(0, 1, 2, 3, 4)
-        val weekend = setOf(5, 6)
-        listOf(
-            Alarm(hour = 6, minute = 30, label = "Trabalho", days = weekdays, enabled = false, taskType = TaskType.MATH, difficulty = Difficulty.MEDIUM),
-            Alarm(hour = 9, minute = 15, label = "Fim de semana", days = weekend, enabled = false, taskType = TaskType.PHRASE),
-            Alarm(hour = 7, minute = 0, label = "Academia", days = setOf(0, 2, 4), enabled = false, taskType = TaskType.MATH, difficulty = Difficulty.EASY),
-        ).forEach { dao.insert(it.toEntity()) }
-    }
 }
