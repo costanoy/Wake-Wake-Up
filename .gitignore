@@ -14,3 +14,9 @@ app/build/
 .externalNativeBuild/
 .cxx/
 local.properties
+
+# Local build outputs and duplicates
+/wake-wake-up-site.zip
+/wake-wake-up-video.mp4
+site/wake-wake-up.apk
+.kotlin/
