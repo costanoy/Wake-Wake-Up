@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:video="http://www.google.com/schemas/sitemap-video/1.1">
+  <url>
+    <loc>https://wakewakeup.cyberhat.com.br/</loc>
+    <lastmod>2026-10-01</lastmod>
+    <video:video>
+      <video:thumbnail_loc>https://wakewakeup.cyberhat.com.br/assets/video-poster.jpg</video:thumbnail_loc>
+      <video:title>Uma manhã com o Wake Wake Up</video:title>
+      <video:description>Do primeiro toque ao bom dia: o alarme, o Espere, a missão e o tempo que você levou pra levantar.</video:description>
+      <video:content_loc>https://wakewakeup.cyberhat.com.br/wake-wake-up-video.mp4</video:content_loc>
+      <video:duration>28</video:duration>
+    </video:video>
+  </url>
+  <url>
+    <loc>https://wakewakeup.cyberhat.com.br/privacidade.html</loc>
+    <lastmod>2026-10-01</lastmod>
+  </url>
+</urlset>

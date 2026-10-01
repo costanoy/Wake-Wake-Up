@@ -1,0 +1,40 @@
+# Wake Wake Up · site estático (Hostinger / Apache)
+
+# Sempre HTTPS
+RewriteEngine On
+RewriteCond %{HTTPS} !=on
+RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+# Um endereço só para a página inicial
+RewriteCond %{THE_REQUEST} \s/index\.html[\s?]
+RewriteRule ^index\.html$ / [L,R=301]
+
+ErrorDocument 404 /404.html
+
+# O APK precisa sair com o tipo certo para o Android oferecer a instalação
+AddType application/vnd.android.package-archive .apk
+AddType font/woff2 .woff2
+
+# O arquivo do app não deve aparecer nos resultados de busca
+<IfModule mod_headers.c>
+  <FilesMatch "\.apk$">
+    Header set X-Robots-Tag "noindex"
+  </FilesMatch>
+</IfModule>
+
+# Compressão de texto
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/css application/javascript application/json image/svg+xml application/xml
+</IfModule>
+
+# Cache: imagens e vídeo por 30 dias; HTML, CSS e JS sempre revalidados
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresByType image/png "access plus 30 days"
+  ExpiresByType image/jpeg "access plus 30 days"
+  ExpiresByType video/mp4 "access plus 30 days"
+  ExpiresByType font/woff2 "access plus 1 year"
+  ExpiresByType text/html "access plus 0 seconds"
+  ExpiresByType text/css "access plus 0 seconds"
+  ExpiresByType application/javascript "access plus 0 seconds"
+</IfModule>
