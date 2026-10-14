@@ -92,3 +92,16 @@ fun isoDayIndexOf(date: LocalDate): Int =
 /** Calendar date (epoch day) of the alarm's next occurrence. */
 fun nextTriggerEpochDay(alarm: Alarm, from: LocalDateTime = LocalDateTime.now()): Long =
     Instant.ofEpochMilli(nextTriggerMillis(alarm, from)).atZone(ZoneId.systemDefault()).toLocalDate().toEpochDay()
+
+/**
+ * When an alarm skipping its occurrence on [skippedEpochDay] rings again: the first occurrence
+ * after the skipped one (never earlier than [from]).
+ */
+fun nextTriggerMillisAfterSkip(alarm: Alarm, skippedEpochDay: Long, from: LocalDateTime = LocalDateTime.now()): Long {
+    val skipped = LocalDate.ofEpochDay(skippedEpochDay).atTime(alarm.hour, alarm.minute)
+    return nextTriggerMillis(alarm, maxOf(skipped, from))
+}
+
+/** Calendar date (epoch day) of [nextTriggerMillisAfterSkip]. */
+fun nextTriggerEpochDayAfterSkip(alarm: Alarm, skippedEpochDay: Long, from: LocalDateTime = LocalDateTime.now()): Long =
+    Instant.ofEpochMilli(nextTriggerMillisAfterSkip(alarm, skippedEpochDay, from)).atZone(ZoneId.systemDefault()).toLocalDate().toEpochDay()

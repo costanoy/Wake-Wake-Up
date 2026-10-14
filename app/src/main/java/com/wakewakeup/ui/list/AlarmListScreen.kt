@@ -58,6 +58,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.wakewakeup.R
 import com.wakewakeup.data.Alarm
 import com.wakewakeup.session.nextTriggerEpochDay
+import com.wakewakeup.session.nextTriggerEpochDayAfterSkip
 import com.wakewakeup.ui.components.CardShadow
 import com.wakewakeup.ui.components.ColonDots
 import com.wakewakeup.ui.components.DayPrintRow
@@ -312,7 +313,8 @@ private fun AlarmCard(
         }
 
         // Drawer sliding out from under the card: armed auto-resume (info), or the offer to
-        // re-arm a recurring alarm you just switched off.
+        // re-arm a recurring alarm you just switched off. Both name the day it rings again: the
+        // occurrence after the skipped one (the skipped one only turns it back on, silently).
         val resumeDate = alarm.resumeDate
         val showInfo = !alarm.enabled && alarm.days.isNotEmpty() && resumeDate != null
         val showPrompt = !alarm.enabled && alarm.days.isNotEmpty() && resumeDate == null && showResumePrompt
@@ -322,7 +324,7 @@ private fun AlarmCard(
             exit = shrinkVertically(shrinkTowards = Alignment.Top) + fadeOut(),
         ) {
             if (resumeDate != null) {
-                val day = relativeDayName(LocalDate.ofEpochDay(resumeDate))
+                val day = relativeDayName(LocalDate.ofEpochDay(nextTriggerEpochDayAfterSkip(alarm, resumeDate)))
                 CardDrawer(
                     modifier = Modifier.clickable(role = Role.Button, onClickLabel = stringResource(R.string.cd_cancel_resume)) { onCancelResume() },
                     top = 18.dp, end = 14.dp, bottom = 10.dp,
@@ -332,7 +334,11 @@ private fun AlarmCard(
                     Text(stringResource(R.string.resume_scheduled, day), style = WwuType.bodyXS, color = Ink)
                 }
             } else {
-                val day = relativeDayName(remember(alarm.hour, alarm.minute, alarm.days) { LocalDate.ofEpochDay(nextTriggerEpochDay(alarm)) })
+                val day = relativeDayName(
+                    remember(alarm.hour, alarm.minute, alarm.days) {
+                        LocalDate.ofEpochDay(nextTriggerEpochDayAfterSkip(alarm, nextTriggerEpochDay(alarm)))
+                    },
+                )
                 CardDrawer(top = 16.dp, end = 8.dp, bottom = 8.dp) {
                     Text(stringResource(R.string.resume_prompt, day), style = WwuType.bodyXS, color = Ink, modifier = Modifier.weight(1f))
                     Spacer(Modifier.width(8.dp))

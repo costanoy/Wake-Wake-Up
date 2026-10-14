@@ -62,6 +62,8 @@ class AlarmRingService : LifecycleService() {
         lifecycleScope.launch {
             val alarm = container.alarmRepository.getById(alarmId) ?: return@launch
             currentAlarm = alarm
+            // Another alarm may still be in its Espere: this one starts its own fresh session.
+            holdUntilMillis = null
             // A non-repeating alarm only ever fires once — disable it the moment it rings
             // (not just when the ritual finishes), so a reboot before the user completes it
             // can't reschedule and fire it again.
@@ -103,7 +105,13 @@ class AlarmRingService : LifecycleService() {
             .build()
     }
 
+    /**
+     * Keeps the CPU running so the ticker's timers (Espere, mission, volume ramp) fire even with
+     * the screen off. Renewed whenever the sound stops for a while (Espere, mission), since the
+     * timeout counts from the moment it's taken and nothing else keeps the phone awake then.
+     */
     private fun acquireWakeLock() {
+        wakeLock?.let { if (it.isHeld) it.release() }
         val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
         wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, WAKE_LOCK_TAG).apply {
             acquire(WAKE_LOCK_TIMEOUT_MS)
@@ -119,10 +127,18 @@ class AlarmRingService : LifecycleService() {
         }
         // The saved sound might no longer be accessible (uninstalled app, revoked
         // permission) — fall back to the system default rather than staying silent.
-        mediaPlayer = chosenUri?.let { buildPlayer(it, volume) } ?: buildPlayer(defaultAlarmUri(), volume)
+        mediaPlayer = chosenUri?.let { buildPlayer(it, volume) } ?: buildFallbackPlayer(volume)
     }
 
-    private fun defaultAlarmUri(): Uri =
+    /**
+     * The system's default alarm sound, or — when there's none (set to silent, a file that was
+     * deleted, a phone without ringtones) — the bell bundled with the app, which always plays.
+     */
+    private fun buildFallbackPlayer(volume: Float): MediaPlayer? =
+        defaultAlarmUri()?.let { buildPlayer(it, volume) }
+            ?: buildPlayer(Uri.parse("android.resource://$packageName/${R.raw.campainha_mecanica}"), volume)
+
+    private fun defaultAlarmUri(): Uri? =
         RingtoneManager.getActualDefaultRingtoneUri(this, RingtoneManager.TYPE_ALARM)
             ?: RingtoneManager.getValidRingtoneUri(this)
 
@@ -147,7 +163,7 @@ class AlarmRingService : LifecycleService() {
             runCatching { player.release() }
             if (fullVolume) AlarmSessionState.update { it.copy(volume = 1f) }
             val current = AlarmSessionState.session.value?.volume ?: volume
-            mediaPlayer = buildPlayer(defaultAlarmUri(), current)
+            mediaPlayer = buildFallbackPlayer(current)
         }
         try {
             player.setAudioAttributes(
@@ -293,6 +309,7 @@ class AlarmRingService : LifecycleService() {
         val alarm = currentAlarm ?: return
         holdUntilMillis = null
         stopAudio()
+        acquireWakeLock()
         AlarmSessionState.update { session ->
             session.copy(
                 screen = SessionScreen.MISSION,
@@ -307,6 +324,7 @@ class AlarmRingService : LifecycleService() {
         val until = System.currentTimeMillis() + HOLD_ON_SECONDS * 1000L
         holdUntilMillis = until
         stopAudio()
+        acquireWakeLock()
         AlarmSessionState.update { it.copy(waits = it.waits + 1, holdUntilMillis = until) }
     }
 

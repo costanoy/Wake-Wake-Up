@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.wakewakeup.WakeWakeUpApplication
 import com.wakewakeup.data.Alarm
 import com.wakewakeup.session.nextTriggerMillis
+import com.wakewakeup.session.nextTriggerMillisAfterSkip
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
@@ -39,6 +40,14 @@ class AlarmListViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
+    /** The next ring among enabled alarms and ones skipping a day (they ring after the skipped day). */
     fun nextAlarmMillis(alarms: List<Alarm>): Long? =
-        alarms.filter { it.enabled }.minOfOrNull { nextTriggerMillis(it) }
+        alarms.mapNotNull { alarm ->
+            val resumeDate = alarm.resumeDate
+            when {
+                alarm.enabled -> nextTriggerMillis(alarm)
+                resumeDate != null -> nextTriggerMillisAfterSkip(alarm, resumeDate)
+                else -> null
+            }
+        }.minOrNull()
 }

@@ -20,9 +20,12 @@ class AlarmReceiver : BroadcastReceiver() {
             try {
                 val alarm = app.container.alarmRepository.getById(alarmId)
                 if (alarm != null) {
-                    if (!alarm.enabled && alarm.resumeDate == LocalDate.now().toEpochDay()) {
+                    val resumeDate = alarm.resumeDate
+                    if (!alarm.enabled && resumeDate != null && resumeDate <= LocalDate.now().toEpochDay()) {
                         // The wake for a paused alarm's auto-resume — turn it back on without
                         // ringing; its normal recurrence picks up from the next real occurrence.
+                        // It can arrive on a later day (phone off at that time, delivered after
+                        // a reboot): the alarm must still come back on rather than stay off.
                         app.container.alarmRepository.resumeFromPause(alarm)
                     } else if (alarm.enabled) {
                         ContextCompat.startForegroundService(
