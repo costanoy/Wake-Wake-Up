@@ -22,3 +22,9 @@ site/wake-wake-up.apk
 .kotlin/
 portfolio-preview/
 .claude/settings.local.json
+
+# Signing keys and secrets never go to GitHub
+*.jks
+*.keystore
+keystore.properties
+.env

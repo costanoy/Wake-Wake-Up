@@ -1,3 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    Android 11 and lower. Only the database (alarms and wake-up history) goes with the user to a
+    new phone. Preferences stay behind: the onboarding flag, the pre-alarm notice's memory and a
+    ringing session only make sense on the phone that wrote them.
+-->
 <full-backup-content>
+    <include domain="database" path="." />
 </full-backup-content>
