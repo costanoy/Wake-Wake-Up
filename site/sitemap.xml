@@ -1,18 +1,45 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:video="http://www.google.com/schemas/sitemap-video/1.1">
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns:video="http://www.google.com/schemas/sitemap-video/1.1">
   <url>
     <loc>https://wakewakeup.cyberhat.com.br/</loc>
-    <lastmod>2026-10-01</lastmod>
+    <lastmod>2026-10-28</lastmod>
+    <xhtml:link rel="alternate" hreflang="pt" href="https://wakewakeup.cyberhat.com.br/"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://wakewakeup.cyberhat.com.br/en/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://wakewakeup.cyberhat.com.br/en/"/>
     <video:video>
       <video:thumbnail_loc>https://wakewakeup.cyberhat.com.br/assets/video-poster.jpg</video:thumbnail_loc>
       <video:title>Uma manhã com o Wake Wake Up</video:title>
-      <video:description>Do primeiro toque ao bom dia: o alarme, o Espere, a missão e o tempo que você levou pra levantar.</video:description>
+      <video:description>Do primeiro toque ao bom dia: o alarme, o Espere, a missão e o tempo que você levou para levantar.</video:description>
+      <video:content_loc>https://wakewakeup.cyberhat.com.br/wake-wake-up-video.mp4</video:content_loc>
+      <video:duration>28</video:duration>
+    </video:video>
+  </url>
+  <url>
+    <loc>https://wakewakeup.cyberhat.com.br/en/</loc>
+    <lastmod>2026-10-28</lastmod>
+    <xhtml:link rel="alternate" hreflang="pt" href="https://wakewakeup.cyberhat.com.br/"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://wakewakeup.cyberhat.com.br/en/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://wakewakeup.cyberhat.com.br/en/"/>
+    <video:video>
+      <video:thumbnail_loc>https://wakewakeup.cyberhat.com.br/assets/video-poster.jpg</video:thumbnail_loc>
+      <video:title>A morning with Wake Wake Up</video:title>
+      <video:description>From the first ring to good morning: the alarm, the snooze, the mission and how long it took to get up. The app in the video is in Portuguese.</video:description>
       <video:content_loc>https://wakewakeup.cyberhat.com.br/wake-wake-up-video.mp4</video:content_loc>
       <video:duration>28</video:duration>
     </video:video>
   </url>
   <url>
     <loc>https://wakewakeup.cyberhat.com.br/privacidade.html</loc>
-    <lastmod>2026-10-01</lastmod>
+    <lastmod>2026-10-28</lastmod>
+    <xhtml:link rel="alternate" hreflang="pt" href="https://wakewakeup.cyberhat.com.br/privacidade.html"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://wakewakeup.cyberhat.com.br/en/privacy.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://wakewakeup.cyberhat.com.br/en/privacy.html"/>
+  </url>
+  <url>
+    <loc>https://wakewakeup.cyberhat.com.br/en/privacy.html</loc>
+    <lastmod>2026-10-28</lastmod>
+    <xhtml:link rel="alternate" hreflang="pt" href="https://wakewakeup.cyberhat.com.br/privacidade.html"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://wakewakeup.cyberhat.com.br/en/privacy.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://wakewakeup.cyberhat.com.br/en/privacy.html"/>
   </url>
 </urlset>

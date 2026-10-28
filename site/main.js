@@ -1,13 +1,41 @@
-/* Wake Wake Up · landing page behaviour. No framework, no build step. */
+/* Wake Wake Up · landing page behaviour, shared by / (pt-BR) and /en/. No framework, no build step. */
 (function () {
   'use strict';
 
-  var config = Object.assign(
-    { storeUrl: '', apkUrl: '', contact: '', videoSrc: 'wake-wake-up-video.mp4', privacyUrl: 'privacidade.html' },
-    window.WWU_CONFIG || {}
-  );
+  var config = Object.assign({ storeUrl: '', apkUrl: '', contact: '' }, window.WWU_CONFIG || {});
   var reduceMotion = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   var $ = function (id) { return document.getElementById(id); };
+
+  // Paths in site-config.js are relative to the site root, which is where this file lives.
+  var siteRoot = new URL('./', (document.currentScript && document.currentScript.src) || location.href);
+  function siteUrl(path) { return new URL(path, siteRoot).href; }
+
+  // ------------------------------------------------------------------ Text (same keys in both languages)
+
+  var EN = /^en/i.test(document.documentElement.lang);
+  var T = EN ? {
+    now: 'Now: ',
+    rising: 'RISING', max: 'MAX', backIn: 'BACK IN 0:0', noLimit: 'NO LIMIT',
+    enter: 'Enter the result', wrong: 'Wrong. Try again.', right: 'Right. Alarm off.',
+    store: 'GET IT ON GOOGLE PLAY', storeName: 'Get Wake Wake Up on Google Play',
+    soon: 'COMING SOON TO GOOGLE PLAY', androidOnly: 'ANDROID ONLY',
+    stations: [
+      ['Mechanical bell', 'APP'], ['Rotary phone', 'APP'], ['Digital beep', 'APP'], ['Siren', 'APP'], ['Birds', 'APP'],
+      ['Phone tones', 'PHONE'], ['Music on this phone', 'PHONE'], ['Internet radio', 'RADIO']
+    ],
+    days: ['THU', 'FRI', 'SAT', 'SUN', 'MON', 'TUE', 'TODAY']
+  } : {
+    now: 'Agora: ',
+    rising: 'SUBINDO', max: 'MÁXIMO', backIn: 'VOLTA EM 0:0', noLimit: 'SEM LIMITE',
+    enter: 'Digite o resultado', wrong: 'Errado. Tente de novo.', right: 'Certo. Alarme desligado.',
+    store: 'BAIXAR NO GOOGLE PLAY', storeName: 'Baixar o Wake Wake Up no Google Play',
+    soon: 'EM BREVE NO GOOGLE PLAY', androidOnly: 'SÓ PARA ANDROID',
+    stations: [
+      ['Campainha mecânica', 'APP'], ['Telefone de disco', 'APP'], ['Bipe digital', 'APP'], ['Sirene', 'APP'], ['Pássaros', 'APP'],
+      ['Toques do celular', 'CELULAR'], ['Música do celular', 'CELULAR'], ['Rádio da internet', 'RÁDIO']
+    ],
+    days: ['QUI', 'SEX', 'SÁB', 'DOM', 'SEG', 'TER', 'HOJE']
+  };
 
   // ------------------------------------------------------------------ Flip digit
   // Split-flap card: on change the old top half falls, then the new bottom half drops.
@@ -73,75 +101,71 @@
     return Array.prototype.map.call(container.querySelectorAll('.flip'), function (el) { return new Flip(el); });
   }
 
-  // ------------------------------------------------------------------ Hero clock (Brasília time)
+  // ------------------------------------------------------------------ Hero clock (the visitor's own time, 24 h)
 
-  function brasiliaTime() {
-    try {
-      var parts = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date());
-      var get = function (type) {
-        var part = parts.find(function (p) { return p.type === type; });
-        return (part ? part.value : '00').padStart(2, '0');
-      };
-      return get('hour') + get('minute');
-    } catch (e) {
-      var d = new Date(Date.now() - 3 * 3600e3);
-      return String(d.getUTCHours()).padStart(2, '0') + String(d.getUTCMinutes()).padStart(2, '0');
-    }
+  function localTime() {
+    var d = new Date();
+    return String(d.getHours()).padStart(2, '0') + String(d.getMinutes()).padStart(2, '0');
   }
 
   var clock = $('hero-clock');
   var clockFlips = flipsIn(clock);
+  var shown = '';
   function tickClock() {
-    var t = brasiliaTime();
+    var t = localTime();
+    if (t === shown) return;
+    shown = t;
     clockFlips.forEach(function (flip, i) { flip.set(t[i]); });
-    clock.setAttribute('aria-label', 'Horário de Brasília: ' + t.slice(0, 2) + ':' + t.slice(2));
+    clock.setAttribute('aria-label', T.now + t.slice(0, 2) + ':' + t.slice(2));
   }
   tickClock();
   setInterval(tickClock, 1000);
 
-  // ------------------------------------------------------------------ Download buttons, footer links
+  // ------------------------------------------------------------------ Download buttons, footer contact
+  // The HTML already has a working APK link (so it works without this script). Here it becomes the
+  // store link, a "coming soon" plate, or, on iPhone and iPad, an "Android only" plate.
 
-  document.querySelectorAll('[data-download]').forEach(function (slot) {
-    var node;
-    if (config.storeUrl) {
-      node = document.createElement('a');
-      node.href = config.storeUrl;
-      node.className = 'download';
-      node.setAttribute('aria-label', 'Baixar o Wake Wake Up no Google Play');
-      node.innerHTML = '<span class="download__button"></span><span>BAIXAR NO GOOGLE PLAY</span>';
-    } else if (config.apkUrl) {
-      // Not on the store yet: the button hands over the APK file itself.
-      node = document.createElement('a');
-      node.href = config.apkUrl;
-      node.setAttribute('download', '');
-      node.className = 'download';
-      node.setAttribute('aria-label', 'Baixar o APK do Wake Wake Up para Android');
-      node.innerHTML = '<span class="download__button"></span><span>BAIXAR O APK</span>';
+  var ua = navigator.userAgent || '';
+  var isIOS = /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  var isAndroid = /Android/i.test(ua);
+  var mode = isIOS ? 'ios' : config.storeUrl ? 'store' : config.apkUrl ? 'apk' : 'soon';
+
+  function plate(text) {
+    var node = document.createElement('div');
+    node.className = 'download download--soon';
+    node.innerHTML = '<span class="download__button" aria-hidden="true"></span><span class="download__label"></span>';
+    node.lastChild.textContent = text;
+    return node;
+  }
+
+  document.querySelectorAll('[data-download]').forEach(function (link) {
+    if (mode === 'apk') {
+      link.href = siteUrl(config.apkUrl);
+    } else if (mode === 'store') {
+      link.href = config.storeUrl;
+      link.removeAttribute('download');
+      link.setAttribute('aria-label', T.storeName);
+      link.querySelector('.download__label').textContent = T.store;
     } else {
-      node = document.createElement('div');
-      node.className = 'download download--soon';
-      node.innerHTML = '<span class="download__button"></span><span>EM BREVE NO GOOGLE PLAY</span>';
+      link.replaceWith(plate(mode === 'ios' ? T.androidOnly : T.soon));
     }
-    slot.appendChild(node);
   });
-  // The install note only makes sense while the download is a loose APK file.
-  document.querySelectorAll('[data-apk-note]').forEach(function (note) {
-    note.hidden = !!config.storeUrl || !config.apkUrl;
-  });
+  // The install notes only make sense while the download is a loose APK file.
+  document.querySelectorAll('[data-apk-note]').forEach(function (note) { note.hidden = mode !== 'apk'; });
+  document.querySelectorAll('[data-desktop-note]').forEach(function (note) { note.hidden = mode !== 'apk' || isAndroid; });
+  document.querySelectorAll('[data-ios-note]').forEach(function (note) { note.hidden = mode !== 'ios'; });
 
   var contactLink = $('contact-link');
-  if (config.contact) {
+  if (contactLink && config.contact) {
     contactLink.href = 'mailto:' + config.contact;
     contactLink.textContent = config.contact;
     contactLink.hidden = false;
   }
-  $('privacy-link').href = config.privacyUrl;
 
   // ------------------------------------------------------------------ Video (never autoplays)
 
   var video = $('demo-video');
   var playButton = $('demo-play');
-  if (video.getAttribute('src') !== config.videoSrc) video.src = config.videoSrc;
   playButton.addEventListener('click', function () {
     var started = video.play();
     if (started && started.catch) started.catch(function () {});
@@ -168,18 +192,28 @@
   }
 
   // Step 01: the volume meter ramps 3 → 16; the switch turns the ramp off (meter full).
+  // Espere pauses it (5 s here stand in for the app's 5 min), then it starts again from low.
   var volSegs = buildSegs($('vol-segs'), 16, 13);
   var volLabel = $('vol-label');
   var rampSwitch = $('ramp-switch');
+  var espereCount = $('espere-count');
   var ramp = true;
   var vol = 4;
+  var holdLeft = 0;
+  var holds = 0;
+  var holdTimer = null;
   function paintVolume() {
+    if (holdLeft > 0) {
+      light(volSegs, 0);
+      volLabel.textContent = T.backIn + holdLeft;
+      return;
+    }
     light(volSegs, ramp ? vol : 16);
-    volLabel.textContent = ramp ? 'SUBINDO' : 'MÁXIMO';
+    volLabel.textContent = ramp ? T.rising : T.max;
   }
   paintVolume();
   setInterval(function () {
-    if (!ramp || reduceMotion) return;
+    if (!ramp || reduceMotion || holdLeft > 0) return;
     vol = vol >= 16 ? 3 : vol + 1;
     paintVolume();
   }, 450);
@@ -188,8 +222,23 @@
     rampSwitch.setAttribute('aria-checked', String(ramp));
     paintVolume();
   });
+  $('espere').addEventListener('click', function () {
+    holds++;
+    holdLeft = 5;
+    espereCount.textContent = T.noLimit + ' · ' + holds + '×';
+    clearInterval(holdTimer);
+    paintVolume();
+    holdTimer = setInterval(function () {
+      holdLeft--;
+      if (holdLeft <= 0) {
+        clearInterval(holdTimer);
+        vol = 3;
+      }
+      paintVolume();
+    }, 1000);
+  });
 
-  // ------------------------------------------------------------------ Step 02: calculator mission (7 × 8)
+  // ------------------------------------------------------------------ Step 02: calculator mission (47 + 38)
 
   var calc = $('calc');
   var calcDisplay = calc.querySelector('.calc__display');
@@ -203,7 +252,7 @@
     calc.classList.toggle('is-wrong', state === 'wrong');
     calc.classList.toggle('is-ok', state === 'ok');
     calcAnswer.textContent = answer ? answer.replace('-', '−') : '_';
-    calcMsg.textContent = state === 'wrong' ? 'Errado. Tente de novo.' : state === 'ok' ? 'Certo. Alarme desligado.' : 'Digite o resultado';
+    calcMsg.textContent = state === 'wrong' ? T.wrong : state === 'ok' ? T.right : T.enter;
   }
   function shake() {
     if (reduceMotion) return;
@@ -218,7 +267,7 @@
   }
   function press(key) {
     if (key === 'OK') {
-      if (answer === '56') {
+      if (answer === '85') {
         state = 'ok';
         clearTimeout(okTimer);
         okTimer = setTimeout(function () { state = 'idle'; answer = ''; paintCalc(); }, 1800);
@@ -243,6 +292,19 @@
   calc.querySelectorAll('[data-key]').forEach(function (button) {
     button.addEventListener('click', function () { press(button.getAttribute('data-key')); });
   });
+  // A physical keyboard works too, once focus is on the keypad. Enter keeps its usual job of
+  // pressing the focused key (so it confirms on OK).
+  calc.addEventListener('keydown', function (event) {
+    if (event.ctrlKey || event.metaKey || event.altKey) return;
+    var key = /^[0-9]$/.test(event.key) ? event.key
+      : event.key === 'Backspace' ? 'B'
+      : event.key === 'Escape' || event.key === 'Delete' ? 'C'
+      : event.key === '-' || event.key === 'Subtract' ? 'M'
+      : null;
+    if (!key) return;
+    event.preventDefault();
+    press(key);
+  });
 
   // ------------------------------------------------------------------ Step 03: "12 MIN" flips in from 00
 
@@ -250,10 +312,7 @@
 
   // ------------------------------------------------------------------ Tuner (radiogroup)
 
-  var STATIONS = [
-    ['Campainha mecânica', 'APP'], ['Telefone de disco', 'APP'], ['Bipe digital', 'APP'], ['Sirene', 'APP'], ['Pássaros', 'APP'],
-    ['Toques do celular', 'CELULAR'], ['Música do aparelho', 'CELULAR'], ['Rádio da internet', 'RÁDIO']
-  ];
+  var STATIONS = T.stations;
   var ticks = $('dial-ticks');
   for (var t = 0; t < 29; t++) ticks.appendChild(document.createElement('i'));
   var stationsEl = $('stations');
@@ -293,7 +352,6 @@
   // ------------------------------------------------------------------ Stats chart (example data)
 
   var MINUTES = [6, 14, 9, 22, 4, 11, 12];
-  var DAYS = ['QUI', 'SEX', 'SÁB', 'DOM', 'SEG', 'TER', 'HOJE'];
   var chartEl = $('chart');
   var columns = MINUTES.map(function (minutes, i) {
     var col = document.createElement('div');
@@ -308,7 +366,7 @@
     bars.replaceChildren.apply(bars, segs.slice().reverse());
     var day = document.createElement('span');
     day.className = 'chart__day';
-    day.textContent = DAYS[i];
+    day.textContent = T.days[i];
     col.append(value, bars, day);
     chartEl.appendChild(col);
     return { segs: segs, full: Math.max(1, Math.round(minutes / 2)) };

@@ -1,40 +1,61 @@
-# Wake Wake Up · site estático (Hostinger / Apache)
+# Wake Wake Up · site estático (Hostinger: Apache ou LiteSpeed)
+
+RewriteEngine On
 
 # Sempre HTTPS
-RewriteEngine On
 RewriteCond %{HTTPS} !=on
 RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 
-# Um endereço só para a página inicial
-RewriteCond %{THE_REQUEST} \s/index\.html[\s?]
-RewriteRule ^index\.html$ / [L,R=301]
+# Um endereço só para cada página inicial: /index.html vira / e /en/index.html vira /en/
+RewriteCond %{THE_REQUEST} \s/(en/)?index\.html[\s?]
+RewriteRule ^(en/)?index\.html$ /$1 [L,R=301]
+
+# O README é só para quem mantém o site: se for enviado por engano, responde como se não existisse
+RewriteRule ^README\.md$ - [NC,R=404,L]
 
 ErrorDocument 404 /404.html
 
-# O APK precisa sair com o tipo certo para o Android oferecer a instalação
+# Tipos e codificação
 AddType application/vnd.android.package-archive .apk
 AddType font/woff2 .woff2
+AddType text/javascript .js
+AddDefaultCharset utf-8
+AddCharset utf-8 .css .js .xml .txt
 
-# O arquivo do app não deve aparecer nos resultados de busca
 <IfModule mod_headers.c>
+  # Segurança: só HTTPS por um ano, sem adivinhar tipos de arquivo, sem incorporar o site em
+  # outras páginas e nada carregado de outros sites (o site não usa nada de fora).
+  Header always set Strict-Transport-Security "max-age=31536000"
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  Header always set Permissions-Policy "camera=(), microphone=(), geolocation=()"
+  Header always set Content-Security-Policy "default-src 'self'; img-src 'self'; media-src 'self'; font-src 'self'; style-src 'self'; script-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'"
+
+  # HTML, CSS, JS e os arquivos para buscadores: o navegador sempre confere se há versão nova.
+  # A regra vai pelo nome do arquivo porque o servidor manda JS como application/x-javascript.
+  <FilesMatch "\.(html|css|js|xml|txt)$">
+    Header set Cache-Control "no-cache"
+  </FilesMatch>
+
+  # O APK: sempre conferido (o arquivo é trocado mantendo o nome) e fora dos resultados de busca
   <FilesMatch "\.apk$">
+    Header set Cache-Control "no-cache"
     Header set X-Robots-Tag "noindex"
   </FilesMatch>
 </IfModule>
 
-# Compressão de texto
+# Compressão de texto (o CDN da Hostinger também comprime)
 <IfModule mod_deflate.c>
-  AddOutputFilterByType DEFLATE text/html text/css application/javascript application/json image/svg+xml application/xml
+  AddOutputFilterByType DEFLATE text/html text/css text/javascript application/javascript application/x-javascript application/json image/svg+xml application/xml text/xml text/plain
 </IfModule>
 
-# Cache: imagens e vídeo por 30 dias; HTML, CSS e JS sempre revalidados
+# Cache longo só para imagens, vídeo e fontes. Ao trocar um desses, use um nome de arquivo novo.
 <IfModule mod_expires.c>
   ExpiresActive On
   ExpiresByType image/png "access plus 30 days"
   ExpiresByType image/jpeg "access plus 30 days"
+  ExpiresByType image/x-icon "access plus 30 days"
+  ExpiresByType image/vnd.microsoft.icon "access plus 30 days"
   ExpiresByType video/mp4 "access plus 30 days"
   ExpiresByType font/woff2 "access plus 1 year"
-  ExpiresByType text/html "access plus 0 seconds"
-  ExpiresByType text/css "access plus 0 seconds"
-  ExpiresByType application/javascript "access plus 0 seconds"
 </IfModule>

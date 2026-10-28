@@ -1,17 +1,22 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-BR" data-lang="pt" data-alt="en/">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="lang.js?v=20261028"></script>
 <title>Wake Wake Up · Despertador para quem dorme pesado</title>
 <meta name="description" content="Despertador para Android para quem dorme pesado. O alarme só desliga depois de uma missão: contas de matemática ou uma frase.">
 <meta name="robots" content="index, follow, max-image-preview:large, max-video-preview:-1">
 <meta name="theme-color" content="#141017">
 
 <link rel="canonical" href="https://wakewakeup.cyberhat.com.br/">
+<link rel="alternate" hreflang="pt" href="https://wakewakeup.cyberhat.com.br/">
+<link rel="alternate" hreflang="en" href="https://wakewakeup.cyberhat.com.br/en/">
+<link rel="alternate" hreflang="x-default" href="https://wakewakeup.cyberhat.com.br/en/">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://wakewakeup.cyberhat.com.br/">
 <meta property="og:locale" content="pt_BR">
+<meta property="og:locale:alternate" content="en_US">
 <meta property="og:site_name" content="Wake Wake Up">
 <meta property="og:title" content="Wake Wake Up · Acorde de verdade">
 <meta property="og:description" content="Despertador para Android para quem dorme pesado. O alarme só desliga depois de uma missão.">
@@ -23,12 +28,14 @@
 <meta name="twitter:title" content="Wake Wake Up · Acorde de verdade">
 <meta name="twitter:description" content="Despertador para Android para quem dorme pesado. O alarme só desliga depois de uma missão.">
 <meta name="twitter:image" content="https://wakewakeup.cyberhat.com.br/og-image.png">
+<meta name="twitter:image:alt" content="Relógio flip marcando 06:30 e a frase Acorde de verdade.">
 
 <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
+<link rel="icon" type="image/png" sizes="96x96" href="assets/app-icon.png">
 <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png">
 <link rel="preload" href="assets/fonts/instrument-sans-600.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="assets/fonts/barlow-condensed-600.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="styles.css?v=20261028">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -42,14 +49,15 @@
       "image": "https://wakewakeup.cyberhat.com.br/og-image.png",
       "operatingSystem": "Android 8.0 ou superior",
       "applicationCategory": "UtilitiesApplication",
-      "inLanguage": "pt-BR",
+      "inLanguage": ["pt-BR", "en"],
       "downloadUrl": "https://wakewakeup.cyberhat.com.br/wake-wake-up.apk",
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "BRL" },
       "publisher": { "@type": "Organization", "name": "CyberHat", "email": "cyberhat.tech@gmail.com" }
     },
     {
       "@type": "VideoObject",
       "name": "Uma manhã com o Wake Wake Up",
-      "description": "Do primeiro toque ao bom dia: o alarme, o Espere, a missão e o tempo que você levou pra levantar.",
+      "description": "Do primeiro toque ao bom dia: o alarme, o Espere, a missão e o tempo que você levou para levantar.",
       "thumbnailUrl": "https://wakewakeup.cyberhat.com.br/assets/video-poster.jpg",
       "contentUrl": "https://wakewakeup.cyberhat.com.br/wake-wake-up-video.mp4",
       "uploadDate": "2026-10-01T12:00:00-03:00",
@@ -64,12 +72,18 @@
 
 <header class="hero">
   <nav class="nav wrap" aria-label="Principal">
-    <div class="brand"><img src="assets/app-icon.png" alt="Ícone do Wake Wake Up" width="40" height="40"><span>Wake Wake Up</span></div>
-    <a class="pill" href="#baixar">BAIXAR</a>
+    <div class="brand"><img src="assets/app-icon.png" alt="" width="40" height="40"><span>Wake Wake Up</span></div>
+    <div class="nav__end">
+      <a class="pill" href="#baixar">BAIXAR</a>
+      <div class="lang" role="group" aria-label="Idioma">
+        <span class="lang__opt" aria-current="true">PT<span class="sr-only"> Português</span></span>
+        <a class="lang__opt" href="en/" hreflang="en" lang="en" data-lang-choice="en">EN<span class="sr-only"> English</span></a>
+      </div>
+    </div>
   </nav>
   <div class="hero__body wrap">
     <div class="label">Despertador para Android</div>
-    <div class="clock" id="hero-clock" role="img" aria-label="Horário de Brasília: 06:30">
+    <div class="clock" id="hero-clock" role="img" aria-label="Relógio flip marcando 06:30">
       <div class="flip" data-digit="0" aria-hidden="true"></div>
       <div class="flip" data-digit="6" aria-hidden="true"></div>
       <div class="clock__colon" aria-hidden="true"><i></i><i></i></div>
@@ -78,9 +92,12 @@
     </div>
     <div class="hero__text">
       <h1>Acorde de verdade.</h1>
-      <p class="lead">Para quem dorme pesado demais pra soneca funcionar. O alarme só desliga depois que você cumpre uma missão.</p>
+      <p class="lead">Para quem dorme pesado demais para a soneca funcionar. O alarme só desliga depois que você cumpre uma missão.</p>
     </div>
-    <div class="hero__cta" data-download></div>
+    <div class="hero__cta">
+      <a class="download" href="wake-wake-up.apk" download data-download aria-label="Baixar o APK do Wake Wake Up para Android"><span class="download__button" aria-hidden="true"></span><span class="download__label">BAIXAR O APK</span></a>
+      <a class="hero__test" href="#teste">Ou peça um acesso de teste</a>
+    </div>
   </div>
 </header>
 
@@ -91,12 +108,12 @@
     <div class="split__text">
       <div class="label">Em 28 segundos</div>
       <h2 class="h2">Veja uma manhã com o Wake Wake Up.</h2>
-      <p class="copy">Do primeiro toque ao bom dia: o alarme, o Espere, a missão e o tempo que você levou pra levantar.</p>
+      <p class="copy">Do primeiro toque ao bom dia: o alarme, o Espere, a missão e o tempo que você levou para levantar.</p>
     </div>
     <div class="phone-wrap">
       <div class="phone">
         <video id="demo-video" src="wake-wake-up-video.mp4" preload="none" playsinline poster="assets/video-poster.jpg" width="1080" height="1920" aria-label="Vídeo de demonstração do Wake Wake Up"></video>
-        <button type="button" class="phone__play" id="demo-play" aria-label="Assistir ao vídeo"><span></span><span>ASSISTIR · 0:28</span></button>
+        <button type="button" class="phone__play" id="demo-play" aria-label="Assistir ao vídeo, 0:28"><span></span><span>ASSISTIR · 0:28</span></button>
       </div>
     </div>
   </div>
@@ -114,14 +131,14 @@
         <div class="step__head"><span class="vfd">01</span><h3>Toca até você levantar</h3></div>
         <p>O volume pode subir do baixo ao máximo em 60 segundos. No lugar da soneca existe o Espere: pausa de 5 minutos, sem limite de usos.</p>
         <div class="step__demo">
-          <button type="button" class="espere" aria-label="Espere 5 minutos (demonstração)"><span><b>ESPERE 5 MIN</b><small>SEM LIMITE</small></span></button>
+          <button type="button" class="espere" id="espere"><span><b>ESPERE 5 MIN</b><small id="espere-count">SEM LIMITE</small><span class="sr-only"> (demonstração)</span></span></button>
           <div class="meter visor">
             <div class="meter__head"><span class="label">Volume</span><span class="vfd" id="vol-label">SUBINDO</span></div>
             <div class="segs" id="vol-segs" aria-hidden="true"></div>
           </div>
           <div class="switch-row">
-            <span class="label">Subir aos poucos</span>
-            <button type="button" class="switch" id="ramp-switch" role="switch" aria-checked="true" aria-label="Subir o volume aos poucos">
+            <span class="label" id="ramp-label">Aumentar aos poucos</span>
+            <button type="button" class="switch" id="ramp-switch" role="switch" aria-checked="true" aria-labelledby="ramp-label">
               <span class="switch__track"><span class="switch__window"></span><span class="switch__knob"><i></i><i></i><i></i></span></span>
             </button>
           </div>
@@ -130,17 +147,17 @@
 
       <article class="step plate" data-reveal>
         <div class="step__head"><span class="vfd">02</span><h3>Só desliga com a missão</h3></div>
-        <p>Resolva contas de matemática, em 3 dificuldades e de 1 a 10 contas, ou digite uma frase. Experimente aqui.</p>
+        <p>Resolva contas (3 dificuldades, de 1 a 10 contas) ou digite a frase do dia. Você tem 2 minutos: se o tempo acabar, o alarme volta a tocar, já quase no máximo. Experimente aqui.</p>
         <div class="step__demo calc" id="calc">
           <div class="calc__display">
-            <div class="vfd calc__question">7 × 8 =</div>
+            <div class="vfd calc__question">47 + 38 =</div>
             <div class="calc__row"><span class="calc__msg" id="calc-msg" aria-live="polite">Digite o resultado</span><span class="calc__answer" id="calc-answer">_</span></div>
           </div>
           <div class="keypad">
             <button type="button" class="key" data-key="7">7</button>
             <button type="button" class="key" data-key="8">8</button>
             <button type="button" class="key" data-key="9">9</button>
-            <button type="button" class="key key--fn" data-key="C" aria-label="Limpar">C</button>
+            <button type="button" class="key key--fn" data-key="C" aria-label="C, limpar">C</button>
             <button type="button" class="key" data-key="4">4</button>
             <button type="button" class="key" data-key="5">5</button>
             <button type="button" class="key" data-key="6">6</button>
@@ -148,7 +165,7 @@
             <button type="button" class="key" data-key="1">1</button>
             <button type="button" class="key" data-key="2">2</button>
             <button type="button" class="key" data-key="3">3</button>
-            <button type="button" class="key key--ok" data-key="OK" aria-label="Confirmar resposta">OK</button>
+            <button type="button" class="key key--ok" data-key="OK">OK</button>
             <button type="button" class="key key--zero" data-key="0">0</button>
             <button type="button" class="key" data-key="M" aria-label="Sinal de menos">−</button>
           </div>
@@ -157,7 +174,7 @@
 
       <article class="step plate" data-reveal data-trigger="bomdia">
         <div class="step__head"><span class="vfd">03</span><h3>Bom dia</h3></div>
-        <p>Missão cumprida, alarme desligado. O app mostra quanto tempo você levou pra acordar de verdade.</p>
+        <p>Missão cumprida, alarme desligado. O app mostra quanto tempo você levou para acordar de verdade.</p>
         <div class="step__demo">
           <div class="bomdia">
             <span>Você levou</span>
@@ -172,6 +189,21 @@
       </article>
 
     </div>
+
+    <div class="extras">
+      <article class="extra plate" data-reveal>
+        <h3 class="extra__title"><i aria-hidden="true"></i>Vai folgar?</h3>
+        <p>Pule só o próximo toque de um alarme que se repete. Ele volta a tocar sozinho na vez seguinte.</p>
+      </article>
+      <article class="extra plate" data-reveal>
+        <h3 class="extra__title"><i aria-hidden="true"></i>Acordou antes do alarme?</h3>
+        <p>Se você já estiver usando o celular até 1 hora antes de um alarme da manhã, o app pergunta se quer desativar esse alarme só desta vez. Para confirmar, resolva uma conta rápida.</p>
+      </article>
+      <article class="extra plate" data-reveal>
+        <h3 class="extra__title"><i aria-hidden="true"></i>Travou na conta?</h3>
+        <p>Toque em <strong>Não consigo resolver</strong> e digite a frase do dia, no tempo que sobrar.</p>
+      </article>
+    </div>
   </div>
 </section>
 
@@ -179,8 +211,8 @@
   <div class="section__inner wrap split">
     <div class="split__text split__text--wide" data-reveal>
       <div class="label">Sons e rádio</div>
-      <h2 class="h2">Acorde com o som que funciona pra você.</h2>
-      <p class="copy">Sons próprios do app, os toques do celular, uma música do aparelho ou uma rádio da internet que você escolher.</p>
+      <h2 class="h2">Acorde com o som que funciona para você.</h2>
+      <p class="copy">Sete sons próprios do app, os toques e as músicas do seu celular ou uma rádio da internet que você escolher.</p>
       <div class="rules visor">
         <div class="label">Com rádio, o alarme de verdade assume se</div>
         <div class="rules__item"><i></i><span class="vfd">A ESTAÇÃO NÃO TOCAR</span></div>
@@ -191,7 +223,7 @@
       <div class="tuner__top">
         <div class="grille" aria-hidden="true"></div>
         <div class="dial">
-          <div class="dial__head"><span class="vfd vfd--bright dial__name" id="station-name" aria-live="polite">CAMPAINHA MECÂNICA</span><span class="dial__group" id="station-group">APP</span></div>
+          <div class="dial__head"><span class="vfd vfd--bright dial__name" id="station-name">CAMPAINHA MECÂNICA</span><span class="dial__group" id="station-group">APP</span></div>
           <div class="dial__scale" aria-hidden="true"><div class="dial__ticks" id="dial-ticks"></div><div class="dial__needle" id="dial-needle"></div></div>
         </div>
       </div>
@@ -204,11 +236,11 @@
   <div class="section__inner wrap split">
     <div class="split__text" data-reveal>
       <div class="label">Estatísticas</div>
-      <h2 class="h2">Quanto tempo você leva pra acordar.</h2>
+      <h2 class="h2">Quanto tempo você leva para acordar.</h2>
       <p class="copy">O app mede o tempo entre o primeiro toque e a missão cumprida, e mostra os últimos 7 dias.</p>
     </div>
     <div class="stats plate" data-reveal data-trigger="stats">
-      <div class="stats__head"><span class="label">Minutos até acordar</span><span class="label">Exemplo · 7 dias</span></div>
+      <div class="stats__head"><span class="label">Minutos até acordar</span><span class="label">Exemplo · 7&nbsp;dias</span></div>
       <div class="chart visor" id="chart" role="img" aria-label="Gráfico de exemplo: minutos até acordar em 7 dias, entre 4 e 22 minutos"></div>
       <div class="readouts">
         <div class="readout"><span class="label">Hoje</span><span class="vfd vfd--bright">12 MIN</span></div>
@@ -226,8 +258,19 @@
       <p class="lead">Configure o primeiro alarme hoje à noite.</p>
     </div>
     <div class="final__download">
-      <div data-download></div>
-      <p class="apk-note" data-apk-note hidden>Android 8 ou superior. Na instalação, o Android pede para você permitir apps desta origem.</p>
+      <a class="download" href="wake-wake-up.apk" download data-download aria-label="Baixar o APK do Wake Wake Up para Android"><span class="download__button" aria-hidden="true"></span><span class="download__label">BAIXAR O APK</span></a>
+      <p class="apk-note" data-apk-note>Para Android 8 ou superior. Na instalação, o Android pode pedir para você permitir apps desta origem. Se ele não deixar instalar, peça um acesso de teste logo abaixo.</p>
+      <p class="apk-note" data-desktop-note hidden>Está no computador? Abra wakewakeup.cyberhat.com.br no celular Android para baixar direto nele.</p>
+      <p class="apk-note" data-ios-note hidden>O Wake Wake Up é só para Android. Abra este site em um celular Android para baixar.</p>
+    </div>
+    <div class="tester plate" id="teste">
+      <div class="tester__head"><i aria-hidden="true"></i><span class="label">Teste no Android</span></div>
+      <h3>Ajude a testar o Wake Wake Up.</h3>
+      <p>O app ainda está em fase de testes. Quer participar?</p>
+      <details class="tester__reveal">
+        <summary class="tester__button">QUERO TESTAR</summary>
+        <p class="tester__text">É só mandar um e-mail para <a href="mailto:vinicostamaga@outlook.com?subject=Acesso%20de%20teste%20do%20Wake%20Wake%20Up">vinicostamaga@<wbr>outlook.com</a> pedindo um acesso de teste para o Wake Wake Up.</p>
+      </details>
     </div>
   </div>
 </section>
@@ -236,15 +279,15 @@
 
 <footer class="footer">
   <div class="footer__inner wrap">
-    <div class="brand"><img src="assets/app-icon.png" alt="Ícone do Wake Wake Up" width="32" height="32"><span>Wake Wake Up</span></div>
+    <div class="brand"><img src="assets/app-icon.png" alt="" width="32" height="32"><span>Wake Wake Up</span></div>
     <div class="footer__links">
       <a id="contact-link" hidden></a>
-      <a id="privacy-link" href="privacidade.html">Política de privacidade</a>
+      <a href="privacidade.html">Política de privacidade</a>
     </div>
   </div>
 </footer>
 
-<script src="site-config.js" defer></script>
-<script src="main.js" defer></script>
+<script src="site-config.js?v=20261028" defer></script>
+<script src="main.js?v=20261028" defer></script>
 </body>
 </html>
