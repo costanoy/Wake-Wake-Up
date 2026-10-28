@@ -1,8 +1,12 @@
 package com.wakewakeup.session
 
+import android.app.AlarmManager
+import android.app.NotificationManager
 import android.content.Intent
 import android.net.Uri
+import android.os.VibratorManager
 import android.provider.Settings
+import androidx.core.app.NotificationCompat
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.wakewakeup.R
 import com.wakewakeup.data.Alarm
@@ -475,5 +479,146 @@ class AlarmRingServiceTest {
         send(AlarmRingService.ACTION_FINISH)
         awaitUntil(message = "session cleared") { AlarmSessionState.session.value == null }
         assertEquals(before, env.scheduledFor(repeating)!!.triggerAtMs)
+    }
+
+    // ---------------------------------------------------------------------------------------
+    // What the phone shows and does while it rings
+    // ---------------------------------------------------------------------------------------
+
+    @Test
+    fun theNotificationSaysWhatTheAlarmIsDoing() {
+        val service = ring(alarm())
+        fun shown() = shadowOf(shadowOf(service).lastForegroundNotification)
+        assertTrue(shown().contentTitle.toString().contains("Trabalho"))
+        send(AlarmRingService.ACTION_HOLD_ON)
+        assertEquals(env.app.getString(R.string.espere_active), shown().contentTitle.toString())
+        setHoldExpired(service)
+        advance(Duration.ofSeconds(1))
+        assertTrue(shown().contentTitle.toString().contains("Trabalho"))
+        send(AlarmRingService.ACTION_START_MISSION)
+        assertEquals(env.app.getString(R.string.mission_notification_title), shown().contentTitle.toString())
+    }
+
+    @Test
+    fun itVibratesWhileItRingsAndStopsWithTheSound() {
+        ring(alarm())
+        val vibrator = shadowOf(env.app.getSystemService(VibratorManager::class.java).defaultVibrator)
+        assertTrue(vibrator.isVibrating)
+        send(AlarmRingService.ACTION_HOLD_ON)
+        assertFalse(vibrator.isVibrating)
+    }
+
+    @Test
+    fun aRingingAlarmWithdrawsTheOfferToTurnItOff() {
+        val notifications = env.app.getSystemService(NotificationManager::class.java)
+        notifications.notify(
+            NotificationIds.PRE_ALARM,
+            NotificationCompat.Builder(env.app, PRE_ALARM_CHANNEL_ID).setSmallIcon(R.drawable.ic_notification_sun).build(),
+        )
+        ring(alarm())
+        assertNull(shadowOf(notifications).getNotification(NotificationIds.PRE_ALARM))
+    }
+
+    @Test
+    fun theWakeUpIsSavedAsSoonAsTheMissionIsDone() {
+        val service = ring(alarm(taskCount = 1))
+        send(AlarmRingService.ACTION_START_MISSION)
+        type(mission.answer)
+        send(AlarmRingService.ACTION_MISSION_CONFIRM)
+        awaitUntil(message = "wake-up saved") { runBlocking { env.history.observeLastDays(7).first() }.size == 1 }
+        // Bom dia stays up, but nothing keeps the phone awake or says it is ringing anymore.
+        assertEquals(SessionScreen.GOOD_MORNING, session.screen)
+        assertTrue(shadowOf(service).isForegroundStopped)
+        assertFalse(wakeLockHeld())
+    }
+
+    @Test
+    fun bomDiaClosesByItselfAfterTenMinutes() {
+        ring(alarm(taskCount = 1))
+        send(AlarmRingService.ACTION_START_MISSION)
+        type(mission.answer)
+        send(AlarmRingService.ACTION_MISSION_CONFIRM)
+        advance(Duration.ofMinutes(10).plusSeconds(1))
+        awaitUntil(message = "Bom dia closed") { AlarmSessionState.session.value == null }
+    }
+
+    // ---------------------------------------------------------------------------------------
+    // Surviving the death of the app's process
+    // ---------------------------------------------------------------------------------------
+
+    private fun loseTheProcess() {
+        controller!!.destroy()
+        controller = null
+        AlarmSessionState.clear()
+        shadowOf(env.app).clearStartedServices()
+    }
+
+    private fun watchdogWake() =
+        env.deliverBroadcast(Intent(env.app, AlarmReceiver::class.java).setAction(ACTION_RING_WATCHDOG))
+
+    @Test
+    fun aRingingSessionIsWrittenDownAndWatched() {
+        val alarm = alarm()
+        ring(alarm)
+        assertEquals(alarm.id, RingWatchdog.saved(env.app)!!.alarmId)
+        assertEquals(AlarmManager.RTC_WAKEUP, env.scheduledWithAction(ACTION_RING_WATCHDOG)!!.type)
+        send(AlarmRingService.ACTION_HOLD_ON)
+        assertEquals(1, RingWatchdog.saved(env.app)!!.waits)
+
+        // While the service lives, a wake just keeps watching.
+        shadowOf(env.app).clearStartedServices()
+        watchdogWake()
+        assertNull(shadowOf(env.app).nextStartedService)
+        assertNotNull(env.scheduledWithAction(ACTION_RING_WATCHDOG))
+    }
+
+    @Test
+    fun finishingTheMissionEndsTheWatch() {
+        ring(alarm(taskCount = 1))
+        send(AlarmRingService.ACTION_START_MISSION)
+        type(mission.answer)
+        send(AlarmRingService.ACTION_MISSION_CONFIRM)
+        assertNull(RingWatchdog.saved(env.app))
+        assertNull(env.scheduledWithAction(ACTION_RING_WATCHDOG))
+    }
+
+    @Test
+    fun aSessionTheProcessLostRingsAgainWhereItWas() {
+        ring(alarm())
+        send(AlarmRingService.ACTION_HOLD_ON)
+        val saved = RingWatchdog.saved(env.app)!!
+        loseTheProcess()
+
+        watchdogWake()
+        val restart = shadowOf(env.app).nextStartedService
+        assertEquals(AlarmRingService::class.java.name, restart?.component?.className)
+        assertTrue(restart!!.getBooleanExtra(EXTRA_RESUMED_SESSION, false))
+
+        // Same session: same start, same Espere count, and the rest of its Espere.
+        val c = Robolectric.buildService(AlarmRingService::class.java, restart).create().also { controller = it }
+        c.get().onStartCommand(restart, 0, ++startId)
+        awaitUntil(message = "session back") { AlarmSessionState.session.value != null }
+        assertEquals(saved.startedAtMillis, session.startedAtMillis)
+        assertEquals(1, session.waits)
+        assertNotNull("still in its Espere", session.holdUntilMillis)
+        assertNull(playing())
+    }
+
+    @Test
+    fun aStickyRestartWithNoIntentRingsAgain() {
+        val alarm = alarm()
+        ring(alarm)
+        loseTheProcess()
+        val c = Robolectric.buildService(AlarmRingService::class.java).create().also { controller = it }
+        c.get().onStartCommand(null, 0, ++startId)
+        awaitUntil(message = "ringing again") { AlarmSessionState.session.value?.alarmId == alarm.id && playing() != null }
+    }
+
+    @Test
+    fun restartingThePhoneDoesNotEndARingingAlarm() {
+        ring(alarm())
+        loseTheProcess()
+        env.deliverBroadcast(Intent(Intent.ACTION_BOOT_COMPLETED))
+        assertEquals(AlarmRingService::class.java.name, shadowOf(env.app).nextStartedService?.component?.className)
     }
 }

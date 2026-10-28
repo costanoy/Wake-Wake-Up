@@ -1,6 +1,7 @@
 package com.wakewakeup
 
 import android.Manifest
+import android.app.AlarmManager
 import android.app.NotificationManager
 import android.content.ComponentName
 import android.content.Intent
@@ -11,6 +12,8 @@ import com.wakewakeup.data.Alarm
 import com.wakewakeup.session.AlarmReceiver
 import com.wakewakeup.session.AlarmRingService
 import com.wakewakeup.session.BootReceiver
+import com.wakewakeup.session.PRE_ALARM_CHANNEL_ID
+import com.wakewakeup.session.PreAlarmReceiver
 import com.wakewakeup.session.RingActivity
 import com.wakewakeup.session.nextTriggerMillis
 import com.wakewakeup.testing.AppEnv
@@ -52,15 +55,33 @@ class AppSetupTest {
     }
 
     @Test
+    fun thePreAlarmChannelPopsUpWithoutASound() {
+        val channel = env.app.getSystemService(NotificationManager::class.java).getNotificationChannel(PRE_ALARM_CHANNEL_ID)
+        assertNotNull(channel)
+        // Seen by someone already looking at the screen, never heard by someone still asleep.
+        assertEquals(NotificationManager.IMPORTANCE_HIGH, channel.importance)
+        assertNull(channel.sound)
+        assertFalse(channel.shouldVibrate())
+    }
+
+    @Test
     fun everyPermissionAnAlarmNeedsIsDeclared() {
         val requested = pm.getPackageInfo(env.app.packageName, PackageManager.GET_PERMISSIONS).requestedPermissions!!.toSet()
+        // This is Android 15: SCHEDULE_EXACT_ALARM only applies up to 12L, USE_EXACT_ALARM after.
         for (permission in listOf(
-            Manifest.permission.SCHEDULE_EXACT_ALARM, Manifest.permission.USE_EXACT_ALARM, Manifest.permission.RECEIVE_BOOT_COMPLETED,
+            Manifest.permission.USE_EXACT_ALARM, Manifest.permission.RECEIVE_BOOT_COMPLETED,
             Manifest.permission.WAKE_LOCK, Manifest.permission.POST_NOTIFICATIONS, Manifest.permission.FOREGROUND_SERVICE,
-            Manifest.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK, Manifest.permission.USE_FULL_SCREEN_INTENT,
-            Manifest.permission.INTERNET, Manifest.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+            Manifest.permission.FOREGROUND_SERVICE_SYSTEM_EXEMPTED, Manifest.permission.USE_FULL_SCREEN_INTENT,
+            Manifest.permission.VIBRATE, Manifest.permission.INTERNET,
         )) {
             assertTrue("missing $permission", permission in requested)
+        }
+        // Google Play policy: nothing an alarm clock doesn't need.
+        for (permission in listOf(
+            Manifest.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Manifest.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK,
+            Manifest.permission.DISABLE_KEYGUARD, Manifest.permission.SCHEDULE_EXACT_ALARM,
+        )) {
+            assertFalse("$permission is not needed on this Android version", permission in requested)
         }
     }
 
@@ -72,12 +93,19 @@ class AppSetupTest {
 
         val service = pm.getServiceInfo(ComponentName(pkg, AlarmRingService::class.java.name), 0)
         assertFalse(service.exported)
-        assertEquals(ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK, service.foregroundServiceType)
+        // The type Android sets aside for alarm-clock apps holding the exact-alarm permission.
+        assertEquals(ServiceInfo.FOREGROUND_SERVICE_TYPE_SYSTEM_EXEMPTED, service.foregroundServiceType)
 
         val ring = pm.getActivityInfo(ComponentName(pkg, RingActivity::class.java.name), 0)
         assertFalse(ring.exported)
 
-        for (action in listOf(Intent.ACTION_BOOT_COMPLETED, Intent.ACTION_TIMEZONE_CHANGED, Intent.ACTION_MY_PACKAGE_REPLACED)) {
+        val preAlarm = pm.getReceiverInfo(ComponentName(pkg, PreAlarmReceiver::class.java.name), 0)
+        assertFalse(preAlarm.exported)
+
+        for (action in listOf(
+            Intent.ACTION_BOOT_COMPLETED, Intent.ACTION_TIMEZONE_CHANGED, Intent.ACTION_MY_PACKAGE_REPLACED,
+            AlarmManager.ACTION_SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED,
+        )) {
             val receivers = pm.queryBroadcastReceivers(Intent(action).setPackage(pkg), 0)
             assertTrue("nothing reschedules on $action", receivers.any { it.activityInfo.name == BootReceiver::class.java.name })
         }

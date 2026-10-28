@@ -12,12 +12,11 @@
     <string name="cd_stats_icon">Stats</string>
     <string name="cd_add_alarm">New alarm</string>
     <string name="new_short">New</string>
-    <string name="resume_prompt">Turn on again for %1$s?</string>
-    <string name="resume_scheduled">The alarm will ring %1$s</string>
-    <string name="cd_cancel_resume">Cancel turning it back on</string>
-    <string name="activate">Turn on</string>
-    <string name="day_today">today</string>
-    <string name="day_tomorrow">tomorrow, %1$s</string>
+    <string name="skip_prompt">Skip just %1$s? It rings again %2$s.</string>
+    <string name="skip_once">Skip</string>
+    <string name="skipping_info">Skipping %1$s · back %2$s</string>
+    <string name="undo">Undo</string>
+    <string name="day_next_week">next %1$s</string>
     <string name="task_label_math">Math</string>
     <string name="task_label_phrase">Phrase</string>
     <string name="empty_title">No alarms yet</string>
@@ -181,11 +180,36 @@
     <string name="radio_error">Couldn\'t search for stations. Check your connection and try again.</string>
     <string name="radio_retry">Try again</string>
 
+    <!-- Before an alarm -->
+    <string name="pre_alarm_channel_name">Before an alarm</string>
+    <string name="pre_alarm_channel_desc">If you\'re already using your phone up to an hour before a morning alarm, asks whether to turn it off just this once.</string>
+    <string name="pre_alarm_title_one">Turn off your next alarm?</string>
+    <string name="pre_alarm_title_many">Turn off your next alarms?</string>
+    <string name="pre_alarm_text_one">%1$s rings at %2$s. Already up? You can turn it off just this once.</string>
+    <string name="pre_alarm_text_many">%1$s. Already up? You can turn them all off just this once.</string>
+    <string name="pre_alarm_action">Turn off</string>
+    <string name="skip_confirm_title">Turn off just this once?</string>
+    <string name="skip_confirm_back_on">Rings again %1$s</string>
+    <string name="skip_confirm_one_off">Stays off in your list</string>
+    <string name="skip_confirm_gate">To confirm, solve</string>
+    <string name="skip_confirm_keep">Keep</string>
+    <string name="skip_confirm_turn_off">Turn off</string>
+    <string name="skip_confirm_done">Done, turned off just this once.</string>
+    <string name="skip_confirm_stale">That alarm changed or already rang.</string>
+    <string name="skip_receipt_title_one">%1$s won\'t ring at %2$s</string>
+    <string name="skip_receipt_title_many">Won\'t ring: %1$s</string>
+    <string name="skip_receipt_text">Turned off just this once.</string>
+    <string name="gm_skip_also">Skip %1$s too?</string>
+    <string name="gm_skipped">Done, just this once.</string>
+
     <!-- System -->
     <string name="notification_channel_name">Alarms</string>
     <string name="notification_channel_desc">Alarm ringing and mission notifications</string>
     <string name="alarm_notification_title">%1$s is ringing</string>
     <string name="alarm_notification_text">Tap to open the alarm</string>
+    <string name="espere_notification_text">The alarm rings again at %1$s</string>
+    <string name="mission_notification_title">Mission in progress</string>
+    <string name="mission_notification_text">Tap to get back to the mission</string>
 
     <!-- Indexed Monday (0) to Sunday (6), like Alarm.days -->
     <string-array name="day_letters">

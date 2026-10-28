@@ -1,5 +1,6 @@
 package com.wakewakeup.ui.edit
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
@@ -88,6 +89,13 @@ fun EditAlarmScreen(
     LaunchedEffect(alarmId) { viewModel.load(alarmId) }
     val draft = viewModel.draft
     val isNew = viewModel.isNew
+    val leave = {
+        viewModel.discardUnsaved()
+        onCancel()
+    }
+    // The system Back leaves the way the header's does: without saving, and without the edits
+    // waiting there the next time this alarm is opened.
+    BackHandler(onBack = leave)
 
     // Delete needs two taps: the first arms it ("TOQUE DE NOVO"), which disarms after 3 s.
     var deleteArmed by rememberSaveable { mutableStateOf(false) }
@@ -109,10 +117,7 @@ fun EditAlarmScreen(
         BackHeader(
             title = stringResource(if (isNew) R.string.new_alarm else R.string.edit_alarm),
             backDescription = stringResource(R.string.cd_back),
-            onBack = {
-                viewModel.discardUnsaved()
-                onCancel()
-            },
+            onBack = leave,
         )
 
         Column(

@@ -115,11 +115,12 @@ class PermissionsUiTest {
             compose.waitForIdle()
             val intent = shadowOf(context).nextStartedActivity
             pages += intent?.action
-            if (intent?.action != Settings.ACTION_APP_NOTIFICATION_SETTINGS) {
+            // Notifications and battery open lists the app is found in; the others, its own page.
+            if (intent?.action != Settings.ACTION_APP_NOTIFICATION_SETTINGS && intent?.action != Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS) {
                 assertEquals("package:${context.packageName}", intent?.data.toString())
             }
         }
-        assertTrue(pages.toString(), pages.contains(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS))
+        assertTrue(pages.toString(), pages.contains(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
         assertTrue(pages.toString(), pages.all { it != null })
     }
 

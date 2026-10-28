@@ -11,7 +11,7 @@ class AlarmEntityTest {
             id = 7, hour = 6, minute = 5, label = "Trabalho", days = setOf(4, 0, 2), enabled = false,
             taskType = TaskType.PHRASE, difficulty = Difficulty.HARD, taskCount = 5,
             soundUri = "android.resource://com.wakewakeup/raw/sirene_1", soundName = "Sirene",
-            rampUp = false, resumeDate = 20_000,
+            rampUp = false, skipDate = 20_000,
         )
         assertEquals(alarm, alarm.toEntity().toDomain())
     }

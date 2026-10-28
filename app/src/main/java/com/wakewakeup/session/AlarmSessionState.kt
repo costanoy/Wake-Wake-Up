@@ -68,7 +68,8 @@ object AlarmSessionState {
     private val _session = MutableStateFlow<RingSession?>(null)
     val session: StateFlow<RingSession?> = _session.asStateFlow()
 
-    fun start(alarm: Alarm) {
+    /** A fresh session for [alarm], or one picked up again after the app's process died. */
+    fun start(alarm: Alarm, startedAtMillis: Long = System.currentTimeMillis(), waits: Int = 0) {
         _session.value = RingSession(
             alarmId = alarm.id,
             alarmLabel = alarm.label,
@@ -77,6 +78,8 @@ object AlarmSessionState {
             difficulty = alarm.difficulty,
             rampUp = alarm.rampUp,
             volume = if (alarm.rampUp) RAMP_START_VOLUME else 1f,
+            waits = waits,
+            startedAtMillis = startedAtMillis,
         )
     }
 

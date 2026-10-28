@@ -12,12 +12,11 @@
     <string name="cd_stats_icon">Estatísticas</string>
     <string name="cd_add_alarm">Novo alarme</string>
     <string name="new_short">Novo</string>
-    <string name="resume_prompt">Ativar novamente para %1$s?</string>
-    <string name="resume_scheduled">O alarme tocará %1$s</string>
-    <string name="cd_cancel_resume">Cancelar a reativação</string>
-    <string name="activate">Ativar</string>
-    <string name="day_today">hoje</string>
-    <string name="day_tomorrow">amanhã, %1$s</string>
+    <string name="skip_prompt">Pular só %1$s? Volta a tocar %2$s.</string>
+    <string name="skip_once">Pular</string>
+    <string name="skipping_info">Pulando %1$s · volta %2$s</string>
+    <string name="undo">Desfazer</string>
+    <string name="day_next_week">%1$s que vem</string>
     <string name="task_label_math">Matemática</string>
     <string name="task_label_phrase">Frase</string>
     <string name="empty_title">Nenhum alarme ainda</string>
@@ -183,11 +182,36 @@
     <string name="radio_error">Não deu para buscar as rádios. Confira a internet e tente de novo.</string>
     <string name="radio_retry">Tentar de novo</string>
 
+    <!-- Aviso antes do alarme -->
+    <string name="pre_alarm_channel_name">Aviso antes do alarme</string>
+    <string name="pre_alarm_channel_desc">Se você já está usando o celular até 1 hora antes de um alarme da manhã, pergunta se quer desativá-lo só desta vez.</string>
+    <string name="pre_alarm_title_one">Você quer desativar o próximo alarme?</string>
+    <string name="pre_alarm_title_many">Você quer desativar os próximos alarmes?</string>
+    <string name="pre_alarm_text_one">%1$s toca às %2$s. Já acordou? Dá para desativar só desta vez.</string>
+    <string name="pre_alarm_text_many">%1$s. Já acordou? Dá para desativar todos só desta vez.</string>
+    <string name="pre_alarm_action">Desativar</string>
+    <string name="skip_confirm_title">Desativar só desta vez?</string>
+    <string name="skip_confirm_back_on">Volta a tocar %1$s</string>
+    <string name="skip_confirm_one_off">Fica desligado na lista</string>
+    <string name="skip_confirm_gate">Para confirmar, resolva</string>
+    <string name="skip_confirm_keep">Manter</string>
+    <string name="skip_confirm_turn_off">Desativar</string>
+    <string name="skip_confirm_done">Pronto, desativado só desta vez.</string>
+    <string name="skip_confirm_stale">Esse alarme já mudou ou já tocou.</string>
+    <string name="skip_receipt_title_one">%1$s não toca às %2$s</string>
+    <string name="skip_receipt_title_many">Não tocam: %1$s</string>
+    <string name="skip_receipt_text">Desativado só desta vez.</string>
+    <string name="gm_skip_also">Pular também %1$s?</string>
+    <string name="gm_skipped">Pronto, só desta vez.</string>
+
     <!-- Sistema -->
     <string name="notification_channel_name">Alarmes</string>
     <string name="notification_channel_desc">Notificações do alarme tocando e da missão</string>
     <string name="alarm_notification_title">%1$s está tocando</string>
     <string name="alarm_notification_text">Toque para abrir o alarme</string>
+    <string name="espere_notification_text">O alarme volta a tocar às %1$s</string>
+    <string name="mission_notification_title">Missão em andamento</string>
+    <string name="mission_notification_text">Toque para voltar à missão</string>
 
     <!-- Indexados de segunda (0) a domingo (6), como Alarm.days -->
     <string-array name="day_letters">

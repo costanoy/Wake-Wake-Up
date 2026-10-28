@@ -19,6 +19,7 @@ import com.wakewakeup.R
 import com.wakewakeup.data.Alarm
 import com.wakewakeup.data.TaskType
 import com.wakewakeup.session.isoDayIndexOf
+import com.wakewakeup.session.nextRingMillis
 import com.wakewakeup.session.nextTriggerEpochDay
 import com.wakewakeup.session.nextTriggerMillis
 import com.wakewakeup.testing.AppEnv
@@ -62,16 +63,8 @@ class AlarmListUiTest {
 
     private val dayNames get() = context.resources.getStringArray(R.array.day_full)
 
-    /** What the list calls [date]: "today", "tomorrow, Wednesday" or "Friday". */
-    private fun relativeDay(date: LocalDate): String {
-        val today = LocalDate.now()
-        val name = dayNames[isoDayIndexOf(date)]
-        return when (date) {
-            today -> str(R.string.day_today)
-            today.plusDays(1) -> str(R.string.day_tomorrow, name)
-            else -> name
-        }
-    }
+    /** What the list calls [date], a day less than a week away: "Wednesday". */
+    private fun dayName(date: LocalDate): String = dayNames[isoDayIndexOf(date)]
 
     @Test
     fun anEmptyListInvitesToCreateTheFirstAlarm() {
@@ -225,24 +218,28 @@ class AlarmListUiTest {
         compose.onNodeWithContentDescription(str(R.string.cd_alarm_switch, clock)).performClick()
         val skipped = LocalDate.ofEpochDay(nextTriggerEpochDay(daily))
         val ringsAgain = skipped.plusDays(1)
-        val prompt = str(R.string.resume_prompt, relativeDay(ringsAgain))
-        compose.waitForText(prompt)
+        compose.waitForText(str(R.string.skip_prompt, dayName(skipped), dayName(ringsAgain)))
         // Only under the alarm that was just switched off.
-        assertEquals(1, compose.onAllNodesWithText(str(R.string.activate).uppercase()).fetchSemanticsNodes().size)
+        assertEquals(1, compose.onAllNodesWithText(str(R.string.skip_once).uppercase()).fetchSemanticsNodes().size)
         assertFalse(env.reload(daily)!!.enabled)
 
-        compose.onNodeWithText(str(R.string.activate).uppercase()).performClick()
-        compose.waitForText(str(R.string.resume_scheduled, relativeDay(ringsAgain)))
-        val paused = env.reload(daily)!!
-        assertFalse(paused.enabled)
-        assertEquals(skipped.toEpochDay(), paused.resumeDate)
-        // The "Next" display counts down to the ring after the skipped one, not "None".
-        assertTrue(compose.onAllNodesWithText(str(R.string.next_none).uppercase()).fetchSemanticsNodes().isEmpty())
+        compose.onNodeWithText(str(R.string.skip_once).uppercase()).performClick()
+        val skippingText = str(R.string.skipping_info, dayName(skipped), dayName(ringsAgain))
+        compose.waitForText(skippingText)
+        val skipping = env.reload(daily)!!
+        assertTrue("a skipping alarm stays on", skipping.enabled)
+        assertEquals(skipped.toEpochDay(), skipping.skipDate)
+        // Armed for the day after, so the phone's own "next alarm" is right too.
+        assertEquals(nextRingMillis(skipping), env.scheduledFor(daily)!!.triggerAtMs)
+        compose.onNodeWithContentDescription(str(R.string.cd_alarm_switch, clock)).assert(hasStateDescription(str(R.string.switch_on)))
 
-        // Tapping the drawer cancels the skip: the alarm simply stays off.
-        compose.onNodeWithText(str(R.string.resume_scheduled, relativeDay(ringsAgain))).performClick()
-        compose.waitForNoText(str(R.string.resume_scheduled, relativeDay(ringsAgain)))
-        compose.waitFor("skip cancelled") { env.reload(daily)!!.resumeDate == null && env.scheduledFor(daily) == null }
+        // DESFAZER puts the skipped day back.
+        compose.onNodeWithText(str(R.string.undo).uppercase()).performClick()
+        compose.waitForNoText(skippingText)
+        compose.waitFor("skip undone") {
+            env.reload(daily)!!.skipDate == null && env.scheduledFor(daily)?.triggerAtMs == nextTriggerMillis(daily)
+        }
+        assertTrue(env.reload(daily)!!.enabled)
         assertFalse(env.reload(alreadyOff)!!.enabled)
     }
 
@@ -254,7 +251,7 @@ class AlarmListUiTest {
         compose.onNodeWithContentDescription(str(R.string.cd_alarm_switch, "05:00")).performClick()
         compose.waitFor("alarm off") { env.reload(oneOff)?.enabled == false && env.scheduledFor(oneOff) == null }
         compose.waitForIdle()
-        assertTrue(compose.onAllNodesWithText(str(R.string.activate).uppercase()).fetchSemanticsNodes().isEmpty())
+        assertTrue(compose.onAllNodesWithText(str(R.string.skip_once).uppercase()).fetchSemanticsNodes().isEmpty())
         assertNull(env.scheduledFor(oneOff))
     }
 
@@ -272,14 +269,21 @@ class AlarmListUiTest {
     }
 
     @Test
-    fun enabledAlarmsComeFirstInTimeOrder() {
+    fun alarmsStayInTimeOrderWhetherOnOrOff() {
         env.save(Alarm(hour = 9, minute = 0, label = "C-on", days = setOf(6)))
-        env.save(Alarm(hour = 5, minute = 0, label = "A-off", days = setOf(6), enabled = false))
+        val off = env.save(Alarm(hour = 5, minute = 0, label = "A-off", days = setOf(6), enabled = false))
         env.save(Alarm(hour = 7, minute = 0, label = "B-on", days = setOf(6)))
         launch()
         compose.waitForText("C-on")
-        val tops = listOf("B-on", "C-on", "A-off").map { compose.onNodeWithText(it).fetchSemanticsNode().boundsInRoot.top }
-        assertEquals(tops.sorted(), tops)
+        fun tops() = listOf("A-off", "B-on", "C-on").map { compose.onNodeWithText(it).fetchSemanticsNode().boundsInRoot.top }
+        assertEquals(tops().sorted(), tops())
+
+        // Switching one on doesn't move its card from under the finger.
+        val before = tops()
+        compose.onNodeWithContentDescription(str(R.string.cd_alarm_switch, "05:00")).performClick()
+        compose.waitFor("alarm on") { env.reload(off)?.enabled == true }
+        compose.waitForIdle()
+        assertEquals(before, tops())
     }
 
     @Test

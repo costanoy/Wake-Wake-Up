@@ -23,7 +23,9 @@ data class AlarmEntity(
     val taskCount: Int,
     val soundUri: String? = null,
     val soundName: String? = null,
-    val resumeDate: Long? = null,
+    // Named after its first use (the day a paused alarm resumed); since version 6 it is the day
+    // an alarm that stays on skips.
+    @ColumnInfo(name = "resumeDate") val skipDate: Long? = null,
     @ColumnInfo(defaultValue = "1") val rampUp: Boolean = true,
 )
 
@@ -39,7 +41,7 @@ fun AlarmEntity.toDomain() = Alarm(
     taskCount = taskCount,
     soundUri = soundUri,
     soundName = soundName,
-    resumeDate = resumeDate,
+    skipDate = skipDate,
     rampUp = rampUp,
 )
 
@@ -55,7 +57,7 @@ fun Alarm.toEntity() = AlarmEntity(
     taskCount = taskCount,
     soundUri = soundUri,
     soundName = soundName,
-    resumeDate = resumeDate,
+    skipDate = skipDate,
     rampUp = rampUp,
 )
 
@@ -64,8 +66,11 @@ interface AlarmDao {
     @Query("SELECT * FROM alarms ORDER BY hour, minute")
     fun observeAll(): Flow<List<AlarmEntity>>
 
-    @Query("SELECT * FROM alarms WHERE enabled = 1 OR resumeDate IS NOT NULL")
-    suspend fun getAllSchedulable(): List<AlarmEntity>
+    @Query("SELECT * FROM alarms ORDER BY hour, minute")
+    suspend fun getAll(): List<AlarmEntity>
+
+    @Query("SELECT * FROM alarms WHERE enabled = 1")
+    suspend fun getAllEnabled(): List<AlarmEntity>
 
     @Query("SELECT * FROM alarms WHERE id = :id")
     suspend fun getById(id: Long): AlarmEntity?
@@ -79,9 +84,18 @@ interface AlarmDao {
     @Delete
     suspend fun delete(alarm: AlarmEntity)
 
-    @Query("UPDATE alarms SET enabled = :enabled WHERE id = :id")
+    /** Switching an alarm on or off by hand always drops a skip it had. */
+    @Query("UPDATE alarms SET enabled = :enabled, resumeDate = NULL WHERE id = :id")
     suspend fun setEnabled(id: Long, enabled: Boolean)
 
-    @Query("UPDATE alarms SET resumeDate = :resumeDate WHERE id = :id")
-    suspend fun setResumeDate(id: Long, resumeDate: Long?)
+    @Query("UPDATE alarms SET resumeDate = :skipDate WHERE id = :id")
+    suspend fun setSkipDate(id: Long, skipDate: Long?)
+
+    /** On, but skipping [day]: one write, so the list never shows an in-between state. */
+    @Query("UPDATE alarms SET enabled = 1, resumeDate = :day WHERE id = :id")
+    suspend fun setSkipping(id: Long, day: Long)
+
+    /** Skip dates are only kept until their day has passed. */
+    @Query("UPDATE alarms SET resumeDate = NULL WHERE resumeDate < :today")
+    suspend fun clearSkipsBefore(today: Long)
 }

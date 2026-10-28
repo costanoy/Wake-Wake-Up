@@ -4,6 +4,7 @@ import android.app.AlarmManager
 import android.content.Intent
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.wakewakeup.data.Alarm
+import com.wakewakeup.data.AppDatabase
 import com.wakewakeup.testing.AppEnv
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -23,6 +24,7 @@ class AlarmReceiverTest {
     @get:Rule val env = AppEnv()
 
     private val weekdays = setOf(0, 1, 2, 3, 4)
+    private val everyDay = (0..6).toSet()
 
     private fun startedServices() = shadowOf(env.app).allStartedServices
 
@@ -66,78 +68,59 @@ class AlarmReceiverTest {
         assertTrue(startedServices().isEmpty())
     }
 
-    private fun pause(alarm: Alarm, resumeDay: LocalDate) = runBlocking {
-        env.repository.setEnabled(alarm, false)
-        env.repository.scheduleResume(env.reload(alarm)!!)
-        // Pin the resume to the day the test needs (the skipped occurrence).
-        val paused = env.reload(alarm)!!.copy(resumeDate = resumeDay.toEpochDay())
-        env.repository.save(paused)
+    private fun pinSkip(alarm: Alarm, day: LocalDate) = runBlocking {
+        // Straight to the database: the day a test needs isn't always the alarm's next one.
+        AppDatabase.get(env.app).alarmDao().setSkipDate(alarm.id, day.toEpochDay())
         env.reload(alarm)!!
     }
 
     @Test
-    fun theResumeWakeTurnsThePausedAlarmBackOnWithoutRinging() {
-        val alarm = env.save(Alarm(hour = 7, minute = 0, label = "", days = weekdays))
-        val paused = pause(alarm, LocalDate.now())
-        env.deliverBroadcast(ringIntent(paused))
+    fun aRingOnTheSkippedDayStaysSilentAndArmsTheNextOne() {
+        // A ring armed before the skip was set (or moved by a time zone change) still fires.
+        val daily = env.save(Alarm(hour = 7, minute = 0, label = "", days = everyDay))
+        pinSkip(daily, LocalDate.now())
+        env.deliverBroadcast(ringIntent(daily))
 
         assertTrue("must not ring on the skipped day", startedServices().isEmpty())
-        val resumed = env.reload(alarm)!!
-        assertTrue(resumed.enabled)
-        assertNull(resumed.resumeDate)
-        assertEquals(nextTriggerMillis(resumed), env.scheduledFor(alarm)!!.triggerAtMs)
+        val after = env.reload(daily)!!
+        assertTrue(after.enabled)
+        assertNull("the skip is spent", after.skipDate)
+        assertEquals(nextTriggerMillis(after), env.scheduledFor(daily)!!.triggerAtMs)
     }
 
     @Test
-    fun aResumeWakeThatArrivesLateStillTurnsTheAlarmBackOn() {
-        // The phone was off (or the wake was delayed past midnight) when the skipped occurrence
-        // came around: the wake shows up on a later day. The alarm must not stay off forever.
-        val alarm = env.save(Alarm(hour = 7, minute = 0, label = "", days = weekdays))
-        val paused = pause(alarm, LocalDate.now().minusDays(1))
-        env.deliverBroadcast(ringIntent(paused))
+    fun aRingOnAnotherDayKeepsALaterSkip() {
+        val daily = env.save(Alarm(hour = 7, minute = 0, label = "", days = everyDay))
+        val inTwoDays = LocalDate.now().plusDays(2)
+        pinSkip(daily, inTwoDays)
+        env.deliverBroadcast(ringIntent(daily))
 
-        assertTrue(startedServices().isEmpty())
-        val resumed = env.reload(alarm)!!
-        assertTrue("alarm stayed off after a late resume wake", resumed.enabled)
-        assertNull(resumed.resumeDate)
-        assertNotNull(env.scheduledFor(alarm))
+        assertEquals(1, startedServices().size)
+        assertEquals(inTwoDays.toEpochDay(), env.reload(daily)!!.skipDate)
     }
 
     @Test
-    fun aResumeWakeBeforeTheSkippedDayDoesNothing() {
-        val alarm = env.save(Alarm(hour = 7, minute = 0, label = "", days = weekdays))
-        val paused = pause(alarm, LocalDate.now().plusDays(2))
-        env.deliverBroadcast(ringIntent(paused))
-        assertTrue(startedServices().isEmpty())
-        assertFalse(env.reload(alarm)!!.enabled)
-        assertEquals(paused.resumeDate, env.reload(alarm)!!.resumeDate)
+    fun aRingAfterTheSkippedDayClearsTheSkip() {
+        val daily = env.save(Alarm(hour = 7, minute = 0, label = "", days = everyDay))
+        pinSkip(daily, LocalDate.now().minusDays(1))
+        env.deliverBroadcast(ringIntent(daily))
+
+        assertEquals(1, startedServices().size)
+        assertNull(env.reload(daily)!!.skipDate)
     }
 
     @Test
-    fun afterARebootEnabledAndPausedAlarmsAreScheduledAgain() {
+    fun afterARebootEveryAlarmThatIsOnIsArmedAtItsRealNextRing() {
         val enabled = env.save(Alarm(hour = 6, minute = 0, label = "on", days = weekdays))
         val disabled = env.save(Alarm(hour = 6, minute = 10, label = "off", days = weekdays, enabled = false))
-        val paused = pause(env.save(Alarm(hour = 6, minute = 20, label = "paused", days = weekdays)), LocalDate.now().plusDays(1))
+        val skipping = env.save(Alarm(hour = 6, minute = 20, label = "skipping", days = weekdays))
+        runBlocking { env.repository.skipNext(skipping) }
         env.app.getSystemService(AlarmManager::class.java).cancelAll()
 
         env.deliverBroadcast(Intent(Intent.ACTION_BOOT_COMPLETED))
 
         assertEquals(nextTriggerMillis(enabled), env.scheduledFor(enabled)!!.triggerAtMs)
-        assertNotNull(env.scheduledFor(paused))
+        assertEquals(nextRingMillis(env.reload(skipping)!!), env.scheduledFor(skipping)!!.triggerAtMs)
         assertNull(env.scheduledFor(disabled))
-    }
-
-    @Test
-    fun aPhoneThatWasOffDuringTheSkippedTimeStillResumesTheAlarm() {
-        val alarm = env.save(Alarm(hour = 7, minute = 0, label = "", days = weekdays))
-        pause(alarm, LocalDate.now().minusDays(1))
-        env.app.getSystemService(AlarmManager::class.java).cancelAll()
-
-        // Boot: the resume time already passed, so AlarmManager delivers that wake right away.
-        env.deliverBroadcast(Intent(Intent.ACTION_BOOT_COMPLETED))
-        env.fire(env.scheduledFor(alarm)!!)
-
-        assertTrue(startedServices().isEmpty())
-        assertTrue("alarm stayed off after the reboot", env.reload(alarm)!!.enabled)
     }
 }

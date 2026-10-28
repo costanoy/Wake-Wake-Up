@@ -25,7 +25,11 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -44,6 +48,7 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -76,6 +81,9 @@ import com.wakewakeup.ui.theme.WwuType
 import kotlin.math.ceil
 
 private const val TIMER_SEGMENTS = 20
+
+/** The same cap the service applies to a typed phrase. */
+private const val MAX_PHRASE_CHARS = 80
 private const val TIMER_DANGER_SEGMENTS = 5
 
 @Composable
@@ -84,7 +92,8 @@ fun MissionScreen(
     onGiveUp: () -> Unit,
     onKey: (String) -> Unit,
     onTypedChange: (String) -> Unit,
-    onConfirm: () -> Unit,
+    /** The phrase arrives with the text as typed on screen; the math answer is the service's. */
+    onConfirm: (typed: String?) -> Unit,
 ) {
     val isPhrase = mission.type == TaskType.PHRASE
     Column(
@@ -126,7 +135,7 @@ fun MissionScreen(
         if (isPhrase) {
             PhraseBody(mission, onTypedChange, onConfirm)
         } else {
-            MathBody(mission, onKey, onConfirm, onGiveUp)
+            MathBody(mission, onKey, { onConfirm(null) }, onGiveUp)
         }
     }
 }
@@ -214,18 +223,26 @@ private fun androidx.compose.foundation.layout.ColumnScope.MathBody(
 private fun androidx.compose.foundation.layout.ColumnScope.PhraseBody(
     mission: MissionState,
     onTypedChange: (String) -> Unit,
-    onConfirm: () -> Unit,
+    onConfirm: (String?) -> Unit,
 ) {
     val focusRequester = remember { FocusRequester() }
     LaunchedEffect(Unit) { focusRequester.requestFocus() }
     val shake = rememberShake(mission.wrong)
 
     val phrase = mission.phrase
-    val matched = remember(phrase, mission.typed) { MissionGenerator.matchedPrefixLength(phrase, mission.typed) }
+    // The field's text lives here and is only mirrored to the service: waiting for each key to
+    // come back from it would drop characters and move the cursor when typing fast.
+    var typed by rememberSaveable(phrase, mission.type) { mutableStateOf(mission.typed) }
+    val confirm = { onConfirm(typed) }
+    val matched = remember(phrase, typed) { MissionGenerator.matchedPrefixLength(phrase, typed) }
     val brightGlow = glowShadow(VfdBright, 8.dp, 0.55f)
     val display = buildAnnotatedString {
         withStyle(SpanStyle(color = VfdBright, shadow = brightGlow)) { append(phrase.take(matched)) }
-        withStyle(SpanStyle(color = Vfd.copy(alpha = 0.45f))) { append(phrase.drop(matched)) }
+        // What is still to type stays readable; the next letter is underlined to show where to go on.
+        if (matched < phrase.length) {
+            withStyle(SpanStyle(color = Vfd, textDecoration = TextDecoration.Underline)) { append(phrase[matched]) }
+        }
+        withStyle(SpanStyle(color = Vfd.copy(alpha = 0.8f))) { append(phrase.drop(matched + 1)) }
     }
 
     Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())) {
@@ -256,8 +273,11 @@ private fun androidx.compose.foundation.layout.ColumnScope.PhraseBody(
                 contentAlignment = Alignment.CenterStart,
             ) {
                 BasicTextField(
-                    value = mission.typed,
-                    onValueChange = onTypedChange,
+                    value = typed,
+                    onValueChange = {
+                        typed = it.take(MAX_PHRASE_CHARS)
+                        onTypedChange(typed)
+                    },
                     textStyle = WwuType.bodyInput.copy(color = if (mission.wrong) ErrorDisplay else Ink),
                     cursorBrush = SolidColor(Vfd),
                     keyboardOptions = KeyboardOptions(
@@ -265,12 +285,12 @@ private fun androidx.compose.foundation.layout.ColumnScope.PhraseBody(
                         autoCorrectEnabled = false,
                         imeAction = ImeAction.Done,
                     ),
-                    keyboardActions = KeyboardActions(onDone = { onConfirm() }),
+                    keyboardActions = KeyboardActions(onDone = { confirm() }),
                     modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
                 )
             }
             RoundButton(
-                onClick = onConfirm,
+                onClick = confirm,
                 size = 52.dp,
                 style = RoundStyle.Action,
                 contentDescription = stringResource(R.string.confirm),

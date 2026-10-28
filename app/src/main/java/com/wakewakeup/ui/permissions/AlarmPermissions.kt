@@ -74,7 +74,9 @@ object AlarmPermissions {
             AlarmPermission.FULL_SCREEN ->
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT, packageUri)
                 else Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, packageUri)
-            AlarmPermission.BATTERY -> Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, packageUri)
+            // The list of apps, not the direct "allow?" prompt: alarm clocks ring through battery
+            // saving anyway (setAlarmClock), and Google Play only lets a few kinds of app ask.
+            AlarmPermission.BATTERY -> Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
         }
         try {
             context.startActivity(intent)

@@ -10,6 +10,7 @@ import com.wakewakeup.data.TaskType
 import com.wakewakeup.session.isoDayIndexOf
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
 import java.util.Locale
 
 @Composable
@@ -53,16 +54,14 @@ fun nextAlarmInText(nowMillis: Long, triggerMillis: Long): String {
     return stringResource(R.string.next_in, duration)
 }
 
-/** "hoje", "amanhã, quarta" or "sábado" — how the drawer names the day an alarm will ring. */
+/**
+ * How a drawer names the day an alarm rings: "quarta", or "quarta que vem" a week or more ahead.
+ * Weekday names never point at the wrong morning the way "amanhã" does after midnight.
+ */
 @Composable
-fun relativeDayName(date: LocalDate, today: LocalDate = LocalDate.now()): String {
-    val full = stringArrayResource(R.array.day_full)
-    val name = full.getOrElse(isoDayIndexOf(date)) { "" }
-    return when (date) {
-        today -> stringResource(R.string.day_today)
-        today.plusDays(1) -> stringResource(R.string.day_tomorrow, name)
-        else -> name
-    }
+fun weekdayName(date: LocalDate, today: LocalDate = LocalDate.now()): String {
+    val name = stringArrayResource(R.array.day_full).getOrElse(isoDayIndexOf(date)) { "" }
+    return if (ChronoUnit.DAYS.between(today, date) >= 7) stringResource(R.string.day_next_week, name) else name
 }
 
 /** "QUARTA, 30 SET" / "WEDNESDAY, SEP 30" date line on the ringing and good-morning screens. */

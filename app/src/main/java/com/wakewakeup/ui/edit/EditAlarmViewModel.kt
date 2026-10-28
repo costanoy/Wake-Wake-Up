@@ -29,11 +29,19 @@ class EditAlarmViewModel(application: Application) : AndroidViewModel(applicatio
         private set
 
     private var loadedForId: Long? = null
+    private var busy = false
 
     fun startNew() {
         loadedForId = Destinations.NEW_ALARM_ID
         isNew = true
         draft = defaultDraft()
+    }
+
+    /** Opening an alarm from the list: its card already has it, so the editor never shows a stale draft. */
+    fun startEdit(alarm: Alarm) {
+        loadedForId = alarm.id
+        isNew = false
+        draft = alarm
     }
 
     fun load(alarmId: Long) {
@@ -93,18 +101,33 @@ class EditAlarmViewModel(application: Application) : AndroidViewModel(applicatio
      * has one — so confirming a configuration here always turns the alarm on.
      */
     fun save(onSaved: () -> Unit) {
+        // A second tap while the first save is still writing must not insert the alarm twice.
+        if (busy) return
+        busy = true
         viewModelScope.launch {
-            repository.save(draft.copy(enabled = true))
-            loadedForId = null
-            onSaved()
+            try {
+                val id = repository.save(draft.copy(enabled = true))
+                draft = draft.copy(id = id, enabled = true)
+                isNew = false
+                loadedForId = null
+                onSaved()
+            } finally {
+                busy = false
+            }
         }
     }
 
     fun deleteCurrent(onDeleted: () -> Unit) {
+        if (busy) return
+        busy = true
         viewModelScope.launch {
-            if (!isNew) repository.delete(draft)
-            loadedForId = null
-            onDeleted()
+            try {
+                if (!isNew) repository.delete(draft)
+                loadedForId = null
+                onDeleted()
+            } finally {
+                busy = false
+            }
         }
     }
 }

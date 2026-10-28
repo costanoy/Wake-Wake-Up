@@ -85,15 +85,18 @@ class PortugueseUiTest {
         launch()
         compose.waitForText("Diario")
         compose.onNodeWithContentDescription("Alarme das %02d:%02d".format(time.hour, time.minute)).performClick()
-        compose.waitForText("Ativar novamente para", substring = true)
-        val prompt = compose.onNodeWithText("Ativar novamente para", substring = true).fetchSemanticsNode()
+        compose.waitForText("Pular só", substring = true)
+        val prompt = compose.onNodeWithText("Pular só", substring = true).fetchSemanticsNode()
         val text = prompt.config[androidx.compose.ui.semantics.SemanticsProperties.Text].joinToString()
-        // "amanhã, <dia>" when the skipped ring is today; just "<dia>" when it was tomorrow.
-        val ringsOn = LocalDate.now().plusDays(if (time.isAfter(LocalTime.now())) 1 else 2)
-        val dayName = context.resources.getStringArray(R.array.day_full)[com.wakewakeup.session.isoDayIndexOf(ringsOn)]
-        assertTrue(text, text.contains(dayName))
-        compose.onNodeWithText("ATIVAR").performClick()
-        compose.waitForText("O alarme tocará", substring = true)
+        // "Pular só <dia>? Volta a tocar <dia seguinte>." with plain weekday names.
+        val skipped = LocalDate.now().plusDays(if (time.isAfter(LocalTime.now())) 0 else 1)
+        val days = context.resources.getStringArray(R.array.day_full)
+        val skippedName = days[com.wakewakeup.session.isoDayIndexOf(skipped)]
+        val backName = days[com.wakewakeup.session.isoDayIndexOf(skipped.plusDays(1))]
+        assertEquals("Pular só $skippedName? Volta a tocar $backName.", text)
+        compose.onNodeWithText("PULAR").performClick()
+        compose.waitForText("Pulando $skippedName · volta $backName")
+        compose.onNodeWithText("DESFAZER").assertIsDisplayed()
     }
 
     @Test

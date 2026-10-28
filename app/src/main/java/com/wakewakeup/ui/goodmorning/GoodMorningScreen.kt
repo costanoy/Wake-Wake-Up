@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
@@ -23,16 +24,23 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.shadow.Shadow
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import com.wakewakeup.R
 import com.wakewakeup.session.FinishedInfo
+import com.wakewakeup.session.Occurrence
 import com.wakewakeup.ui.components.CardShadow
 import com.wakewakeup.ui.components.CheckGlyph
 import com.wakewakeup.ui.components.Chevron
 import com.wakewakeup.ui.components.FlipNumber
 import com.wakewakeup.ui.components.FlipSize
+import com.wakewakeup.ui.components.GraphiteKey
+import com.wakewakeup.ui.components.Lamp
+import com.wakewakeup.ui.components.OrangeKey
 import com.wakewakeup.ui.components.PrintLabel
 import com.wakewakeup.ui.components.RoundButton
 import com.wakewakeup.ui.components.RoundStyle
@@ -42,12 +50,21 @@ import com.wakewakeup.ui.components.formatClock
 import com.wakewakeup.ui.components.panelDate
 import com.wakewakeup.ui.theme.Ink
 import com.wakewakeup.ui.theme.InkMuted
+import com.wakewakeup.ui.theme.Vfd
 import com.wakewakeup.ui.theme.WwuShape
 import com.wakewakeup.ui.theme.WwuType
 import com.wakewakeup.ui.theme.goodMorningSunrise
 
 @Composable
-fun GoodMorningScreen(finished: FinishedInfo, onStartDay: () -> Unit, onSeeStats: () -> Unit) {
+fun GoodMorningScreen(
+    finished: FinishedInfo,
+    onStartDay: () -> Unit,
+    onSeeStats: () -> Unit,
+    companions: List<Occurrence> = emptyList(),
+    companionsSkipped: Boolean = false,
+    onSkipCompanions: () -> Unit = {},
+    onUndoCompanions: () -> Unit = {},
+) {
     val minutes = (finished.durationSec + 30) / 60
     Column(
         Modifier
@@ -78,6 +95,31 @@ fun GoodMorningScreen(finished: FinishedInfo, onStartDay: () -> Unit, onSeeStats
                     )
                 }
                 Text(stringResource(R.string.to_really_wake), style = WwuType.bodyS, color = Ink)
+            }
+            if (companions.isNotEmpty()) {
+                // Backup alarms still to come: the mission just proved the user is up.
+                Row(
+                    Modifier
+                        .padding(start = 16.dp, end = 16.dp, top = 28.dp)
+                        .fillMaxWidth()
+                        .faceplate(WwuShape.faceplate, softShadow = false, baseDepth = 3.dp)
+                        .padding(start = 14.dp, top = 8.dp, end = 8.dp, bottom = 8.dp)
+                        .semantics { liveRegion = LiveRegionMode.Polite },
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    if (companionsSkipped) {
+                        Lamp(Vfd, size = 6.dp)
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.gm_skipped), style = WwuType.bodyXS, color = Ink, modifier = Modifier.weight(1f))
+                        Spacer(Modifier.width(8.dp))
+                        GraphiteKey(stringResource(R.string.undo), onClick = onUndoCompanions)
+                    } else {
+                        val times = companions.joinToString(" · ") { formatClock(it.hour, it.minute) }
+                        Text(stringResource(R.string.gm_skip_also, times), style = WwuType.bodyXS, color = Ink, modifier = Modifier.weight(1f))
+                        Spacer(Modifier.width(8.dp))
+                        OrangeKey(stringResource(R.string.skip_once), onClick = onSkipCompanions)
+                    }
+                }
             }
             Spacer(Modifier.heightIn(min = 24.dp))
         }

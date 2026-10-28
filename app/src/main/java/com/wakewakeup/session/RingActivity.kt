@@ -40,8 +40,11 @@ class RingActivity : ComponentActivity() {
                 var wantsStats by remember { mutableStateOf(false) }
 
                 // No dismiss gesture: the ring/mission screens can only be left by actually
-                // completing them (Start Mission -> Confirm, or Hold On), never by back.
-                BackHandler(enabled = true) {}
+                // completing them (Start Mission -> Confirm, or Hold On), never by back. On Bom
+                // dia, Back is Concluir.
+                BackHandler(enabled = true) {
+                    if (session?.screen == SessionScreen.GOOD_MORNING) viewModel.finishSession()
+                }
 
                 LaunchedEffect(session) {
                     if (session == null) {
@@ -63,11 +66,18 @@ class RingActivity : ComponentActivity() {
                         onTypedChange = viewModel::setTypedText,
                         onConfirm = viewModel::confirm,
                     )
-                    current.screen == SessionScreen.GOOD_MORNING && current.finished != null -> GoodMorningScreen(
-                        finished = current.finished,
-                        onStartDay = viewModel::finishSession,
-                        onSeeStats = { wantsStats = true; viewModel.finishSession() },
-                    )
+                    current.screen == SessionScreen.GOOD_MORNING && current.finished != null -> {
+                        LaunchedEffect(current.startedAtMillis) { viewModel.loadCompanions(current) }
+                        GoodMorningScreen(
+                            finished = current.finished,
+                            onStartDay = viewModel::finishSession,
+                            onSeeStats = { wantsStats = true; viewModel.finishSession() },
+                            companions = viewModel.companionsSkipped.ifEmpty { viewModel.companions },
+                            companionsSkipped = viewModel.companionsSkipped.isNotEmpty(),
+                            onSkipCompanions = viewModel::skipCompanions,
+                            onUndoCompanions = viewModel::undoCompanions,
+                        )
+                    }
                     else -> RingScreen(
                         session = current,
                         onStartMission = viewModel::startMission,

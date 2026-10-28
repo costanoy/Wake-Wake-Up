@@ -11,7 +11,9 @@ import androidx.test.core.app.ApplicationProvider
 import com.wakewakeup.WakeWakeUpApplication
 import com.wakewakeup.data.Alarm
 import com.wakewakeup.data.AppDatabase
+import com.wakewakeup.session.AlarmReceiver
 import com.wakewakeup.session.AlarmSessionState
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.runBlocking
 import org.junit.rules.ExternalResource
 import org.robolectric.Shadows.shadowOf
@@ -41,10 +43,14 @@ class AppEnv : ExternalResource() {
         // Robolectric's MediaPlayer only "plays" data sources it was told about: let every
         // sound (bundled, system default, radio stream) be playable unless a test says otherwise.
         ShadowMediaPlayer.setMediaInfoProvider { ShadowMediaPlayer.MediaInfo(FAKE_SOUND_MS, 0) }
+        // An alarm-clock app holds USE_EXACT_ALARM, granted at install; Robolectric starts with it off.
+        ShadowAlarmManager.setCanScheduleExactAlarms(true)
     }
 
     override fun after() {
         AlarmSessionState.clear()
+        // Let background writes (a wake-up being recorded) end before their database closes.
+        runBlocking { app.container.appScope.coroutineContext[Job]?.children?.forEach { it.join() } }
         resetDatabase()
         // AndroidX caches the first Application it sees in a static ViewModel factory. A phone
         // has one Application per process; Robolectric makes a new one per test, so without this
@@ -64,11 +70,22 @@ class AppEnv : ExternalResource() {
     val alarmManager: ShadowAlarmManager
         get() = shadowOf(app.getSystemService(Context.ALARM_SERVICE) as AlarmManager)
 
-    fun scheduledAlarms(): List<ShadowAlarmManager.ScheduledAlarm> = alarmManager.scheduledAlarms
+    /** Everything the app has in AlarmManager: alarm rings, the pre-alarm check, the ring watchdog. */
+    fun allScheduled(): List<ShadowAlarmManager.ScheduledAlarm> = alarmManager.scheduledAlarms
 
-    /** The AlarmManager entry for [alarm], matched by the broadcast's request code. */
+    /** Only the alarms' rings (AlarmReceiver broadcasts without an action). */
+    fun scheduledAlarms(): List<ShadowAlarmManager.ScheduledAlarm> = allScheduled().filter {
+        val intent = broadcastIntentOf(it)
+        intent.component?.className == AlarmReceiver::class.java.name && intent.action == null
+    }
+
+    /** The AlarmManager entry for [alarm]'s ring, matched by the broadcast's request code. */
     fun scheduledFor(alarm: Alarm): ShadowAlarmManager.ScheduledAlarm? =
         scheduledAlarms().singleOrNull { shadowOf(it.broadcast()).requestCode == alarm.id.toInt() }
+
+    /** The entry whose broadcast carries [action] (the pre-alarm check, the ring watchdog). */
+    fun scheduledWithAction(action: String): ShadowAlarmManager.ScheduledAlarm? =
+        allScheduled().singleOrNull { broadcastIntentOf(it).action == action }
 
     /** The intent an AlarmManager entry broadcasts when it fires. */
     fun broadcastIntentOf(scheduled: ShadowAlarmManager.ScheduledAlarm): Intent = shadowOf(scheduled.broadcast()).savedIntent

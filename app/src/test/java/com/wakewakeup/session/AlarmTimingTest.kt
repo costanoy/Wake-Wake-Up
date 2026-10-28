@@ -3,6 +3,8 @@ package com.wakewakeup.session
 import com.wakewakeup.data.Alarm
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import java.time.DayOfWeek
@@ -84,24 +86,48 @@ class AlarmTimingTest {
 
     @Test
     fun skippingADayRingsAtTheFollowingOccurrence() {
-        val weekdays = alarm(6, 30, 0, 1, 2, 3, 4)
-        // Switched off on Thursday night: Friday is skipped, it rings again on Monday.
-        assertEquals(millis(monday.plusDays(7).atTime(6, 30)), nextTriggerMillisAfterSkip(weekdays, friday.toEpochDay(), monday.plusDays(3).atTime(22, 0)))
-        assertEquals(monday.plusDays(7).toEpochDay(), nextTriggerEpochDayAfterSkip(weekdays, friday.toEpochDay(), monday.plusDays(3).atTime(22, 0)))
+        // Skipping Friday on Thursday night: it rings again on Monday.
+        val weekdays = alarm(6, 30, 0, 1, 2, 3, 4).copy(skipDate = friday.toEpochDay())
+        val thursdayNight = monday.plusDays(3).atTime(22, 0)
+        assertEquals(millis(monday.plusDays(7).atTime(6, 30)), nextRingMillis(weekdays, thursdayNight))
+        assertTrue(isSkippingNext(weekdays, thursdayNight))
 
-        val daily = alarm(7, 0, 0, 1, 2, 3, 4, 5, 6)
-        assertEquals(millis(monday.plusDays(1).atTime(7, 0)), nextTriggerMillisAfterSkip(daily, monday.toEpochDay(), monday.atTime(6, 0)))
+        val daily = alarm(7, 0, 0, 1, 2, 3, 4, 5, 6).copy(skipDate = monday.toEpochDay())
+        assertEquals(millis(monday.plusDays(1).atTime(7, 0)), nextRingMillis(daily, monday.atTime(6, 0)))
 
-        val mondays = alarm(6, 30, 0)
-        assertEquals(millis(monday.plusDays(7).atTime(6, 30)), nextTriggerMillisAfterSkip(mondays, monday.toEpochDay(), monday.atTime(5, 0)))
+        val mondays = alarm(6, 30, 0).copy(skipDate = monday.toEpochDay())
+        assertEquals(millis(monday.plusDays(7).atTime(6, 30)), nextRingMillis(mondays, monday.atTime(5, 0)))
     }
 
     @Test
-    fun aSkipThatAlreadyPassedNeverPointsBackInTime() {
-        // The phone was off through the skipped day: the next ring is still in the future.
-        val daily = alarm(7, 0, 0, 1, 2, 3, 4, 5, 6)
-        val now = monday.plusDays(3).atTime(8, 0)
-        assertEquals(millis(monday.plusDays(4).atTime(7, 0)), nextTriggerMillisAfterSkip(daily, monday.toEpochDay(), now))
+    fun aSkipOnlyCountsWhenItsDayIsTheNextOccurrence() {
+        val daily = alarm(7, 0, 0, 1, 2, 3, 4, 5, 6).copy(skipDate = monday.plusDays(2).toEpochDay())
+        // Wednesday is skipped, but Tuesday comes first and still rings.
+        assertEquals(millis(monday.plusDays(1).atTime(7, 0)), nextRingMillis(daily, monday.atTime(8, 0)))
+        assertFalse(isSkippingNext(daily, monday.atTime(8, 0)))
+        // Once that day has passed, the skip means nothing.
+        assertEquals(millis(monday.plusDays(4).atTime(7, 0)), nextRingMillis(daily, monday.plusDays(3).atTime(8, 0)))
+        assertFalse(isSkippingNext(daily, monday.plusDays(3).atTime(8, 0)))
+    }
+
+    @Test
+    fun aSkipAfterMidnightStillNamesTheMorningAhead() {
+        // At 00:30 on Tuesday, the next 06:30 is Tuesday's: that is the day a skip leaves out.
+        val weekdays = alarm(6, 30, 0, 1, 2, 3, 4)
+        val tuesday = monday.plusDays(1)
+        assertEquals(tuesday.toEpochDay(), nextTriggerEpochDay(weekdays, tuesday.atTime(0, 30)))
+        val skipping = weekdays.copy(skipDate = tuesday.toEpochDay())
+        assertEquals(millis(monday.plusDays(2).atTime(6, 30)), nextRingMillis(skipping, tuesday.atTime(0, 30)))
+    }
+
+    @Test
+    fun oneTimeAndSwitchedOffAlarmsIgnoreASkip() {
+        val oneOff = alarm(7, 0).copy(skipDate = monday.toEpochDay())
+        assertEquals(millis(monday.atTime(7, 0)), nextRingMillis(oneOff, monday.atTime(6, 0)))
+        assertFalse(isSkippingNext(oneOff, monday.atTime(6, 0)))
+
+        val off = alarm(7, 0, 0, 1, 2, 3, 4, 5, 6).copy(enabled = false, skipDate = monday.toEpochDay())
+        assertFalse(isSkippingNext(off, monday.atTime(6, 0)))
     }
 
     @Test

@@ -37,7 +37,20 @@ private val MIGRATION_4_5 = object : Migration(4, 5) {
     }
 }
 
-@Database(entities = [AlarmEntity::class, WakeHistoryEntity::class], version = 5, exportSchema = false)
+/**
+ * Skipping one day used to switch the alarm off and wake it at the skipped time to switch it back
+ * on, so the phone kept announcing the skipped time as the next alarm. Now the alarm stays on and
+ * remembers the day it skips (same column). Skips left on alarms that were already on were stale
+ * leftovers, and a skip means nothing on a one-time alarm.
+ */
+private val MIGRATION_5_6 = object : Migration(5, 6) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("UPDATE alarms SET resumeDate = NULL WHERE enabled = 1 OR days = ''")
+        db.execSQL("UPDATE alarms SET enabled = 1 WHERE enabled = 0 AND resumeDate IS NOT NULL")
+    }
+}
+
+@Database(entities = [AlarmEntity::class, WakeHistoryEntity::class], version = 6, exportSchema = true)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun alarmDao(): AlarmDao
     abstract fun wakeHistoryDao(): WakeHistoryDao
@@ -47,8 +60,10 @@ abstract class AppDatabase : RoomDatabase() {
 
         fun get(context: Context): AppDatabase = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(context, AppDatabase::class.java, "wake-wake-up.db")
-                .addMigrations(MIGRATION_4_5)
-                .fallbackToDestructiveMigration(dropAllTables = true)
+                .addMigrations(MIGRATION_4_5, MIGRATION_5_6)
+                // Only the early development versions are dropped; any later version without a
+                // migration must fail loudly in testing instead of deleting someone's alarms.
+                .fallbackToDestructiveMigrationFrom(true, 1, 2, 3)
                 .build()
                 .also { instance = it }
         }

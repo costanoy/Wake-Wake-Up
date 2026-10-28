@@ -23,8 +23,8 @@ data class Alarm(
     /** Ramp the ringing volume from low to full over the first minute, instead of starting at full. */
     val rampUp: Boolean = true,
     /**
-     * Epoch day this disabled alarm should silently turn itself back on at (at [hour]:[minute]).
-     * Only meaningful while [enabled] is false; cleared once resumed or manually re-enabled.
+     * Epoch day of the one occurrence this recurring alarm skips ("pular só quarta"). The alarm
+     * stays on and rings again on the occurrence after it. A date in the past means nothing.
      */
-    val resumeDate: Long? = null,
+    val skipDate: Long? = null,
 )

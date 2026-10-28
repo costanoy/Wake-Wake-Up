@@ -88,14 +88,15 @@ class DatabaseMigrationTest {
         val alarms = runBlocking { database.alarmDao().observeAll().first() }.map { it.toDomain() }
         val history = runBlocking { database.wakeHistoryDao().observeSince(LocalDate.now().minusDays(30).toEpochDay()).first() }
 
+        // The paused alarm is on again and skips the day it was paused for.
         assertEquals(
-            listOf("Trabalho" to true, "Academia" to false, "Faculdade" to false, "Remedio" to true),
+            listOf("Trabalho" to true, "Academia" to false, "Faculdade" to true, "Remedio" to true),
             alarms.map { it.label to it.enabled },
         )
         assertEquals(Difficulty.HARD, alarms.first { it.label == "Academia" }.difficulty)
         assertTrue("existing alarms get the volume ramp", alarms.all { it.rampUp })
-        val paused = alarms.first { it.label == "Faculdade" }
-        assertEquals(LocalDate.now().plusDays(1).toEpochDay(), paused.resumeDate)
+        val skipping = alarms.first { it.label == "Faculdade" }
+        assertEquals(LocalDate.now().plusDays(1).toEpochDay(), skipping.skipDate)
         val remedio = alarms.first { it.label == "Remedio" }
         assertEquals(emptySet<Int>(), remedio.days)
         assertEquals("content://media/1", remedio.soundUri)
@@ -108,5 +109,33 @@ class DatabaseMigrationTest {
         val inserted = runBlocking { database.alarmDao().getById(id)!!.toDomain() }
         assertEquals("Novo", inserted.label)
         assertTrue(inserted.rampUp)
+    }
+
+    @Test
+    fun upgradingFromVersion5TurnsAPausedDayIntoASkip() {
+        resetDatabase()
+        val file = env.app.getDatabasePath("wake-wake-up.db")
+        file.parentFile?.mkdirs()
+        val tomorrow = LocalDate.now().plusDays(1).toEpochDay()
+        SQLiteDatabase.openOrCreateDatabase(file, null).use { db ->
+            db.execSQL(alarmsV4)
+            db.execSQL("ALTER TABLE alarms ADD COLUMN rampUp INTEGER NOT NULL DEFAULT 1")
+            db.execSQL(historyV4)
+            db.execSQL("CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)")
+            db.execSQL("INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'version-5-hash')")
+            // Paused for a day the old way: off, with the day it was meant to come back on.
+            db.alarm("Pausado", 6, 30, "0,1,2,3,4", "MATH", "MEDIUM", resumeDate = tomorrow)
+            // Leftovers the old code could write: a date on an alarm that was on, or on a one-time one.
+            db.alarm("Ligado", 7, 0, "0,1,2,3,4", "MATH", "MEDIUM", enabled = true, resumeDate = tomorrow)
+            db.alarm("Uma vez", 8, 0, "", "MATH", "MEDIUM", resumeDate = tomorrow)
+            db.alarm("Desligado", 9, 0, "5,6", "MATH", "MEDIUM")
+            db.version = 5
+        }
+
+        val alarms = runBlocking { AppDatabase.get(env.app).alarmDao().getAll() }.map { it.toDomain() }.associateBy { it.label }
+        assertEquals(true to tomorrow, alarms.getValue("Pausado").let { it.enabled to it.skipDate })
+        assertEquals(true to null, alarms.getValue("Ligado").let { it.enabled to it.skipDate })
+        assertEquals(false to null, alarms.getValue("Uma vez").let { it.enabled to it.skipDate })
+        assertEquals(false to null, alarms.getValue("Desligado").let { it.enabled to it.skipDate })
     }
 }

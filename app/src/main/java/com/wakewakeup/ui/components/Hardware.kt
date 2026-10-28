@@ -532,6 +532,31 @@ fun OrangeKey(text: String, onClick: () -> Unit, modifier: Modifier = Modifier) 
     }
 }
 
+/** Rectangular graphite key for the quieter choice beside an orange one (DESFAZER, MANTER). */
+@Composable
+fun GraphiteKey(text: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val interaction = remember { MutableInteractionSource() }
+    val travel = pressTravel(interaction, 2.dp)
+    val haptic = LocalHapticFeedback.current
+    val shape = WwuShape.key
+    Box(
+        modifier = modifier
+            .heightIn(min = 48.dp)
+            .clickable(interactionSource = interaction, indication = null, role = Role.Button) {
+                haptic.performHapticFeedback(HapticFeedbackType.VirtualKey)
+                onClick()
+            }
+            .solidBase(shape, HousingDeep, 3.dp - travel)
+            .graphicsLayer { translationY = travel.toPx() }
+            .background(Brush.verticalGradient(listOf(KeyFaceTop, KeyFaceBottom)), shape)
+            .topHighlight(shape, 0.08f, Color.White)
+            .padding(horizontal = 16.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(text.uppercase(), style = WwuType.label, color = Ink, maxLines = 1)
+    }
+}
+
 /** A key that's already latched down and can't be pressed (LIBERADO). */
 @Composable
 fun SunkKey(text: String, modifier: Modifier = Modifier, color: Color = Vfd) {

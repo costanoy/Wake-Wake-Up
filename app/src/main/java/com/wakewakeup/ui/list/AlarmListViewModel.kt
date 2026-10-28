@@ -5,21 +5,24 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.wakewakeup.WakeWakeUpApplication
 import com.wakewakeup.data.Alarm
-import com.wakewakeup.session.nextTriggerMillis
-import com.wakewakeup.session.nextTriggerMillisAfterSkip
+import com.wakewakeup.session.nextRingMillis
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.time.Instant
+import java.time.LocalDateTime
+import java.time.ZoneId
 
 class AlarmListViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository = (application as WakeWakeUpApplication).container.alarmRepository
 
-    /** Null until the first read from the database, so the empty state never flashes on launch. */
+    /**
+     * In time-of-day order, on or off, so switching an alarm never moves its card from under the
+     * finger. Null until the first read from the database, so the empty state never flashes.
+     */
     val alarms: StateFlow<List<Alarm>?> = repository.observeAll()
-        .map { list -> list.sortedWith(compareByDescending<Alarm> { it.enabled }.thenBy { it.hour * 60 + it.minute }) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     fun toggleEnabled(alarm: Alarm) {
@@ -28,26 +31,21 @@ class AlarmListViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
-    fun scheduleResume(alarm: Alarm) {
+    fun skipNext(alarm: Alarm) {
         viewModelScope.launch {
-            repository.scheduleResume(alarm)
+            repository.skipNext(alarm)
         }
     }
 
-    fun cancelResume(alarm: Alarm) {
+    fun clearSkip(alarm: Alarm) {
         viewModelScope.launch {
-            repository.cancelResume(alarm)
+            repository.clearSkip(alarm)
         }
     }
 
-    /** The next ring among enabled alarms and ones skipping a day (they ring after the skipped day). */
-    fun nextAlarmMillis(alarms: List<Alarm>): Long? =
-        alarms.mapNotNull { alarm ->
-            val resumeDate = alarm.resumeDate
-            when {
-                alarm.enabled -> nextTriggerMillis(alarm)
-                resumeDate != null -> nextTriggerMillisAfterSkip(alarm, resumeDate)
-                else -> null
-            }
-        }.minOrNull()
+    /** The next time any alarm really rings (a skipped day doesn't count). */
+    fun nextAlarmMillis(alarms: List<Alarm>, now: Long = System.currentTimeMillis()): Long? {
+        val from = LocalDateTime.ofInstant(Instant.ofEpochMilli(now), ZoneId.systemDefault())
+        return alarms.filter { it.enabled }.minOfOrNull { nextRingMillis(it, from) }
+    }
 }

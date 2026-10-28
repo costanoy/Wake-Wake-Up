@@ -29,6 +29,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -57,13 +58,15 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.wakewakeup.R
 import com.wakewakeup.data.Alarm
-import com.wakewakeup.session.nextTriggerEpochDay
-import com.wakewakeup.session.nextTriggerEpochDayAfterSkip
+import com.wakewakeup.session.epochDayOf
+import com.wakewakeup.session.isSkippingNext
+import com.wakewakeup.session.nextTriggerMillis
 import com.wakewakeup.ui.components.CardShadow
 import com.wakewakeup.ui.components.ColonDots
 import com.wakewakeup.ui.components.DayPrintRow
 import com.wakewakeup.ui.components.FlipNumber
 import com.wakewakeup.ui.components.FlipSize
+import com.wakewakeup.ui.components.GraphiteKey
 import com.wakewakeup.ui.components.LabeledRoundButton
 import com.wakewakeup.ui.components.Lamp
 import com.wakewakeup.ui.components.OrangeKey
@@ -77,11 +80,11 @@ import com.wakewakeup.ui.components.faceplate
 import com.wakewakeup.ui.components.formatClock
 import com.wakewakeup.ui.components.nextAlarmInText
 import com.wakewakeup.ui.components.nonScaling
-import com.wakewakeup.ui.components.relativeDayName
 import com.wakewakeup.ui.components.softShadow
 import com.wakewakeup.ui.components.speakerGrille
 import com.wakewakeup.ui.components.taskCardLabel
 import com.wakewakeup.ui.components.visor
+import com.wakewakeup.ui.components.weekdayName
 import com.wakewakeup.ui.theme.Drawer
 import com.wakewakeup.ui.theme.Housing
 import com.wakewakeup.ui.theme.Ink
@@ -91,12 +94,15 @@ import com.wakewakeup.ui.theme.Vfd
 import com.wakewakeup.ui.theme.WwuShape
 import com.wakewakeup.ui.theme.WwuType
 import kotlinx.coroutines.delay
+import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.ZoneId
 
 @Composable
 fun AlarmListScreen(
     onNewAlarm: () -> Unit,
-    onEditAlarm: (Long) -> Unit,
+    onEditAlarm: (Alarm) -> Unit,
     onStats: () -> Unit,
     viewModel: AlarmListViewModel = viewModel(),
 ) {
@@ -115,7 +121,7 @@ fun AlarmListScreen(
             now = System.currentTimeMillis()
         }
     }
-    val nextTrigger = remember(alarms, now) { viewModel.nextAlarmMillis(alarms) }
+    val nextTrigger = remember(alarms, now) { viewModel.nextAlarmMillis(alarms, now) }
 
     Box(modifier = Modifier.fillMaxSize().background(Housing).statusBarsPadding().navigationBarsPadding()) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -127,7 +133,7 @@ fun AlarmListScreen(
             if (alarms.isEmpty()) {
                 EmptyState(onNewAlarm)
             } else {
-                AlarmList(alarms, viewModel, onEditAlarm)
+                AlarmList(alarms, now, viewModel, onEditAlarm)
             }
         }
 
@@ -211,27 +217,13 @@ private fun NextStrip(text: String?, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun AlarmList(alarms: List<Alarm>, viewModel: AlarmListViewModel, onEditAlarm: (Long) -> Unit) {
-    val listState = rememberLazyListState()
-
-    // Enabling an alarm moves it up into the enabled group — scroll up to reveal
-    // where it landed. Disabling one must NOT auto-scroll; the list stays put.
-    var justEnabledId by remember { mutableStateOf<Long?>(null) }
-    LaunchedEffect(alarms) {
-        val id = justEnabledId
-        if (id != null) {
-            justEnabledId = null
-            val index = alarms.indexOfFirst { it.id == id }
-            if (index >= 0) listState.animateScrollToItem(index)
-        }
-    }
-
-    // The "turn on again for <day>" drawer only makes sense right after disabling a
-    // recurring alarm — not for every recurring alarm that already happens to be off.
+private fun AlarmList(alarms: List<Alarm>, now: Long, viewModel: AlarmListViewModel, onEditAlarm: (Alarm) -> Unit) {
+    // The "skip just the next day" offer only makes sense right after switching a recurring
+    // alarm off, not for every recurring alarm that already happens to be off.
     var justDisabledId by remember { mutableStateOf<Long?>(null) }
 
     LazyColumn(
-        state = listState,
+        state = rememberLazyListState(),
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 18.dp, bottom = 140.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
@@ -239,22 +231,18 @@ private fun AlarmList(alarms: List<Alarm>, viewModel: AlarmListViewModel, onEdit
         items(alarms, key = { it.id }) { alarm ->
             AlarmCard(
                 alarm = alarm,
-                showResumePrompt = alarm.id == justDisabledId,
+                now = now,
+                showSkipPrompt = alarm.id == justDisabledId,
                 onToggle = {
-                    if (!alarm.enabled) {
-                        justEnabledId = alarm.id
-                        if (justDisabledId == alarm.id) justDisabledId = null
-                    } else if (alarm.days.isNotEmpty()) {
-                        justDisabledId = alarm.id
-                    }
+                    justDisabledId = if (alarm.enabled && alarm.days.isNotEmpty()) alarm.id else null
                     viewModel.toggleEnabled(alarm)
                 },
-                onScheduleResume = {
+                onSkipNext = {
                     justDisabledId = null
-                    viewModel.scheduleResume(alarm)
+                    viewModel.skipNext(alarm)
                 },
-                onCancelResume = { viewModel.cancelResume(alarm) },
-                onOpen = { onEditAlarm(alarm.id) },
+                onClearSkip = { viewModel.clearSkip(alarm) },
+                onOpen = { onEditAlarm(alarm) },
             )
         }
     }
@@ -263,10 +251,11 @@ private fun AlarmList(alarms: List<Alarm>, viewModel: AlarmListViewModel, onEdit
 @Composable
 private fun AlarmCard(
     alarm: Alarm,
-    showResumePrompt: Boolean,
+    now: Long,
+    showSkipPrompt: Boolean,
     onToggle: () -> Unit,
-    onScheduleResume: () -> Unit,
-    onCancelResume: () -> Unit,
+    onSkipNext: () -> Unit,
+    onClearSkip: () -> Unit,
     onOpen: () -> Unit,
 ) {
     val name = alarm.label.ifBlank { stringResource(R.string.untitled_alarm) }
@@ -312,41 +301,53 @@ private fun AlarmCard(
             DayPrintRow(activeDays = alarm.days)
         }
 
-        // Drawer sliding out from under the card: armed auto-resume (info), or the offer to
-        // re-arm a recurring alarm you just switched off. Both name the day it rings again: the
-        // occurrence after the skipped one (the skipped one only turns it back on, silently).
-        val resumeDate = alarm.resumeDate
-        val showInfo = !alarm.enabled && alarm.days.isNotEmpty() && resumeDate != null
-        val showPrompt = !alarm.enabled && alarm.days.isNotEmpty() && resumeDate == null && showResumePrompt
+        // Drawer sliding out from under the card: the day a recurring alarm is skipping, with an
+        // undo, or, right after one is switched off, the offer to skip only its next day instead.
+        val from = remember(now) { LocalDateTime.ofInstant(Instant.ofEpochMilli(now), ZoneId.systemDefault()) }
+        val drawer = when {
+            isSkippingNext(alarm, from) -> CardDrawerKind.SKIPPING
+            !alarm.enabled && alarm.days.isNotEmpty() && showSkipPrompt -> CardDrawerKind.SKIP_PROMPT
+            else -> null
+        }
+        // Keeps the content of a drawer that is closing, so it fades out as it was.
+        var lastDrawer by remember { mutableStateOf(drawer) }
+        SideEffect { if (drawer != null) lastDrawer = drawer }
         AnimatedVisibility(
-            visible = showInfo || showPrompt,
+            visible = drawer != null,
             enter = expandVertically(expandFrom = Alignment.Top) + fadeIn(),
             exit = shrinkVertically(shrinkTowards = Alignment.Top) + fadeOut(),
         ) {
-            if (resumeDate != null) {
-                val day = relativeDayName(LocalDate.ofEpochDay(nextTriggerEpochDayAfterSkip(alarm, resumeDate)))
-                CardDrawer(
-                    modifier = Modifier.clickable(role = Role.Button, onClickLabel = stringResource(R.string.cd_cancel_resume)) { onCancelResume() },
-                    top = 18.dp, end = 14.dp, bottom = 10.dp,
-                ) {
+            val (skipDay, backDay) = remember(alarm, from) { skipAndReturnDays(alarm, from) }
+            val skipName = weekdayName(skipDay, from.toLocalDate())
+            val backName = weekdayName(backDay, from.toLocalDate())
+            CardDrawer(top = 16.dp, end = 8.dp, bottom = 8.dp) {
+                if ((drawer ?: lastDrawer) == CardDrawerKind.SKIPPING) {
                     Lamp(Vfd, size = 6.dp)
                     Spacer(Modifier.width(8.dp))
-                    Text(stringResource(R.string.resume_scheduled, day), style = WwuType.bodyXS, color = Ink)
-                }
-            } else {
-                val day = relativeDayName(
-                    remember(alarm.hour, alarm.minute, alarm.days) {
-                        LocalDate.ofEpochDay(nextTriggerEpochDayAfterSkip(alarm, nextTriggerEpochDay(alarm)))
-                    },
-                )
-                CardDrawer(top = 16.dp, end = 8.dp, bottom = 8.dp) {
-                    Text(stringResource(R.string.resume_prompt, day), style = WwuType.bodyXS, color = Ink, modifier = Modifier.weight(1f))
+                    Text(stringResource(R.string.skipping_info, skipName, backName), style = WwuType.bodyXS, color = Ink, modifier = Modifier.weight(1f))
                     Spacer(Modifier.width(8.dp))
-                    OrangeKey(stringResource(R.string.activate), onClick = onScheduleResume)
+                    GraphiteKey(stringResource(R.string.undo), onClick = onClearSkip)
+                } else {
+                    Text(stringResource(R.string.skip_prompt, skipName, backName), style = WwuType.bodyXS, color = Ink, modifier = Modifier.weight(1f))
+                    Spacer(Modifier.width(8.dp))
+                    OrangeKey(stringResource(R.string.skip_once), onClick = onSkipNext)
                 }
             }
         }
     }
+}
+
+private enum class CardDrawerKind { SKIPPING, SKIP_PROMPT }
+
+/**
+ * The alarm's next occurrence (the one a skip leaves out) and the occurrence after it (when it
+ * rings again), both as days. The skip itself doesn't matter: it is always the next occurrence.
+ */
+private fun skipAndReturnDays(alarm: Alarm, from: LocalDateTime): Pair<LocalDate, LocalDate> {
+    val zone = ZoneId.systemDefault()
+    val skipped = nextTriggerMillis(alarm, from)
+    val back = nextTriggerMillis(alarm, LocalDateTime.ofInstant(Instant.ofEpochMilli(skipped), zone))
+    return LocalDate.ofEpochDay(epochDayOf(skipped)) to LocalDate.ofEpochDay(epochDayOf(back))
 }
 
 /** The recessed "gaveta" tucked 10 dp under the card above it. */
