@@ -18,7 +18,10 @@ Despertador para Android feito para quem dorme pesado demais para a soneca funci
 
 E também:
 
-- **Sons e rádio**: sons do próprio app, os toques do celular, uma música do aparelho ou uma rádio da internet (busca pelo [Radio Browser](https://www.radio-browser.info/)). Com rádio, o alarme comum assume se a estação não tocar ou se você não reagir em 3 minutos.
+- **Sons e rádio**: sons do próprio app, os toques do celular, uma música do aparelho ou uma rádio da internet (busca pelo [Radio Browser](https://www.radio-browser.info/)). Com rádio, o alarme comum assume se a estação não tocar ou se você não reagir em 3 minutos. O celular vibra junto.
+- **Pular só um dia**: ao desligar um alarme que se repete, dá para pular só o próximo dia. Ele continua ligado e volta a tocar no dia seguinte, e o relógio do celular já mostra o próximo toque de verdade.
+- **Já acordou?**: se você já está usando o celular até 1 hora antes de um alarme da manhã, uma notificação silenciosa pergunta se quer desativá-lo só desta vez. Para confirmar, o app pede uma conta rápida, e dá para desfazer.
+- **Sem saída pelos fundos**: se o app for encerrado ou o celular reiniciar no meio do toque, o alarme volta a tocar.
 - **Estatísticas**: o tempo entre o primeiro toque e a missão cumprida, nos últimos 7 dias.
 - Visual de rádio-relógio dos anos 70, com dígitos flip, em português e inglês.
 
@@ -37,6 +40,19 @@ O código fica em `app/src/main/java/com/wakewakeup/`: `data/` (banco e rádios)
 ## Rodando
 
 Abra a pasta no [Android Studio](https://developer.android.com/studio) e rode o módulo `app` num aparelho ou emulador com Android 8 ou superior. Os testes ficam em `app/src/test/` e rodam na JVM, sem emulador (no Android Studio: botão direito na pasta `test` e *Run Tests*).
+
+### Versão para a Play Store
+
+O build de release usa R8 e é assinado com a chave de upload, que nunca vai para o repositório. Crie um `keystore.properties` na raiz do projeto (já está no `.gitignore`):
+
+```properties
+storeFile=caminho/para/upload-keystore.jks
+storePassword=...
+keyAlias=upload
+keyPassword=...
+```
+
+Sem esse arquivo, `assembleRelease` gera um APK sem assinatura.
 
 ---
 
