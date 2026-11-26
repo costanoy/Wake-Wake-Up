@@ -69,6 +69,7 @@ import com.wakewakeup.ui.components.faceplate
 import com.wakewakeup.ui.components.glow
 import com.wakewakeup.ui.components.nonScaling
 import com.wakewakeup.ui.components.rememberReduceMotion
+import com.wakewakeup.ui.components.topFade
 import com.wakewakeup.ui.components.visor
 import com.wakewakeup.ui.edit.EditAlarmViewModel
 import com.wakewakeup.ui.theme.Action
@@ -164,7 +165,8 @@ fun SoundPickerScreen(onBack: () -> Unit, onOpenRadio: () -> Unit, viewModel: Ed
             modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp),
         )
 
-        Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).selectableGroup()) {
+        val listScroll = rememberScrollState()
+        Column(Modifier.weight(1f).topFade(listScroll).verticalScroll(listScroll).selectableGroup()) {
             Row(
                 Modifier
                     .padding(start = 16.dp, end = 16.dp, top = 12.dp)
