@@ -25,6 +25,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -95,7 +96,7 @@ fun RadioScreen(onBack: () -> Unit, viewModel: EditAlarmViewModel, onDone: () ->
     var results by remember { mutableStateOf<RadioResults>(RadioResults.Loading) }
     // Set once a station is chosen here: it brings up the DONE plate at the foot.
     var pickedHere by rememberSaveable { mutableStateOf(false) }
-    var attempt by remember { mutableStateOf(0) }
+    var attempt by remember { mutableIntStateOf(0) }
     LaunchedEffect(query, attempt) {
         results = RadioResults.Loading
         if (query.isNotBlank()) delay(500) // wait for the typing to pause

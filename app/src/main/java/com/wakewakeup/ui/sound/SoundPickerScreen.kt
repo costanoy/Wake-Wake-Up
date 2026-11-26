@@ -51,6 +51,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.wakewakeup.R
@@ -299,7 +300,7 @@ private fun TunerVisor(name: String, previewing: Boolean, position: Float, modif
             }
             Box(
                 Modifier
-                    .offset(x = width * needle.value - 1.dp)
+                    .offset { IntOffset((width * needle.value - 1.dp).roundToPx(), 0) }
                     .width(2.dp)
                     .fillMaxHeight()
                     .glow(WwuShape.segmentThin, Action, 6.dp, 0.8f)
