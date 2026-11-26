@@ -95,4 +95,24 @@ class AppLogicBugTest {
         assertNull(env.reload(alarm)!!.skipDate)
         assertEquals(at, env.scheduledFor(alarm)!!.triggerAtMs)
     }
+
+    @Test
+    fun anAlarmSparedOnOpeningIsArmedByTheSecondPass() {
+        val due = java.time.LocalDateTime.now().minusSeconds(30)
+        val alarm = env.save(Alarm(hour = due.hour, minute = due.minute, label = "", days = everyDay))
+        env.app.getSystemService(android.app.AlarmManager::class.java).cancelAll()
+        ActivityScenario.launch(MainActivity::class.java).use {
+            joinAppScope()
+            assertNull("its ring may be in flight: spared on opening", env.scheduledFor(alarm))
+            shadowOf(android.os.Looper.getMainLooper()).idleFor(java.time.Duration.ofSeconds(130))
+            joinAppScope()
+            val armed = env.scheduledFor(alarm)
+            assertNotNull("the second pass never armed it", armed)
+            assertTrue("armed for the next occurrence", armed!!.triggerAtMs > System.currentTimeMillis() + 60 * 60_000L)
+        }
+    }
+
+    private fun joinAppScope() = runBlocking {
+        env.app.container.appScope.coroutineContext[kotlinx.coroutines.Job]?.children?.forEach { it.join() }
+    }
 }

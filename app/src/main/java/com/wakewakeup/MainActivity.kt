@@ -3,6 +3,8 @@ package com.wakewakeup
 import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
@@ -79,7 +81,14 @@ class MainActivity : ComponentActivity() {
     private fun rearmAlarmsOnce() {
         if (app.rearmedThisProcess) return
         app.rearmedThisProcess = true
-        lifecycleScope.launch { app.container.alarmRepository.rescheduleAll(sparingDue = true) }
+        // The app scope, not the activity's: leaving the screen must not cancel the second pass.
+        app.container.appScope.launch { app.container.alarmRepository.rescheduleAll(sparingDue = true) }
+        // An alarm spared above (its ring may have been in flight) is armed once that is surely over.
+        // A Handler, not a delay() in the app scope: the scope's children would hold up every test.
+        Handler(Looper.getMainLooper()).postDelayed(
+            { app.container.appScope.launch { app.container.alarmRepository.rescheduleAll() } },
+            SECOND_PASS_MS,
+        )
     }
 
     /**
@@ -105,5 +114,6 @@ class MainActivity : ComponentActivity() {
 
     companion object {
         const val EXTRA_OPEN_STATS = "extra_open_stats"
+        private const val SECOND_PASS_MS = 125_000L
     }
 }
