@@ -7,7 +7,6 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.activity.compose.setContent
 import com.wakewakeup.ui.components.panelDate
 import org.junit.Assert.assertEquals
-import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -16,7 +15,6 @@ import java.time.LocalDate
 import java.util.Locale
 
 /** TEC-09: a data da tela de toque mistura o idioma dos recursos com o Locale do sistema. */
-@Ignore("TEC-09: panelDate usa Locale.getDefault() (idioma misturado e lint NonObservableLocale)")
 @RunWith(AndroidJUnit4::class)
 @Config(qualifiers = "de")
 class LabelsLocaleBugTest {

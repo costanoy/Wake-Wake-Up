@@ -71,7 +71,8 @@ fun weekdayName(date: LocalDate, today: LocalDate = LocalDate.now()): String {
 /** "QUARTA, 30 SET" / "WEDNESDAY, SEP 30" date line on the ringing and good-morning screens. */
 @Composable
 fun panelDate(date: LocalDate = LocalDate.now()): String {
-    val locale = Locale.getDefault()
+    val tag = stringResource(R.string.date_locale)
+    val locale = remember(tag) { Locale.forLanguageTag(tag) }
     val dayName = stringArrayResource(R.array.day_full).getOrElse(isoDayIndexOf(date)) { "" }
     // Runs on every recomposition of the ringing screen; the formatter only depends on the language.
     val format = remember(locale) { DateTimeFormatter.ofPattern(if (locale.language == "pt") "d MMM" else "MMM d", locale) }
