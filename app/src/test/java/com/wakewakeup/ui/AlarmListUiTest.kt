@@ -43,11 +43,13 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Assume.assumeTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.LocalTime
 
 @RunWith(AndroidJUnit4::class)
@@ -156,11 +158,11 @@ class AlarmListUiTest {
         compose.onNode(hasSetTextAction()).performTextInput("Academia")
         // The day keys print MON TUE WED, like the cards. No day picked yet: it rings once.
         compose.onNodeWithText(context.resources.getStringArray(R.array.day_short)[0].uppercase()).assertIsDisplayed()
-        compose.onNodeWithText(str(R.string.days_none_hint)).assertIsDisplayed()
+        compose.onNodeWithText(onceHint(8, 59)).assertIsDisplayed()
         compose.onNodeWithContentDescription(dayNames[0]).performClick()
         compose.onNodeWithContentDescription(dayNames[2]).performClick()
         compose.onNodeWithContentDescription(dayNames[2]).assertIsOn()
-        compose.waitForNoText(str(R.string.days_none_hint))
+        compose.waitForNoText(onceHint(8, 59))
 
         // Task: switch to the phrase. DONE only goes back; nothing is saved yet.
         compose.onNodeWithText(context.resources.getQuantityString(R.plurals.task_summary_math, 3, 3)).performClick()
@@ -286,6 +288,36 @@ class AlarmListUiTest {
         val saved = alarms().single()
         assertEquals(6, saved.hour)
         assertEquals(25, saved.minute)
+    }
+
+    /** What the editor prints under the day keys when none is picked: the day it will ring, and the time. */
+    private fun onceHint(hour: Int, minute: Int): String {
+        val day = LocalDate.ofEpochDay(nextTriggerEpochDay(Alarm(hour = hour, minute = minute, label = "", days = emptySet()), LocalDateTime.now()))
+        return str(R.string.days_none_hint_at, dayName(day), "%02d:%02d".format(hour, minute))
+    }
+
+    @Test
+    fun theOnceHintNamesTheDayAndFollowsTheTime() {
+        // A time already past today rings tomorrow; one still to come rings today. Needs room on
+        // both sides of "now" inside the same day.
+        val now = LocalTime.now()
+        assumeTrue(now.isAfter(LocalTime.of(1, 30)) && now.isBefore(LocalTime.of(22, 30)))
+        val passed = now.minusHours(1)
+        val coming = now.plusHours(1)
+        launch()
+        compose.waitForDescription(str(R.string.create_alarm))
+        compose.onNodeWithContentDescription(str(R.string.create_alarm)).performClick()
+        waitForDrum(R.string.hour, 7)
+
+        compose.onNode(drum(R.string.hour)).performSemanticsAction(SemanticsActions.SetProgress) { it(passed.hour.toFloat()) }
+        compose.onNode(drum(R.string.minute)).performSemanticsAction(SemanticsActions.SetProgress) { it(passed.minute.toFloat()) }
+        val tomorrow = dayName(LocalDate.now().plusDays(1))
+        compose.waitForText(str(R.string.days_none_hint_at, tomorrow, "%02d:%02d".format(passed.hour, passed.minute)))
+
+        compose.onNode(drum(R.string.hour)).performSemanticsAction(SemanticsActions.SetProgress) { it(coming.hour.toFloat()) }
+        compose.onNode(drum(R.string.minute)).performSemanticsAction(SemanticsActions.SetProgress) { it(coming.minute.toFloat()) }
+        val today = dayName(LocalDate.now())
+        compose.waitForText(str(R.string.days_none_hint_at, today, "%02d:%02d".format(coming.hour, coming.minute)))
     }
 
     private fun typeInTheTimeDialog(digits: String) {

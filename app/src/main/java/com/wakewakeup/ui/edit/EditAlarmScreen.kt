@@ -72,6 +72,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.wakewakeup.R
+import com.wakewakeup.session.nextTriggerEpochDay
 import com.wakewakeup.ui.components.BackHeader
 import com.wakewakeup.ui.components.CheckGlyph
 import com.wakewakeup.ui.components.Chevron
@@ -89,10 +90,12 @@ import com.wakewakeup.ui.components.RoundStyle
 import com.wakewakeup.ui.components.VfdText
 import com.wakewakeup.ui.components.bottomFade
 import com.wakewakeup.ui.components.faceplate
+import com.wakewakeup.ui.components.formatClock
 import com.wakewakeup.ui.components.nonScaling
 import com.wakewakeup.ui.components.softShadow
 import com.wakewakeup.ui.components.taskSummary
 import com.wakewakeup.ui.components.visor
+import com.wakewakeup.ui.components.weekdayName
 import com.wakewakeup.ui.theme.ErrorText
 import com.wakewakeup.ui.theme.Housing
 import com.wakewakeup.ui.theme.Ink
@@ -104,6 +107,8 @@ import com.wakewakeup.ui.theme.WwuType
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.time.LocalDate
+import java.time.LocalDateTime
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -201,9 +206,18 @@ fun EditAlarmScreen(
                 modifier = Modifier.padding(horizontal = 10.dp),
             )
             if (draft.days.isEmpty()) {
+                // Names the day it will ring, worked out like the list's "UMA VEZ · QUARTA" line.
+                val from = remember(draft.hour, draft.minute) { LocalDateTime.now() }
+                val day = remember(draft.hour, draft.minute) {
+                    LocalDate.ofEpochDay(nextTriggerEpochDay(draft.copy(enabled = true), from))
+                }
                 Text(
-                    stringResource(R.string.days_none_hint),
-                    style = WwuType.caption,
+                    stringResource(
+                        R.string.days_none_hint_at,
+                        weekdayName(day, from.toLocalDate()),
+                        formatClock(draft.hour, draft.minute),
+                    ),
+                    style = WwuType.bodyXS,
                     color = InkMuted,
                     modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 8.dp),
                 )

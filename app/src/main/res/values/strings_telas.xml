@@ -17,4 +17,7 @@
         <item quantity="one">%d permission missing. Tap to allow.</item>
         <item quantity="other">%d permissions missing. Tap to allow.</item>
     </plurals>
+
+    <!-- Editar alarme: sem dias marcados -->
+    <string name="days_none_hint_at">No day selected: rings once, %1$s at %2$s.</string>
 </resources>

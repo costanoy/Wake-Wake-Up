@@ -18,4 +18,7 @@
         <item quantity="many">Faltam %d permissões. Toque para liberar.</item>
         <item quantity="other">Faltam %d permissões. Toque para liberar.</item>
     </plurals>
+
+    <!-- Editar alarme: sem dias marcados -->
+    <string name="days_none_hint_at">Nenhum dia marcado: toca uma vez, %1$s às %2$s.</string>
 </resources>
