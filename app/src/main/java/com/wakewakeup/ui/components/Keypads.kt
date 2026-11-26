@@ -84,10 +84,7 @@ fun CalculatorKeypad(onKey: (String) -> Unit, modifier: Modifier = Modifier, key
         Row(horizontalArrangement = Arrangement.spacedBy(GAP_H)) {
             Column(verticalArrangement = Arrangement.spacedBy(GAP_V)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(GAP_H)) { digitKey("1"); digitKey("2"); digitKey("3") }
-                Row(horizontalArrangement = Arrangement.spacedBy(GAP_H)) {
-                    CalcKey("0", CalcKind.Digit, onKey, width = key * 2 + GAP_H, height = key)
-                    CalcKey(CalcKeys.SIGN, CalcKind.Digit, onKey, width = key, height = key, description = stringResource(R.string.cd_key_sign))
-                }
+                CalcKey("0", CalcKind.Digit, onKey, width = key * 3 + GAP_H * 2, height = key)
             }
             CalcKey(
                 CalcKeys.OK, CalcKind.Confirm, onKey,
