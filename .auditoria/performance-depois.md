@@ -79,3 +79,9 @@ Nenhum item estourou o limite. Itens que pedem atenção (dentro do limite, mas 
 - `classes.dex` +6,3% no APK.
 - 28 testes ignorados na suíte.
 - Lint: 60 warnings (sem limite no orçamento).
+
+## Medição final (depois das correções da revisão)
+
+- APK release (`app-release-unsigned.apk`): 4.132.133 B. Antes: 4.066.524 B. Variação: +65.609 B (+1,61%), dentro do limite de +5% (até 4.269.850 B).
+- Testes unitários (`testDebugUnitTest`): 385 no total, 0 falhas, 0 erros, 28 ignorados, 127,4 s somados nos XML.
+- Lint (`lintDebug`): 0 erros, 57 warnings (antes: 60).
