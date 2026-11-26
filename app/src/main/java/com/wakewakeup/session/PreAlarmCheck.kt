@@ -4,7 +4,9 @@ import android.Manifest
 import android.app.AlarmManager
 import android.app.KeyguardManager
 import android.app.PendingIntent
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.IntentFilter
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
@@ -21,7 +23,9 @@ import com.wakewakeup.data.toDomain
 import com.wakewakeup.ui.components.formatClock
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
+import kotlin.coroutines.resume
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.withContext
 
 const val PRE_ALARM_CHANNEL_ID = "pre_alarm"
@@ -46,7 +50,6 @@ private const val UNDO_REQUEST_CODE = -1003
 
 private const val FIRST_CHECK_WINDOW_MS = 10 * 60_000L
 private const val SESSION_RETRY_MS = 5 * 60_000L
-private const val UNLOCK_POLL_MS = 250L
 private const val HANDLED_KEPT_MS = 24 * 60 * 60_000L
 
 private const val PREFS = "pre_alarm"
@@ -209,18 +212,46 @@ class PreAlarmCheck(
         if (!stillAhead) cancelOffer()
     }
 
+    /**
+     * True when the phone is on and unlocked. A screen that is on but still locked gets
+     * [unlockWaitMs] to be unlocked: the wait ends on the unlock or the screen going off (a
+     * broadcast), never by looking again and again.
+     */
     private suspend fun waitUntilInUse(): Boolean {
         val power = context.getSystemService(Context.POWER_SERVICE) as PowerManager
         val keyguard = context.getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
-        var waited = 0L
-        while (true) {
-            if (!power.isInteractive) return false
-            // Still true while the ring screen or the camera covers the lock screen: right, here.
-            if (!keyguard.isKeyguardLocked) return true
-            if (waited >= unlockWaitMs) return false
-            delay(UNLOCK_POLL_MS)
-            waited += UNLOCK_POLL_MS
+        // Still true while the ring screen or the camera covers the lock screen: right, here.
+        fun inUse() = power.isInteractive && !keyguard.isKeyguardLocked
+        if (!power.isInteractive) return false
+        if (inUse()) return true
+        if (unlockWaitMs <= 0L) return false
+        val appContext = context.applicationContext
+        var receiver: BroadcastReceiver? = null
+        try {
+            withTimeoutOrNull(unlockWaitMs) {
+                suspendCancellableCoroutine { continuation ->
+                    val registered = object : BroadcastReceiver() {
+                        override fun onReceive(context: Context, intent: Intent) {
+                            if (continuation.isActive) continuation.resume(Unit)
+                        }
+                    }
+                    receiver = registered
+                    ContextCompat.registerReceiver(
+                        appContext, registered,
+                        IntentFilter().apply {
+                            addAction(Intent.ACTION_USER_PRESENT)
+                            addAction(Intent.ACTION_SCREEN_OFF)
+                        },
+                        ContextCompat.RECEIVER_NOT_EXPORTED,
+                    )
+                    // It may have been unlocked (or turned off) between the check above and the registration.
+                    if (!power.isInteractive || !keyguard.isKeyguardLocked) continuation.resume(Unit)
+                }
+            }
+        } finally {
+            receiver?.let { runCatching { appContext.unregisterReceiver(it) } }
         }
+        return inUse()
     }
 
     private fun notificationsAllowed(): Boolean {
