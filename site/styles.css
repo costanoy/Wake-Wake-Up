@@ -150,6 +150,14 @@ a.lang__opt:active { transform: translateY(1px); box-shadow: 0 1px 0 var(--housi
   .hero__body { gap: clamp(16px, 3vh, 28px); }
 }
 
+/* Short phones (360x640): keep the button, its label and the version line on the first screen. */
+@media (max-width: 899px) and (max-height: 700px) {
+  .nav { padding-top: 12px; padding-bottom: 12px; }
+  .hero__body { padding-top: 12px; padding-bottom: 20px; gap: 16px; }
+  .hero__text { gap: 10px; }
+  .hero__cta { gap: 8px; }
+}
+
 /* ------------------------------------------------------------------ Download button */
 /* The link is in the HTML; main.js may swap it for a plate of the same size. */
 .download { display: flex; flex-direction: column; align-items: center; gap: 12px; text-decoration: none; color: var(--ink); font-size: 13px; font-weight: 600; letter-spacing: .14em; text-align: center; }
@@ -168,8 +176,8 @@ a.download:active { transform: translateY(3px); }
 
 /* "How to install": numbered steps in the notes panel */
 .install { margin: 8px 0 0; padding: 0; list-style: none; counter-reset: passo; display: flex; flex-direction: column; gap: 10px; }
-.install li { counter-increment: passo; display: grid; grid-template-columns: 28px 1fr; gap: 8px; font-size: 15px; line-height: 1.5; color: var(--ink); }
-.install li::before { content: counter(passo); font-family: var(--cond); font-weight: 500; font-size: 24px; line-height: 1.1; color: var(--vfd); text-shadow: 0 0 6px rgba(242, 169, 59, .55); }
+.install li { counter-increment: passo; position: relative; padding-left: 36px; font-size: 15px; line-height: 1.5; color: var(--ink); }
+.install li::before { content: counter(passo); position: absolute; left: 0; top: -1px; width: 28px; font-family: var(--cond); font-weight: 500; font-size: 24px; line-height: 1.1; color: var(--vfd); text-shadow: 0 0 6px rgba(242, 169, 59, .55); }
 .install strong { font-weight: 600; }
 [data-apk-note] { display: flex; flex-direction: column; gap: 10px; }
 .final__notes:focus-visible { outline-offset: 4px; }
