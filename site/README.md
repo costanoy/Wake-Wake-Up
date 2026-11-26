@@ -50,13 +50,15 @@ para mandar e-mail para o endereço de `testContact` (ou o `contact`, se `testCo
 
 ## Atualizar o APK
 
+**Não publique `site/` enquanto `conferir-apk-site.sh` não passar:** o botão anuncia a versão de `site-config.js`, e um APK antigo ou de debug na pasta faria a página prometer o que o arquivo não entrega.
+
 Substitua `wake-wake-up.apk` pelo novo arquivo, com o mesmo nome. O `.htaccess` manda o navegador sempre conferir o APK,
 mas o CDN da Hostinger pode guardar a versão antiga: depois de trocar, limpe o cache do CDN no hPanel.
 
 1. Gere o APK de release assinado (`bash ferramentas/gradle.sh :app:assembleRelease`, com o `keystore.properties`) e copie
    `app/build/outputs/apk/release/app-release.apk` para `site/wake-wake-up.apk`.
 2. **Antes de enviar**, rode `bash ferramentas/conferir-apk-site.sh`. Ele falha se o APK for de debug, estiver assinado com
-   `CN=Android Debug`, tiver `versionName` diferente do de `app/build.gradle.kts` ou passar de 12 MB, e imprime versão e tamanho.
+   `CN=Android Debug`, tiver `versionName` diferente do de `app/build.gradle.kts` ou do `apkVersion` de `site-config.js`, ou passar de 12 MB, e imprime versão e tamanho.
    Não envie enquanto ele não passar.
 3. Ajuste `apkVersion` e `apkSize` em `site-config.js` para os valores que o script imprimiu (o botão mostra os dois).
 4. **Site e APK sobem juntos.** A página não pode descrever um recurso que o APK publicado não tem: nunca envie o site novo
