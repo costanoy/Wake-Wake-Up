@@ -87,6 +87,9 @@ private const val TIMER_SEGMENTS = 20
 private const val MAX_PHRASE_CHARS = 80
 private const val TIMER_DANGER_SEGMENTS = 5
 
+/** Fixed height of the math screen besides the display and the keys: margins, 24 dp, gaps, give-up key. */
+private val MATH_FIXED_HEIGHT = 18.dp + 24.dp + 14.dp * 3 + 16.dp + 48.dp + 16.dp
+
 /** From here on the clock turns red and the hint says how long is left. */
 private const val TIME_LOW_SECONDS = 20
 
@@ -196,10 +199,14 @@ private fun androidx.compose.foundation.layout.ColumnScope.MathBody(
     }
 
     BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
-        // Keys as big as the width allows (four keys, three 16 dp gaps, inside the display's
-        // 20 dp margins), set low under the thumb while the display stays on top, like a
-        // calculator's. Short screens scroll.
-        val keySize = ((maxWidth - 40.dp - 16.dp * 3) / 4).coerceIn(56.dp, 76.dp)
+        // Keys as big as the width or the height allows (width: four keys, three 16 dp gaps,
+        // inside the display's 20 dp margins; height: what is left under the display, the
+        // 14 dp gaps between four rows and the give-up key), 52 to 76 dp. The display sits 24 dp
+        // above the keys, with the spare height above it. Short screens scroll.
+        val displayH = if (maxHeight < 560.dp) 132.dp else 150.dp
+        val byWidth = (maxWidth - 40.dp - 16.dp * 3) / 4
+        val byHeight = (maxHeight - displayH - MATH_FIXED_HEIGHT) / 4
+        val keySize = minOf(byWidth, byHeight).coerceIn(52.dp, 76.dp)
         Column(
             Modifier
                 .fillMaxWidth()
@@ -207,12 +214,14 @@ private fun androidx.compose.foundation.layout.ColumnScope.MathBody(
                 .heightIn(min = maxHeight),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
+            Spacer(Modifier.height(18.dp))
+            Spacer(Modifier.weight(1f))
             Column(
                 Modifier
-                    .padding(start = 20.dp, end = 20.dp, top = 18.dp)
+                    .padding(horizontal = 20.dp)
                     .graphicsLayer { translationX = shake.value.dp.toPx() }
                     .fillMaxWidth()
-                    .height(150.dp)
+                    .heightIn(min = displayH)
                     .visor(WwuShape.visorMedium, depth = 3.dp, blurRadius = 8.dp)
                     .padding(horizontal = 18.dp, vertical = 14.dp),
                 verticalArrangement = Arrangement.SpaceBetween,
@@ -221,7 +230,7 @@ private fun androidx.compose.foundation.layout.ColumnScope.MathBody(
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
                     Text(
                         message,
-                        style = WwuType.caption,
+                        style = WwuType.bodyS,
                         color = messageColor,
                         modifier = Modifier
                             .weight(1f)
@@ -239,7 +248,6 @@ private fun androidx.compose.foundation.layout.ColumnScope.MathBody(
             }
 
             Spacer(Modifier.height(24.dp))
-            Spacer(Modifier.weight(1f))
             CalculatorKeypad(onKey = { key -> if (key == CalcKeys.OK) onConfirm() else onKey(key) }, key = keySize)
 
             Spacer(Modifier.height(16.dp))
