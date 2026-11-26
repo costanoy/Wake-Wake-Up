@@ -17,7 +17,7 @@ Reconstruída a partir do handoff `design_handoff_wakewakeup_site`. Em portuguê
 | `wake-wake-up.apk` | O app, para download direto |
 | `.htaccess` | HTTPS, cabeçalhos de segurança, cache e tipo do APK (Apache / LiteSpeed da Hostinger) |
 | `wake-wake-up-video.mp4` | Vídeo de 28 s mostrado nas duas páginas |
-| `og-image.png` | Imagem de compartilhamento (1200×630) |
+| `og-image.png`, `og-image-en.png` | Imagens de compartilhamento (1200×630), em português e em inglês. A inglesa sai de `ferramentas/og-image.html?lang=en` (instruções dentro do arquivo) |
 | `favicon.ico`, `assets/` | Ícones, capa do vídeo e as fontes (`assets/fonts/`, servidas pelo próprio site) |
 | `robots.txt`, `sitemap.xml` | Para os buscadores (o sitemap lista as duas línguas) |
 | `404.html` | Página de endereço não encontrado, em PT e EN |
@@ -95,3 +95,22 @@ Endereço: https://wakewakeup.cyberhat.com.br
 4. Confirme que o `.htaccess` foi enviado. Ele começa com ponto e pode estar oculto no gerenciador.
 5. Ative o SSL gratuito do subdomínio, se ainda não estiver ativo.
 6. Limpe o cache do CDN no hPanel.
+
+## Conferir depois de publicar
+
+Publicar é com o Vinicius. Depois de enviar tudo (site, `en/`, `.htaccess` e o APK conferido), rode estes seis testes (Git Bash).
+`D=https://wakewakeup.cyberhat.com.br`
+
+1. **Páginas no ar.** Todas respondem `200`:
+   `for p in / /en/ /privacidade.html /en/privacy.html /sitemap.xml /lang.js; do echo "$p $(curl -s -o /dev/null -w '%{http_code}' $D$p)"; done`
+2. **`/index.html` vai para `/`.** `curl -sI $D/index.html | head -n 3` mostra `301` e `Location: https://wakewakeup.cyberhat.com.br/`.
+3. **Endereço inexistente.** `curl -s -o /dev/null -w '%{http_code}' $D/nao-existe` devolve `404`, e `curl -s $D/nao-existe | grep -c '<title'`
+   mostra o título da `404.html` (não a página padrão do servidor).
+4. **Cabeçalhos de segurança.** `curl -sI $D/` mostra `Strict-Transport-Security` e a `Content-Security-Policy` completa (a do `.htaccess`,
+   não só `upgrade-insecure-requests`).
+5. **O APK.** `curl -sI $D/wake-wake-up.apk` mostra `Content-Type: application/vnd.android.package-archive`, `X-Robots-Tag: noindex`
+   e `Content-Length` igual ao tamanho do APK novo (o que `ferramentas/conferir-apk-site.sh` imprimiu).
+6. **Cache do JavaScript.** `curl -sI "$D/main.js?v=AAAAMMDD"` mostra `Cache-Control: no-cache` (e não `max-age=604800`).
+
+Se algum falhar, o servidor ainda está com a versão antiga: confira se o `.htaccess` foi enviado e limpe o cache do CDN no hPanel.
+Depois que os seis passarem, reenvie o `sitemap.xml` no Google Search Console (só então o `hreflang` para `/en/` passa a valer).
