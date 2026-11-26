@@ -265,17 +265,172 @@ class RingFlowUiTest {
         waitFor("typed") { session?.mission?.typed == "nada a ver" }
         compose.onNodeWithContentDescription(str(R.string.confirm)).performClick()
         waitFor("wrong") { session?.mission?.wrong == true }
-        compose.waitForText(str(R.string.wrong_try_again))
+        compose.waitForText(str(R.string.phrase_wrong_here))
+    }
+
+    @Test
+    fun aPhraseWithExtraTextAtTheEndSaysSo() {
+        ring(taskType = TaskType.PHRASE)
+        compose.onNodeWithContentDescription(str(R.string.start_mission)).performClick()
+        waitFor("mission") { session?.screen == SessionScreen.MISSION }
+        val phrase = MissionGenerator.phraseOfTheDay()
+        val typed = phrase.lowercase().filter { it.isLetter() || it == ' ' } + " e mais um pouco"
+        compose.onNode(hasSetTextAction()).performTextInput(typed)
+        waitFor("typed") { session?.mission?.typed == typed }
+        compose.onNodeWithContentDescription(str(R.string.confirm)).performClick()
+        waitFor("wrong") { session?.mission?.wrong == true }
+        compose.waitForText(str(R.string.phrase_wrong_extra))
     }
 
     @Test
     fun aRingScreenOpenedAfterTheAlarmEndedGoesBackToTheApp() {
         // E.g. the notification tapped late: there's nothing ringing anymore.
         screen = ActivityScenario.launch(RingActivity::class.java)
+        compose.mainClock.advanceTimeBy(3_100)
         compose.waitFor("app opened") { MainActivity::class.java.name in openedActivities() }
         var finishing = false
         screen!!.onActivity { finishing = it.isFinishing }
         assertTrue("the ring screen should close itself", finishing)
+    }
+
+    @Test
+    fun withoutASessionForThreeSecondsTheRingScreenOpensTheApp() {
+        // TEC-05: it waits for a session that may still be on its way, and only then gives up.
+        screen = ActivityScenario.launch(RingActivity::class.java)
+        compose.mainClock.advanceTimeBy(2_500)
+        assertFalse("it gave up before the 3 s were over", MainActivity::class.java.name in openedActivities())
+        compose.mainClock.advanceTimeBy(700)
+        compose.waitFor("app opened") { MainActivity::class.java.name in openedActivities() }
+    }
+
+    private fun volumeDownIsConsumed(): Boolean {
+        var consumed = false
+        screen!!.onActivity {
+            consumed = it.dispatchKeyEvent(android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_VOLUME_DOWN))
+        }
+        return consumed
+    }
+
+    @Test
+    fun theVolumeDownKeyIsConsumedWhileRingingAndOnTheMissionButNotOnGoodMorning() {
+        ring()
+        assertTrue("on the ring screen", volumeDownIsConsumed())
+        compose.onNodeWithContentDescription(str(R.string.start_mission)).performClick()
+        waitFor("mission") { session?.screen == SessionScreen.MISSION }
+        assertTrue("on the mission", volumeDownIsConsumed())
+        var upConsumed = true
+        screen!!.onActivity {
+            upConsumed = it.dispatchKeyEvent(android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_VOLUME_UP))
+        }
+        assertFalse("volume up still works", upConsumed)
+        pressKeys(session!!.mission!!.answer)
+        waitFor("typed") { session?.mission?.typed == session?.mission?.answer }
+        compose.onNodeWithContentDescription(str(R.string.confirm)).performClick()
+        waitFor("good morning") { session?.screen == SessionScreen.GOOD_MORNING }
+        assertFalse("on Bom dia", volumeDownIsConsumed())
+    }
+
+    @Test
+    fun withTheDeviceStillLockedBomDiaWorksWithoutTheDatabase() {
+        // LOG-01: before the first unlock after boot the database can't be opened.
+        val manager = env.app.getSystemService(android.os.UserManager::class.java)
+        shadowOf(manager).setUserUnlocked(false)
+        // A backup due within the hour, which would be offered if the list could be read.
+        val soon = java.time.LocalDateTime.now().plusMinutes(30)
+        env.save(Alarm(hour = soon.hour, minute = soon.minute, label = "", days = emptySet()))
+        ring()
+        solveTheMission()
+        assertTrue(compose.onAllNodesWithText(str(R.string.gm_skip_also, formatClock(soon.hour, soon.minute))).fetchSemanticsNodes().isEmpty())
+        compose.onNodeWithContentDescription(str(R.string.done)).performClick()
+        waitFor("session over") { session == null }
+    }
+
+    private fun openWithSession(transform: (com.wakewakeup.session.RingSession) -> com.wakewakeup.session.RingSession) {
+        AlarmSessionState.start(env.save(Alarm(hour = 6, minute = 30, label = "", days = setOf(0))))
+        AlarmSessionState.update(transform)
+        screen = ActivityScenario.launch(RingActivity::class.java)
+    }
+
+    @Test
+    fun aMissionThatRanOutOfTimeIsAnnouncedOnTheRingScreen() {
+        openWithSession { it.copy(mission = com.wakewakeup.session.MissionState(TaskType.MATH, 0, 1, question = "1 + 1", answer = "2")) }
+        compose.waitForText(str(R.string.mission_timed_out))
+        assertTrue(compose.onAllNodesWithText(str(R.string.ring_alarm_at, "06:30").uppercase()).fetchSemanticsNodes().isEmpty())
+    }
+
+    @Test
+    fun aFreshSessionDoesNotClaimTheTimeRanOut() {
+        openWithSession { it }
+        compose.waitForDescription(str(R.string.start_mission))
+        assertTrue(compose.onAllNodesWithText(str(R.string.mission_timed_out)).fetchSemanticsNodes().isEmpty())
+        compose.onNodeWithText(str(R.string.ring_alarm_at, "06:30").uppercase()).assertIsDisplayed()
+    }
+
+    @Test
+    fun theMissionClockReadsMinutesAndTurnsIntoAHintInTheLastTwentySeconds() {
+        openWithSession {
+            it.copy(
+                screen = SessionScreen.MISSION,
+                mission = com.wakewakeup.session.MissionState(TaskType.MATH, 0, 1, secondsLeft = 23, question = "1 + 1", answer = "2"),
+            )
+        }
+        compose.waitForText("0:23")
+        assertTrue(compose.onAllNodesWithText(str(R.string.mission_time_low, 23)).fetchSemanticsNodes().isEmpty())
+        AlarmSessionState.update { it.copy(mission = it.mission!!.copy(secondsLeft = 15)) }
+        compose.waitForText(str(R.string.mission_time_low, 15))
+        compose.onNodeWithText("0:15").assertIsDisplayed()
+    }
+
+    private fun recordWeek(vararg durationsSec: Int) = runBlocking {
+        durationsSec.forEachIndexed { i, sec ->
+            env.history.record(
+                com.wakewakeup.data.WakeHistoryEntry(
+                    date = java.time.LocalDate.now().minusDays(i + 1L),
+                    alarmHour = 6, alarmMinute = 30, wokeHour = 6, wokeMinute = 40, waits = 0, durationSec = sec,
+                ),
+            )
+        }
+    }
+
+    /** Opens Bom dia directly, with a wake-up that took [durationSec]. */
+    private fun openGoodMorning(durationSec: Int) {
+        openWithSession {
+            it.copy(
+                screen = SessionScreen.GOOD_MORNING,
+                finished = com.wakewakeup.session.FinishedInfo(0, 6, 30, 6, 30 + durationSec / 60, durationSec),
+            )
+        }
+        compose.waitForText(str(R.string.good_morning))
+        // The digits come in as 00 and flip to the value once.
+        compose.mainClock.advanceTimeBy(500)
+    }
+
+    @Test
+    fun goodMorningSaysHowMuchFasterThanTheWeeklyAverage() {
+        recordWeek(600, 600, 600)
+        openGoodMorning(360)
+        compose.waitForText(str(R.string.gm_faster, 4))
+        compose.onNodeWithContentDescription(context.resources.getQuantityString(R.plurals.minutes_spoken, 6, 6)).assertIsDisplayed()
+    }
+
+    @Test
+    fun goodMorningSaysHowMuchOverTheWeeklyAverage() {
+        recordWeek(300, 300)
+        openGoodMorning(480)
+        compose.waitForText(str(R.string.gm_slower, 3))
+    }
+
+    @Test
+    fun goodMorningWithNoHistoryIsTheFirstOnRecord() {
+        openGoodMorning(360)
+        compose.waitForText(str(R.string.gm_first))
+    }
+
+    @Test
+    fun aQuickWakeUpIsShownInSeconds() {
+        openGoodMorning(20)
+        compose.onNodeWithContentDescription(context.resources.getQuantityString(R.plurals.gm_seconds_spoken, 20, 20)).assertIsDisplayed()
+        compose.onNodeWithText(str(R.string.second_short).uppercase()).assertIsDisplayed()
     }
 
     @Test

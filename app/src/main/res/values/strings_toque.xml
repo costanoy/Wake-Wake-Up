@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="mission_timed_out">Time ran out. The mission starts over.</string>
+    <string name="mission_time_label">Time</string>
+    <string name="mission_time_low">%1$d s left. Then the alarm rings again.</string>
+    <string name="phrase_wrong_here">Doesn\'t match. Fix it from the underlined letter.</string>
+    <string name="phrase_wrong_extra">Doesn\'t match. There\'s extra text at the end.</string>
+    <string name="gm_first">Your first wake-up on record.</string>
+    <string name="gm_faster">%1$d min faster than your weekly average.</string>
+    <string name="gm_same">Right on your weekly average.</string>
+    <string name="gm_slower">%1$d min over your weekly average.</string>
+    <plurals name="gm_seconds_spoken">
+        <item quantity="one">%d second</item>
+        <item quantity="other">%d seconds</item>
+    </plurals>
+</resources>
