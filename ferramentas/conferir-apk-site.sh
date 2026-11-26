@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Confere o APK que vai para o site (somente leitura). Uso: bash ferramentas/conferir-apk-site.sh [caminho-do-apk]
-# Falha (saida 1) se o APK for de debug, assinado com a chave de debug, com versao diferente da do Gradle
+# Falha (saida 1) se o APK for de debug, assinado com a chave de debug, com versao diferente da do Gradle ou da anunciada no site (apkVersion)
 # ou maior que 12 MB. Rode antes de enviar o APK; site e APK sobem juntos.
 set -u
 
@@ -43,6 +43,12 @@ VERSAO_APK="$(echo "$BADGING" | sed -n "s/.*versionName='\([^']*\)'.*/\1/p" | he
 VERSAO_GRADLE="$(sed -n 's/.*versionName *= *"\([^"]*\)".*/\1/p' "$RAIZ/app/build.gradle.kts" | head -n 1)"
 if [ "$VERSAO_APK" != "$VERSAO_GRADLE" ]; then
   falha "versionName do APK ($VERSAO_APK) e diferente do de app/build.gradle.kts ($VERSAO_GRADLE)"
+fi
+
+# 3b. Versao anunciada no site (site-config.js) igual a do APK
+VERSAO_SITE="$(sed -n 's/.*apkVersion *: *"\([^"]*\)".*/\1/p' "$RAIZ/site/site-config.js" | head -n 1)"
+if [ "$VERSAO_APK" != "$VERSAO_SITE" ]; then
+  falha "o site anuncia a versao '$VERSAO_SITE' (apkVersion em site/site-config.js), mas o APK e '$VERSAO_APK'"
 fi
 
 # 4. Tamanho
