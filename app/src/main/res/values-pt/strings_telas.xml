@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Editar alarme: digitar a hora -->
+    <string name="cd_type_time">Digitar a hora</string>
+    <string name="type_time_title">Digite a hora</string>
+    <string name="type_time_hint">Quatro números. Ex.: 0645 para 06:45.</string>
+    <string name="type_time_invalid">Essa hora não existe. Use de 00:00 a 23:59.</string>
+    <string name="cancel">Cancelar</string>
+
+    <!-- Permissões -->
+    <string name="perm_short_title">Permissões</string>
+    <string name="back_to_list">Voltar para a lista</string>
+
+    <!-- Aviso da lista -->
+    <string name="perm_missing_title">O alarme pode não tocar</string>
+    <plurals name="perm_missing_detail">
+        <item quantity="one">Falta %d permissão. Toque para liberar.</item>
+        <item quantity="many">Faltam %d permissões. Toque para liberar.</item>
+        <item quantity="other">Faltam %d permissões. Toque para liberar.</item>
+    </plurals>
+
+    <!-- Editar alarme: sem dias marcados -->
+    <string name="days_none_hint_at">Nenhum dia marcado: toca uma vez, %1$s às %2$s.</string>
+</resources>

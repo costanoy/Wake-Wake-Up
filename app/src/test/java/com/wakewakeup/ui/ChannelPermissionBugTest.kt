@@ -9,14 +9,12 @@ import com.wakewakeup.testing.AppEnv
 import com.wakewakeup.ui.permissions.AlarmPermission
 import com.wakewakeup.ui.permissions.AlarmPermissions
 import org.junit.Assert.assertFalse
-import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.Shadows.shadowOf
 
 /** TEC-07: canal "tocando" desligado não é detectado. */
-@Ignore("TEC-07: AlarmPermissions não olha a importância do canal alarm_ringing")
 @RunWith(AndroidJUnit4::class)
 class ChannelPermissionBugTest {
 

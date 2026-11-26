@@ -6,6 +6,7 @@ import androidx.compose.animation.core.exponentialDecay
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,6 +25,8 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
@@ -39,10 +42,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
@@ -56,13 +63,16 @@ import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.wakewakeup.R
+import com.wakewakeup.session.nextTriggerEpochDay
 import com.wakewakeup.ui.components.BackHeader
 import com.wakewakeup.ui.components.CheckGlyph
 import com.wakewakeup.ui.components.Chevron
@@ -77,21 +87,28 @@ import com.wakewakeup.ui.components.OrangeKey
 import com.wakewakeup.ui.components.PlateDivider
 import com.wakewakeup.ui.components.PrintLabel
 import com.wakewakeup.ui.components.RoundStyle
+import com.wakewakeup.ui.components.VfdText
 import com.wakewakeup.ui.components.bottomFade
 import com.wakewakeup.ui.components.faceplate
+import com.wakewakeup.ui.components.formatClock
+import com.wakewakeup.ui.components.nonScaling
 import com.wakewakeup.ui.components.softShadow
 import com.wakewakeup.ui.components.taskSummary
 import com.wakewakeup.ui.components.visor
+import com.wakewakeup.ui.components.weekdayName
 import com.wakewakeup.ui.theme.ErrorText
 import com.wakewakeup.ui.theme.Housing
 import com.wakewakeup.ui.theme.Ink
 import com.wakewakeup.ui.theme.InkMuted
 import com.wakewakeup.ui.theme.Vfd
+import com.wakewakeup.ui.theme.VfdBright
 import com.wakewakeup.ui.theme.WwuShape
 import com.wakewakeup.ui.theme.WwuType
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.time.LocalDate
+import java.time.LocalDateTime
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -142,6 +159,11 @@ fun EditAlarmScreen(
         }
     }
 
+    // On a short phone the foot bar gives up some height so MISSÃO and SOM stay above it.
+    val compact = LocalConfiguration.current.screenHeightDp < 700
+    val saveSize = if (compact) 64.dp else 76.dp
+    val deleteSize = if (compact) 52.dp else 60.dp
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -184,9 +206,18 @@ fun EditAlarmScreen(
                 modifier = Modifier.padding(horizontal = 10.dp),
             )
             if (draft.days.isEmpty()) {
+                // Names the day it will ring, worked out like the list's "UMA VEZ · QUARTA" line.
+                val from = remember(draft.hour, draft.minute) { LocalDateTime.now() }
+                val day = remember(draft.hour, draft.minute) {
+                    LocalDate.ofEpochDay(nextTriggerEpochDay(draft.copy(enabled = true), from))
+                }
                 Text(
-                    stringResource(R.string.days_none_hint),
-                    style = WwuType.caption,
+                    stringResource(
+                        R.string.days_none_hint_at,
+                        weekdayName(day, from.toLocalDate()),
+                        formatClock(draft.hour, draft.minute),
+                    ),
+                    style = WwuType.bodyXS,
                     color = InkMuted,
                     modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 8.dp),
                 )
@@ -199,6 +230,26 @@ fun EditAlarmScreen(
                     .faceplate()
                     .padding(horizontal = 14.dp, vertical = 4.dp),
             ) {
+                PlateRow(label = stringResource(R.string.task), onClick = onOpenTask) {
+                    Text(
+                        taskSummary(draft.taskType, draft.taskCount),
+                        style = WwuType.body,
+                        color = Ink,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+                PlateDivider()
+                PlateRow(label = stringResource(R.string.sound), onClick = onOpenSound) {
+                    Text(
+                        draft.soundName ?: stringResource(R.string.sound_default),
+                        style = WwuType.body,
+                        color = Ink,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+                PlateDivider()
                 PlateRow(label = stringResource(R.string.label), minHeight = 56.dp) {
                     Box(
                         Modifier
@@ -222,26 +273,6 @@ fun EditAlarmScreen(
                         )
                     }
                 }
-                PlateDivider()
-                PlateRow(label = stringResource(R.string.sound), onClick = onOpenSound) {
-                    Text(
-                        draft.soundName ?: stringResource(R.string.sound_default),
-                        style = WwuType.body,
-                        color = Ink,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f),
-                    )
-                }
-                PlateDivider()
-                PlateRow(label = stringResource(R.string.task), onClick = onOpenTask) {
-                    Text(
-                        taskSummary(draft.taskType, draft.taskCount),
-                        style = WwuType.body,
-                        color = Ink,
-                        modifier = Modifier.weight(1f),
-                    )
-                }
             }
             Spacer(Modifier.height(24.dp))
         }
@@ -249,7 +280,7 @@ fun EditAlarmScreen(
         Row(
             Modifier
                 .fillMaxWidth()
-                .padding(start = 40.dp, end = 40.dp, bottom = 32.dp, top = 8.dp),
+                .padding(start = 40.dp, end = 40.dp, bottom = if (compact) 16.dp else 32.dp, top = 8.dp),
             // A new alarm has nothing to delete yet (‹ abandons it), and SALVAR keeps its place.
             horizontalArrangement = if (isNew) Arrangement.End else Arrangement.SpaceBetween,
             verticalAlignment = Alignment.Bottom,
@@ -265,7 +296,7 @@ fun EditAlarmScreen(
                             deleteArmed = true
                         }
                     },
-                    size = 60.dp,
+                    size = deleteSize,
                     style = RoundStyle.Danger,
                     // Measured after SALVAR: at the largest font sizes its captions wrap instead
                     // of squeezing the save key.
@@ -275,15 +306,15 @@ fun EditAlarmScreen(
                     softShadow = softShadow(14.dp, 8.dp, 0.5f),
                     // Room for the longer caption either way, so the key stays under the confirming tap.
                     reserveLabel = stringResource(if (deleteArmed) R.string.delete else R.string.delete_confirm),
-                ) { CrossGlyph(60.dp) }
+                ) { CrossGlyph(deleteSize) }
             }
             LabeledRoundButton(
                 label = stringResource(R.string.save),
                 onClick = { viewModel.save(onSaved) },
-                size = 76.dp,
+                size = saveSize,
                 style = RoundStyle.Action,
                 softShadow = softShadow(18.dp, 10.dp, 0.55f),
-            ) { CheckGlyph(76.dp) }
+            ) { CheckGlyph(saveSize) }
         }
     }
 }
@@ -324,6 +355,81 @@ private fun LeaveDialog(isNew: Boolean, onDismiss: () -> Unit, onDiscard: () -> 
     }
 }
 
+/** The hour typed as four digits ("0645"), or null while it isn't a time that exists. */
+private fun parseTypedTime(digits: String): Pair<Int, Int>? {
+    if (digits.length != 4) return null
+    val hour = digits.take(2).toInt()
+    val minute = digits.drop(2).toInt()
+    return if (hour in 0..23 && minute in 0..59) hour to minute else null
+}
+
+/** Typing the time instead of turning the drums: four digits in a visor, then CONFIRMAR. */
+@Composable
+private fun TimeEntryDialog(onDismiss: () -> Unit, onConfirm: (hour: Int, minute: Int) -> Unit) {
+    val field = rememberTextFieldState()
+    val digits = field.text.toString()
+    val focus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { focus.requestFocus() }
+    val parsed = parseTypedTime(digits)
+    val invalid = digits.length == 4 && parsed == null
+    fun confirm() {
+        parsed?.let { (h, m) -> onConfirm(h, m) }
+    }
+    val shown = digits.padEnd(4, '_').let { "${it.take(2)}:${it.drop(2)}" }
+    Dialog(onDismissRequest = onDismiss) {
+        Column(
+            Modifier
+                .padding(bottom = 2.dp)
+                .faceplate(WwuShape.faceplateLarge, softShadow = false)
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(stringResource(R.string.type_time_title), style = WwuType.titleS, color = Ink)
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .height(64.dp)
+                    .visor(WwuShape.visorSmall, lip = false),
+                contentAlignment = Alignment.Center,
+            ) {
+                VfdText(shown, 36.sp.nonScaling(), color = VfdBright)
+                // The real field lies invisible over the readout, so the keyboard types into it.
+                BasicTextField(
+                    state = field,
+                    inputTransformation = {
+                        // Only digits, four at most: anything else is taken back.
+                        val text = asCharSequence().toString()
+                        if (text.length > 4 || !text.all(Char::isDigit)) revertAllChanges()
+                    },
+                    lineLimits = TextFieldLineLimits.SingleLine,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+                    onKeyboardAction = { confirm() },
+                    textStyle = WwuType.body.copy(color = Color.Transparent),
+                    cursorBrush = SolidColor(Color.Unspecified),
+                    modifier = Modifier
+                        .matchParentSize()
+                        .alpha(0f)
+                        .focusRequester(focus),
+                )
+            }
+            Text(
+                stringResource(if (invalid) R.string.type_time_invalid else R.string.type_time_hint),
+                style = WwuType.bodyS,
+                color = if (invalid) ErrorText else InkMuted,
+            )
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(top = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End),
+            ) {
+                GraphiteKey(stringResource(R.string.cancel), onClick = onDismiss)
+                OrangeKey(stringResource(R.string.confirm), onClick = { confirm() })
+            }
+        }
+    }
+}
+
 @Composable
 private fun PlateRow(
     label: String,
@@ -331,8 +437,9 @@ private fun PlateRow(
     onClick: (() -> Unit)? = null,
     value: @Composable RowScope.() -> Unit,
 ) {
-    // Sized in sp, so the column grows with the font and MISSÃO never breaks onto two lines.
-    val labelWidth = with(LocalDensity.current) { 64.sp.toDp() }
+    // Sized by the label's own font size, so the column grows with the label at any font scale
+    // (a fixed 64 sp barely grows from Android 14 on, where large text scales non-linearly).
+    val labelWidth = with(LocalDensity.current) { WwuType.label.fontSize.toDp() } * 5.4f
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -364,6 +471,17 @@ private fun TimePickerVisor(
 ) {
     val plusTen = stringResource(R.string.cd_minutes_plus_10)
     val minusTen = stringResource(R.string.cd_minutes_minus_10)
+    var typing by rememberSaveable { mutableStateOf(false) }
+    if (typing) {
+        TimeEntryDialog(
+            onDismiss = { typing = false },
+            onConfirm = { h, m ->
+                onHour(h)
+                onMinute(m)
+                typing = false
+            },
+        )
+    }
     Row(
         modifier
             .fillMaxWidth()
@@ -380,6 +498,9 @@ private fun TimePickerVisor(
             upDescription = stringResource(R.string.cd_hour_up),
             onSet = onHour,
             onStep = onHourStep,
+            dragStep = 28.dp,
+            friction = 2.5f,
+            onType = { typing = true },
         )
         ColonDots(6.dp, 10.dp, InkMuted, horizontalPadding = 0.dp, modifier = Modifier.offset(y = (-9).dp))
         Drum(
@@ -390,6 +511,10 @@ private fun TimePickerVisor(
             upDescription = stringResource(R.string.cd_minute_up),
             onSet = onMinute,
             onStep = onMinuteStep,
+            // A minute is a short pull and a longer glide: 30 minutes are one or two swipes.
+            dragStep = 16.dp,
+            friction = 1.5f,
+            onType = { typing = true },
             actions = listOf(
                 CustomAccessibilityAction(plusTen) { onMinuteStep(10); true },
                 CustomAccessibilityAction(minusTen) { onMinuteStep(-10); true },
@@ -397,8 +522,6 @@ private fun TimePickerVisor(
         )
     }
 }
-
-private val DRAG_STEP = 28.dp
 
 /** Lifting the finger faster than this (per second) sets the drum spinning on its own. */
 private val FLING_SPEED = 600.dp
@@ -412,6 +535,9 @@ private fun Drum(
     upDescription: String,
     onSet: (Int) -> Unit,
     onStep: (Int) -> Unit,
+    dragStep: Dp,
+    friction: Float,
+    onType: () -> Unit,
     actions: List<CustomAccessibilityAction> = emptyList(),
 ) {
     val haptic = LocalHapticFeedback.current
@@ -442,8 +568,17 @@ private fun Drum(
                     }
                     if (actions.isNotEmpty()) customActions = actions
                 }
-                .pointerInput(Unit) {
-                    val stepPx = DRAG_STEP.toPx()
+                // A tap on the drum itself opens the keypad entry; a drag cancels the click.
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClickLabel = stringResource(R.string.cd_type_time),
+                ) {
+                    spin?.cancel()
+                    onType()
+                }
+                .pointerInput(dragStep, friction) {
+                    val stepPx = dragStep.toPx()
                     val flingPx = FLING_SPEED.toPx()
                     val tracker = VelocityTracker()
                     var accumulated = 0f
@@ -471,7 +606,7 @@ private fun Drum(
                                     val wheel = Animatable(0f)
                                     wheel.updateBounds(-reach, reach)
                                     var last = 0f
-                                    wheel.animateDecay(velocity, exponentialDecay(frictionMultiplier = 2.5f)) {
+                                    wheel.animateDecay(velocity, exponentialDecay(frictionMultiplier = friction)) {
                                         turn(wheel.value - last)
                                         last = wheel.value
                                     }

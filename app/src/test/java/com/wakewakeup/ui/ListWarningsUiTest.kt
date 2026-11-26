@@ -1,8 +1,11 @@
 package com.wakewakeup.ui
 
 import android.Manifest
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.media.AudioManager
 import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
@@ -10,6 +13,7 @@ import androidx.compose.ui.test.performClick
 import androidx.lifecycle.Lifecycle
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.wakewakeup.ALARM_NOTIFICATION_CHANNEL_ID
 import com.wakewakeup.MainActivity
 import com.wakewakeup.R
 import com.wakewakeup.data.Alarm
@@ -54,7 +58,8 @@ class ListWarningsUiTest {
         scenario!!.moveToState(Lifecycle.State.RESUMED)
     }
 
-    private fun missing(count: Int) = context.resources.getQuantityString(R.plurals.perm_missing, count, count)
+    /** The detail line of the permission warning (its title is the same for any count). */
+    private fun missing(count: Int) = context.resources.getQuantityString(R.plurals.perm_missing_detail, count, count)
 
     /** The app reads the volume through the application's AudioManager, the same one as here. */
     private val audio: AudioManager get() = context.getSystemService(AudioManager::class.java)!!
@@ -72,6 +77,8 @@ class ListWarningsUiTest {
         launch()
         compose.waitForText(str(R.string.empty_title))
         compose.waitForText(missing(2))
+        // Two lines: what is wrong, then what to do.
+        compose.onNodeWithText(str(R.string.perm_missing_title)).assertIsDisplayed()
 
         // Allowed in Settings meanwhile: the count follows when the list comes back.
         shadowOf(context).grantPermissions(Manifest.permission.POST_NOTIFICATIONS)
@@ -81,17 +88,44 @@ class ListWarningsUiTest {
         assertFalse(AlarmPermissions.isGranted(context, AlarmPermission.BATTERY))
     }
 
+    private fun setRingingChannel(importance: Int) {
+        val manager = context.getSystemService(NotificationManager::class.java)
+        manager.deleteNotificationChannel(ALARM_NOTIFICATION_CHANNEL_ID)
+        manager.createNotificationChannel(NotificationChannel(ALARM_NOTIFICATION_CHANNEL_ID, "x", importance))
+    }
+
+    @Test
+    fun aLowRingingChannelShowsTheWarning() {
+        // Notifications are allowed for the app; only the channel decides. The full screen (not
+        // allowed under Robolectric) is the one other missing permission.
+        shadowOf(context).grantPermissions(Manifest.permission.POST_NOTIFICATIONS)
+        setRingingChannel(NotificationManager.IMPORTANCE_LOW)
+        launch()
+        compose.waitForText(missing(2))
+    }
+
+    @Test
+    fun aHighRingingChannelShowsNoWarningOfItsOwn() {
+        shadowOf(context).grantPermissions(Manifest.permission.POST_NOTIFICATIONS)
+        setRingingChannel(NotificationManager.IMPORTANCE_HIGH)
+        launch()
+        compose.waitForText(missing(1))
+    }
+
     @Test
     fun theWarningOpensThePermissionsAndOneTapComesBack() {
         env.save(Alarm(hour = 7, minute = 0, label = "Trabalho", days = setOf(0)))
         launch()
         compose.waitForText(missing(2))
         compose.onNodeWithText(missing(2)).performClick()
-        compose.waitForText(str(R.string.perm_title))
+        compose.waitForText(str(R.string.perm_short_title))
 
-        // A detour, not the first-launch walkthrough: no warning first, straight back.
-        compose.onNodeWithText(str(R.string.continue_label).uppercase()).performClick()
-        compose.waitForNoText(str(R.string.perm_title))
+        // A detour, not the first-launch walkthrough: a ‹ in the header, no risk text first, and
+        // one tap on the foot key goes straight back.
+        compose.onNodeWithContentDescription(str(R.string.cd_back)).assertIsDisplayed()
+        assertTrue(compose.onAllNodesWithText(str(R.string.perm_nag)).fetchSemanticsNodes().isEmpty())
+        compose.onNodeWithText(str(R.string.back_to_list).uppercase()).performClick()
+        compose.waitForNoText(str(R.string.perm_short_title))
         compose.waitForText("Trabalho")
 
         // Back to the list it came from, not a second one on top: Back now leaves the app.

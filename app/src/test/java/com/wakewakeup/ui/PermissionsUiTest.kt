@@ -77,9 +77,12 @@ class PermissionsUiTest {
         // Battery is there too, marked as only recommended.
         compose.onNodeWithText(str(R.string.perm_recommended).uppercase()).assertIsDisplayed()
 
-        // Continuing with something missing warns first, then lets you through.
-        compose.onNodeWithText(str(R.string.continue_label).uppercase()).performClick()
-        compose.waitForText(str(R.string.perm_nag))
+        // With something missing the key already says "continue anyway", the risk is printed
+        // before the tap, and one tap goes through to the list.
+        compose.onNodeWithText(str(R.string.perm_nag)).assertIsDisplayed()
+        assertTrue(compose.onAllNodesWithText(str(R.string.continue_label).uppercase()).fetchSemanticsNodes().isEmpty())
+        // First launch has no way back to a list: no ‹.
+        assertTrue(compose.onAllNodesWithContentDescription(str(R.string.cd_back)).fetchSemanticsNodes().isEmpty())
         compose.onNodeWithText(str(R.string.continue_anyway).uppercase()).performClick()
         compose.waitForText(str(R.string.empty_title))
 

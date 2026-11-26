@@ -38,6 +38,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -115,7 +116,10 @@ import com.wakewakeup.ui.theme.InkOff
 import com.wakewakeup.ui.theme.Vfd
 import com.wakewakeup.ui.theme.WwuShape
 import com.wakewakeup.ui.theme.WwuType
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -153,11 +157,16 @@ fun AlarmListScreen(
     // Both change outside the app (in Settings, with the volume keys), so they're read again
     // every time the list comes back.
     val context = LocalContext.current
-    var missing by remember { mutableIntStateOf(AlarmPermissions.missingRequired(context).size) }
+    // The permission check talks to system services (IPC), so it runs off the main thread.
+    val scope = rememberCoroutineScope()
+    var missing by remember { mutableIntStateOf(0) }
     var volume by remember { mutableStateOf(viewModel.alarmVolume()) }
+    LaunchedEffect(Unit) {
+        missing = withContext(Dispatchers.Default) { AlarmPermissions.missingRequired(context).size }
+    }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
-        missing = AlarmPermissions.missingRequired(context).size
         volume = viewModel.alarmVolume()
+        scope.launch { missing = withContext(Dispatchers.Default) { AlarmPermissions.missingRequired(context).size } }
     }
     // A quiet phone only matters while some alarm is on (one skipping a day is on too).
     val quietVolume = volume?.takeIf { it.isLow && alarms.any { alarm -> alarm.enabled } }
@@ -165,24 +174,29 @@ fun AlarmListScreen(
     Box(modifier = Modifier.fillMaxSize().background(Housing).statusBarsPadding().navigationBarsPadding()) {
         Column(modifier = Modifier.fillMaxSize()) {
             ListHeader(showStats = alarms.isNotEmpty(), onStats = onStats)
-            NextStrip(
-                text = if (nextTrigger != null) nextRingText(now, nextTrigger) else null,
-                modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 18.dp),
-            )
-            Warnings(
-                missingPermissions = missing,
-                quietVolume = quietVolume,
-                onOpenPermissions = onOpenPermissions,
-                onTurnUp = {
-                    viewModel.turnUpAlarmVolume()
-                    volume = viewModel.alarmVolume()
-                },
-            )
+            // PRÓXIMO and the warnings: on a small phone they scroll away with the list, leaving
+            // the room to the cards; the empty screen keeps them in place.
+            val nextStrip: @Composable () -> Unit = {
+                NextStrip(
+                    text = if (nextTrigger != null) nextRingText(now, nextTrigger) else null,
+                    modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 18.dp),
+                )
+                Warnings(
+                    missingPermissions = missing,
+                    quietVolume = quietVolume,
+                    onOpenPermissions = onOpenPermissions,
+                    onTurnUp = {
+                        viewModel.turnUpAlarmVolume()
+                        volume = viewModel.alarmVolume()
+                    },
+                )
+            }
             if (alarms.isEmpty()) {
+                nextStrip()
                 // A warning takes most of the gap above, so CRIAR ALARME still fits a small phone.
                 EmptyState(onNewAlarm, topGap = if (missing > 0) 24.dp else 84.dp)
             } else {
-                AlarmList(alarms, now, viewModel, onEditAlarm)
+                AlarmList(alarms, now, viewModel, onEditAlarm, top = nextStrip)
             }
         }
 
@@ -247,7 +261,7 @@ private fun StatsBarsGlyph() {
 }
 
 /**
- * What the PRÓXIMO display reads: a countdown within a day ("EM 8 H 12 MIN"), then the ring's
+ * What the PRÓXIMO display reads: the time and a countdown within a day ("06:30 · EM 8 H 12 MIN"), then the ring's
  * day and time ("SÁB, 09:00"), since "EM 38 H" leaves the reader working out which morning.
  * A week or more ahead it says so ("SEG QUE VEM, 06:30"), like the card drawers: the weekday
  * alone would name the nearer one, which for a weekly alarm skipping its next day is the very
@@ -257,9 +271,10 @@ private fun StatsBarsGlyph() {
 private fun nextRingText(now: Long, trigger: Long): String {
     // Rounded up like the countdown, so it never reads "24 H 0 MIN".
     val minutes = (trigger - now + 59_999L) / 60_000L
-    if (minutes < 24 * 60) return nextAlarmInText(now, trigger)
     val zone = ZoneId.systemDefault()
     val at = LocalDateTime.ofInstant(Instant.ofEpochMilli(trigger), zone)
+    // Within a day the time comes first, so the countdown never stands alone: "06:30 · EM 8 H 59 MIN".
+    if (minutes < 24 * 60) return "${formatClock(at.hour, at.minute)} · ${nextAlarmInText(now, trigger)}"
     val today = LocalDateTime.ofInstant(Instant.ofEpochMilli(now), zone).toLocalDate()
     val short = stringArrayResource(R.array.day_short).getOrElse(isoDayIndexOf(at.toLocalDate())) { "" }
     val day = if (ChronoUnit.DAYS.between(today, at.toLocalDate()) >= 7) stringResource(R.string.day_next_week, short) else short
@@ -318,7 +333,8 @@ private fun Warnings(
             exit = shrinkVertically(shrinkTowards = Alignment.Top) + fadeOut(),
         ) {
             WarningRow(
-                text = pluralStringResource(R.plurals.perm_missing, shownMissing, shownMissing),
+                text = stringResource(R.string.perm_missing_title),
+                detail = pluralStringResource(R.plurals.perm_missing_detail, shownMissing, shownMissing),
                 onClick = onOpenPermissions,
                 modifier = rowSpacing,
             ) { Chevron(color = InkMuted) }
@@ -338,10 +354,11 @@ private fun Warnings(
     }
 }
 
-/** One warning: a coral lamp, what's wrong, and on the right what fixes it. */
+/** One warning: a lamp, what's wrong (with an optional [detail] line), and on the right what fixes it. */
 @Composable
 private fun WarningRow(
     text: String,
+    detail: String? = null,
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
     fix: @Composable RowScope.() -> Unit,
@@ -360,7 +377,11 @@ private fun WarningRow(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Lamp(Action, glowAlpha = 0.5f)
-        Text(text, style = WwuType.bodyXS, color = Ink, modifier = Modifier.weight(1f))
+        // What is wrong in the strong style, and (when there is one) what to do about it, muted.
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(text, style = WwuType.bodyStrong, color = Ink)
+            if (detail != null) Text(detail, style = WwuType.bodyXS, color = InkMuted)
+        }
         fix()
     }
 }
@@ -374,7 +395,13 @@ private fun <T : Any> rememberLast(value: T?): T? {
 }
 
 @Composable
-private fun AlarmList(alarms: List<Alarm>, now: Long, viewModel: AlarmListViewModel, onEditAlarm: (Alarm) -> Unit) {
+private fun AlarmList(
+    alarms: List<Alarm>,
+    now: Long,
+    viewModel: AlarmListViewModel,
+    onEditAlarm: (Alarm) -> Unit,
+    top: @Composable () -> Unit,
+) {
     // The "skip just the next day" offer only makes sense right after switching a recurring
     // alarm off, not for every recurring alarm that already happens to be off.
     var justDisabledId by remember { mutableStateOf<Long?>(null) }
@@ -382,11 +409,19 @@ private fun AlarmList(alarms: List<Alarm>, now: Long, viewModel: AlarmListViewMo
     LazyColumn(
         state = rememberLazyListState(),
         modifier = Modifier.fillMaxSize(),
-        // The bottom padding lets the last card scroll clear of the base plate.
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 18.dp, bottom = 140.dp),
+        // The bottom padding lets the last card scroll clear of the base plate. The side margins
+        // are on the items, because PRÓXIMO and the warnings have their own.
+        contentPadding = PaddingValues(top = 0.dp, bottom = 140.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        items(alarms, key = { it.id }) { alarm ->
+        item(key = "top", contentType = "top") {
+            Column {
+                top()
+                // With the 14 dp between items, 18 dp from the warnings to the first card.
+                Spacer(Modifier.height(4.dp))
+            }
+        }
+        items(alarms, key = { it.id }, contentType = { "alarm" }) { alarm ->
             AlarmCard(
                 alarm = alarm,
                 now = now,
@@ -401,7 +436,7 @@ private fun AlarmList(alarms: List<Alarm>, now: Long, viewModel: AlarmListViewMo
                 },
                 onClearSkip = { viewModel.clearSkip(alarm) },
                 onOpen = { onEditAlarm(alarm) },
-                modifier = Modifier.animateItem(),
+                modifier = Modifier.padding(horizontal = 16.dp).animateItem(),
             )
         }
     }

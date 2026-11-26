@@ -8,6 +8,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasContentDescription
+import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isDialog
@@ -18,8 +19,10 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performCustomAccessibilityActionWithLabel
+import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.wakewakeup.MainActivity
@@ -40,11 +43,13 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Assume.assumeTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.LocalTime
 
 @RunWith(AndroidJUnit4::class)
@@ -93,8 +98,26 @@ class AlarmListUiTest {
         env.save(Alarm(hour = LocalTime.now().plusHours(1).hour, minute = 0, label = "Desligado", days = emptySet(), enabled = false))
         launch()
         compose.waitForText("Antes")
-        // 2 h 29 or 2 h 30 min away, depending on the seconds.
-        compose.waitForText(str(R.string.next_in, str(R.string.duration_h_min, 2, 0)).uppercase().substringBefore(" 0 "), substring = true)
+        // The alarm's own time first, then 2 h 29 or 2 h 30 min away, depending on the seconds.
+        val clock = "%02d:%02d".format(soon.hour, soon.minute)
+        val countdown = str(R.string.next_in, str(R.string.duration_h_min, 2, 0)).uppercase().substringBefore(" 0 ")
+        compose.waitForText("$clock · $countdown", substring = true)
+    }
+
+    @Config(qualifiers = "w360dp-h640dp-xhdpi")
+    @Test
+    fun theNextStripScrollsAwayWithTheListOnASmallPhone() {
+        for (i in 1..4) env.save(Alarm(hour = 5 + i, minute = 0, label = "Alarme $i", days = setOf(0)))
+        launch()
+        compose.waitForText("Alarme 1")
+        val next = str(R.string.next_label).uppercase()
+        assertTrue(compose.onAllNodesWithText(next).fetchSemanticsNodes().isNotEmpty())
+
+        // To the last card (index 0 is PRÓXIMO and the warnings): the strip leaves the screen.
+        compose.onNode(hasScrollAction()).performScrollToIndex(4)
+        compose.waitForText("Alarme 4")
+        compose.onNodeWithText("Alarme 4").assertIsDisplayed()
+        assertTrue(compose.onAllNodesWithText(next).fetchSemanticsNodes().isEmpty())
     }
 
     @Test
@@ -135,11 +158,11 @@ class AlarmListUiTest {
         compose.onNode(hasSetTextAction()).performTextInput("Academia")
         // The day keys print MON TUE WED, like the cards. No day picked yet: it rings once.
         compose.onNodeWithText(context.resources.getStringArray(R.array.day_short)[0].uppercase()).assertIsDisplayed()
-        compose.onNodeWithText(str(R.string.days_none_hint)).assertIsDisplayed()
+        compose.onNodeWithText(onceHint(8, 59)).assertIsDisplayed()
         compose.onNodeWithContentDescription(dayNames[0]).performClick()
         compose.onNodeWithContentDescription(dayNames[2]).performClick()
         compose.onNodeWithContentDescription(dayNames[2]).assertIsOn()
-        compose.waitForNoText(str(R.string.days_none_hint))
+        compose.waitForNoText(onceHint(8, 59))
 
         // Task: switch to the phrase. DONE only goes back; nothing is saved yet.
         compose.onNodeWithText(context.resources.getQuantityString(R.plurals.task_summary_math, 3, 3)).performClick()
@@ -265,6 +288,96 @@ class AlarmListUiTest {
         val saved = alarms().single()
         assertEquals(6, saved.hour)
         assertEquals(25, saved.minute)
+    }
+
+    /** What the editor prints under the day keys when none is picked: the day it will ring, and the time. */
+    private fun onceHint(hour: Int, minute: Int): String {
+        val day = LocalDate.ofEpochDay(nextTriggerEpochDay(Alarm(hour = hour, minute = minute, label = "", days = emptySet()), LocalDateTime.now()))
+        return str(R.string.days_none_hint_at, dayName(day), "%02d:%02d".format(hour, minute))
+    }
+
+    @Test
+    fun theOnceHintNamesTheDayAndFollowsTheTime() {
+        // A time already past today rings tomorrow; one still to come rings today. Needs room on
+        // both sides of "now" inside the same day.
+        val now = LocalTime.now()
+        assumeTrue(now.isAfter(LocalTime.of(1, 30)) && now.isBefore(LocalTime.of(22, 30)))
+        val passed = now.minusHours(1)
+        val coming = now.plusHours(1)
+        launch()
+        compose.waitForDescription(str(R.string.create_alarm))
+        compose.onNodeWithContentDescription(str(R.string.create_alarm)).performClick()
+        waitForDrum(R.string.hour, 7)
+
+        compose.onNode(drum(R.string.hour)).performSemanticsAction(SemanticsActions.SetProgress) { it(passed.hour.toFloat()) }
+        compose.onNode(drum(R.string.minute)).performSemanticsAction(SemanticsActions.SetProgress) { it(passed.minute.toFloat()) }
+        val tomorrow = dayName(LocalDate.now().plusDays(1))
+        compose.waitForText(str(R.string.days_none_hint_at, tomorrow, "%02d:%02d".format(passed.hour, passed.minute)))
+
+        compose.onNode(drum(R.string.hour)).performSemanticsAction(SemanticsActions.SetProgress) { it(coming.hour.toFloat()) }
+        compose.onNode(drum(R.string.minute)).performSemanticsAction(SemanticsActions.SetProgress) { it(coming.minute.toFloat()) }
+        val today = dayName(LocalDate.now())
+        compose.waitForText(str(R.string.days_none_hint_at, today, "%02d:%02d".format(coming.hour, coming.minute)))
+    }
+
+    private fun typeInTheTimeDialog(digits: String) {
+        compose.waitForText(str(R.string.type_time_title))
+        compose.onNode(hasSetTextAction() and hasAnyAncestor(isDialog())).performTextInput(digits)
+    }
+
+    @Test
+    fun typingFourDigitsSetsTheTime() {
+        launch()
+        compose.waitForDescription(str(R.string.create_alarm))
+        compose.onNodeWithContentDescription(str(R.string.create_alarm)).performClick()
+        waitForDrum(R.string.hour, 7)
+
+        compose.onNode(drum(R.string.hour)).performClick()
+        typeInTheTimeDialog("0645")
+        compose.onNodeWithText(str(R.string.confirm).uppercase()).performClick()
+        compose.waitForNoText(str(R.string.type_time_title))
+        waitForDrum(R.string.hour, 6)
+        waitForDrum(R.string.minute, 45)
+
+        compose.onNodeWithContentDescription(str(R.string.save)).performClick()
+        compose.waitForDescription(str(R.string.cd_alarm_switch, "06:45"))
+        val saved = alarms().single()
+        assertEquals(6, saved.hour)
+        assertEquals(45, saved.minute)
+    }
+
+    @Test
+    fun aTimeThatDoesNotExistShowsTheErrorAndKeepsTheDialog() {
+        launch()
+        compose.waitForDescription(str(R.string.create_alarm))
+        compose.onNodeWithContentDescription(str(R.string.create_alarm)).performClick()
+        waitForDrum(R.string.minute, 0)
+
+        compose.onNode(drum(R.string.minute)).performClick()
+        typeInTheTimeDialog("2575")
+        compose.waitForText(str(R.string.type_time_invalid))
+        compose.onNodeWithText(str(R.string.confirm).uppercase()).performClick()
+        compose.waitForIdle()
+        compose.onNodeWithText(str(R.string.type_time_title)).assertIsDisplayed()
+        compose.onNodeWithText(str(R.string.type_time_invalid)).assertIsDisplayed()
+        // Nothing moved behind the dialog.
+        compose.onNode(drum(R.string.hour)).assert(hasStateDescription("07"))
+    }
+
+    @Config(qualifiers = "en-rUS-w411dp-h891dp-xxhdpi", fontScale = 1.3f)
+    @Test
+    fun theMissionLabelFitsItsColumnWithALargeFont() {
+        launch()
+        compose.waitForDescription(str(R.string.create_alarm))
+        compose.onNodeWithContentDescription(str(R.string.create_alarm)).performClick()
+        compose.waitForText(str(R.string.new_alarm))
+
+        val label = compose.onNodeWithText(str(R.string.task).uppercase())
+        label.assertIsDisplayed()
+        val layouts = mutableListOf<TextLayoutResult>()
+        label.fetchSemanticsNode().config[SemanticsActions.GetTextLayoutResult].action!!(layouts)
+        assertFalse("MISSION is cut off", layouts.single().hasVisualOverflow)
+        assertEquals(1, layouts.single().lineCount)
     }
 
     @Test
