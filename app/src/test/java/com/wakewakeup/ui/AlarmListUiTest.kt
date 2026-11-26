@@ -93,8 +93,10 @@ class AlarmListUiTest {
         env.save(Alarm(hour = LocalTime.now().plusHours(1).hour, minute = 0, label = "Desligado", days = emptySet(), enabled = false))
         launch()
         compose.waitForText("Antes")
-        // 2 h 29 or 2 h 30 min away, depending on the seconds.
-        compose.waitForText(str(R.string.next_in, str(R.string.duration_h_min, 2, 0)).uppercase().substringBefore(" 0 "), substring = true)
+        // The alarm's own time first, then 2 h 29 or 2 h 30 min away, depending on the seconds.
+        val clock = "%02d:%02d".format(soon.hour, soon.minute)
+        val countdown = str(R.string.next_in, str(R.string.duration_h_min, 2, 0)).uppercase().substringBefore(" 0 ")
+        compose.waitForText("$clock · $countdown", substring = true)
     }
 
     @Test

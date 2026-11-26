@@ -256,7 +256,7 @@ private fun StatsBarsGlyph() {
 }
 
 /**
- * What the PRÓXIMO display reads: a countdown within a day ("EM 8 H 12 MIN"), then the ring's
+ * What the PRÓXIMO display reads: the time and a countdown within a day ("06:30 · EM 8 H 12 MIN"), then the ring's
  * day and time ("SÁB, 09:00"), since "EM 38 H" leaves the reader working out which morning.
  * A week or more ahead it says so ("SEG QUE VEM, 06:30"), like the card drawers: the weekday
  * alone would name the nearer one, which for a weekly alarm skipping its next day is the very
@@ -266,9 +266,10 @@ private fun StatsBarsGlyph() {
 private fun nextRingText(now: Long, trigger: Long): String {
     // Rounded up like the countdown, so it never reads "24 H 0 MIN".
     val minutes = (trigger - now + 59_999L) / 60_000L
-    if (minutes < 24 * 60) return nextAlarmInText(now, trigger)
     val zone = ZoneId.systemDefault()
     val at = LocalDateTime.ofInstant(Instant.ofEpochMilli(trigger), zone)
+    // Within a day the time comes first, so the countdown never stands alone: "06:30 · EM 8 H 59 MIN".
+    if (minutes < 24 * 60) return "${formatClock(at.hour, at.minute)} · ${nextAlarmInText(now, trigger)}"
     val today = LocalDateTime.ofInstant(Instant.ofEpochMilli(now), zone).toLocalDate()
     val short = stringArrayResource(R.array.day_short).getOrElse(isoDayIndexOf(at.toLocalDate())) { "" }
     val day = if (ChronoUnit.DAYS.between(today, at.toLocalDate()) >= 7) stringResource(R.string.day_next_week, short) else short
