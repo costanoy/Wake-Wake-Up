@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="skip_confirm_hint">Digite o resultado e toque em OK</string>
+</resources>

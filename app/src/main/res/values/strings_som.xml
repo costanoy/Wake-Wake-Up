@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="skip_confirm_hint">Enter the result and tap OK</string>
+</resources>

@@ -7,6 +7,7 @@ import androidx.compose.ui.test.filterToOne
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
+import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
@@ -88,14 +89,14 @@ class SkipConfirmUiTest {
         compose.onNodeWithText(str(R.string.skip_confirm_back_on, dayName(ringsAgain)).uppercase()).fetchSemanticsNode()
 
         // Nothing typed, then a wrong answer: the alarm stays exactly as it was.
-        compose.onNodeWithText(str(R.string.skip_confirm_turn_off).uppercase()).performClick()
+        compose.onNodeWithContentDescription(str(R.string.confirm)).performClick()
         typeOnKeypad(answer() + 1)
         compose.onNodeWithContentDescription(str(R.string.confirm)).performClick()
         compose.waitForText(str(R.string.wrong_try_again))
         assertNull(env.reload(alarm)!!.skipDate)
 
         typeOnKeypad(answer())
-        compose.onNodeWithText(str(R.string.skip_confirm_turn_off).uppercase()).performClick()
+        compose.onNodeWithContentDescription(str(R.string.confirm)).performClick()
         compose.waitForText(str(R.string.skip_confirm_done))
         compose.waitFor("skipped") { env.reload(alarm)!!.skipDate == epochDayOf(at) }
         assertTrue("a skipping alarm stays on", env.reload(alarm)!!.enabled)
@@ -130,7 +131,7 @@ class SkipConfirmUiTest {
         // The notification was about a ring that is no longer the next one (edited, or rang).
         open(alarm, at - 24 * 3_600_000L)
         compose.waitForText(str(R.string.skip_confirm_stale))
-        assertTrue(compose.onAllNodesWithText(str(R.string.skip_confirm_turn_off).uppercase()).fetchSemanticsNodes().isEmpty())
+        assertTrue(compose.onAllNodesWithContentDescription(str(R.string.confirm)).fetchSemanticsNodes().isEmpty())
         assertNull(env.reload(alarm)!!.skipDate)
     }
 }
