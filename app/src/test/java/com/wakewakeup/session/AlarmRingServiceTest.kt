@@ -3,6 +3,8 @@ package com.wakewakeup.session
 import android.app.AlarmManager
 import android.app.NotificationManager
 import android.content.Intent
+import android.media.AudioManager
+import android.media.MediaPlayer
 import android.net.Uri
 import android.os.VibratorManager
 import android.provider.Settings
@@ -160,7 +162,8 @@ class AlarmRingServiceTest {
     fun aOneOffAlarmTurnsItselfOffAsItRings() {
         val oneOff = alarm(days = emptySet())
         ring(oneOff)
-        awaitUntil(message = "one-off disabled") { env.reload(oneOff)?.enabled == false }
+        // The switching off runs in the app scope after the sound starts: wait for it, schedule included.
+        awaitUntil(message = "one-off disabled") { env.reload(oneOff)?.enabled == false && env.scheduledFor(oneOff) == null }
         assertNull(env.scheduledFor(oneOff))
     }
 
@@ -301,10 +304,11 @@ class AlarmRingServiceTest {
         val second = env.save(first.copy(id = 0, minute = 35, label = "Segundo"))
         ring(second)
         assertEquals("Segundo", session.alarmLabel)
-        assertEquals(0, session.waits)
+        // The ritual is one, however many alarms ring: the first one's wait still counts.
+        assertEquals(1, session.waits)
 
         send(AlarmRingService.ACTION_HOLD_ON)
-        assertEquals("Espere ignored on the second alarm", 1, session.waits)
+        assertEquals("Espere works on the second alarm too", 2, session.waits)
         assertNotNull(session.holdUntilMillis)
         assertNull(playing())
     }
@@ -516,6 +520,8 @@ class AlarmRingServiceTest {
             NotificationCompat.Builder(env.app, PRE_ALARM_CHANNEL_ID).setSmallIcon(R.drawable.ic_notification_sun).build(),
         )
         ring(alarm())
+        // Withdrawn after the sound starts, in the app scope: wait for it.
+        awaitUntil(message = "offer withdrawn") { shadowOf(notifications).getNotification(NotificationIds.PRE_ALARM) == null }
         assertNull(shadowOf(notifications).getNotification(NotificationIds.PRE_ALARM))
     }
 
@@ -620,5 +626,133 @@ class AlarmRingServiceTest {
         loseTheProcess()
         env.deliverBroadcast(Intent(Intent.ACTION_BOOT_COMPLETED))
         assertEquals(AlarmRingService::class.java.name, shadowOf(env.app).nextStartedService?.component?.className)
+    }
+
+    // ---------------------------------------------------------------------------------------
+    // Sound chain, alarm volume, per-problem clock and the session contract
+    // ---------------------------------------------------------------------------------------
+
+    private fun startOnly(alarm: Alarm) {
+        val intent = Intent(env.app, AlarmRingService::class.java).putExtra(EXTRA_ALARM_ID, alarm.id)
+        val c = controller ?: Robolectric.buildService(AlarmRingService::class.java, intent).create().also { controller = it }
+        c.get().onStartCommand(intent, 0, ++startId)
+    }
+
+    @Test
+    fun aLocalSoundThatNeverFinishesPreparingGivesWayAfterThreeSeconds() {
+        val user = Uri.parse("content://com.example.provider/doc/slow")
+        val userSource = DataSource.toDataSource(env.app, user)
+        ShadowMediaPlayer.setMediaInfoProvider { ds ->
+            if (ds == userSource) ShadowMediaPlayer.MediaInfo(FAKE_SOUND_MS, 10 * 60_000) else ShadowMediaPlayer.MediaInfo(FAKE_SOUND_MS, 0)
+        }
+        startOnly(alarm(soundUri = user.toString()))
+        awaitUntil(message = "still preparing") { players.any { it.state == ShadowMediaPlayer.State.PREPARING } }
+        assertNull(playing())
+
+        advance(Duration.ofSeconds(4))
+        assertEquals(bundledFallback, playing()!!.dataSource)
+    }
+
+    @Test
+    fun aRadioStuckBufferingGivesWayToTheDefaultAlarmAfterEightSeconds() {
+        val stream = Uri.parse("https://radio.example/stream.mp3")
+        ring(alarm(soundUri = stream.toString()))
+        val radio = playing()!!
+        radio.invokeInfoListener(MediaPlayer.MEDIA_INFO_BUFFERING_START, 0)
+        advance(Duration.ofSeconds(7))
+        assertEquals(DataSource.toDataSource(env.app, stream), playing()!!.dataSource)
+        advance(Duration.ofSeconds(2))
+        assertEquals(bundledFallback, playing()!!.dataSource)
+    }
+
+    @Test
+    fun aRadioThatRecoversFromBufferingKeepsPlaying() {
+        val stream = Uri.parse("https://radio.example/stream.mp3")
+        ring(alarm(soundUri = stream.toString()))
+        val radio = playing()!!
+        radio.invokeInfoListener(MediaPlayer.MEDIA_INFO_BUFFERING_START, 0)
+        advance(Duration.ofSeconds(3))
+        radio.invokeInfoListener(MediaPlayer.MEDIA_INFO_BUFFERING_END, 0)
+        advance(Duration.ofSeconds(10))
+        assertEquals(DataSource.toDataSource(env.app, stream), playing()!!.dataSource)
+    }
+
+    @Test
+    fun theBundledBellIsTheEndOfTheChain() {
+        ring(alarm(soundUri = null))
+        val bell = playing()!!
+        bell.invokeErrorListener(MediaPlayer.MEDIA_ERROR_UNKNOWN, 0)
+        idleMain()
+        // Nowhere left to fall to: no crash, and no new player either.
+        assertNull(playing())
+    }
+
+    private fun audio() = env.app.getSystemService(AudioManager::class.java)
+
+    private fun audibleFloor() = Math.ceil(audio().getStreamMaxVolume(AudioManager.STREAM_ALARM) * 0.6).toInt()
+
+    @Test
+    fun turningTheAlarmDownWhileItRingsPutsTheFloorBack() {
+        ring(alarm())
+        audio().setStreamVolume(AudioManager.STREAM_ALARM, 1, 0)
+        advance(Duration.ofSeconds(2))
+        assertEquals(audibleFloor(), audio().getStreamVolume(AudioManager.STREAM_ALARM))
+    }
+
+    @Test
+    fun finishingTheMissionGivesTheOriginalAlarmVolumeBack() {
+        audio().setStreamVolume(AudioManager.STREAM_ALARM, 1, 0)
+        ring(alarm())
+        assertEquals(audibleFloor(), audio().getStreamVolume(AudioManager.STREAM_ALARM))
+        send(AlarmRingService.ACTION_START_MISSION)
+        repeat(mission.count) {
+            type(mission.answer)
+            send(AlarmRingService.ACTION_MISSION_CONFIRM)
+        }
+        assertEquals(SessionScreen.GOOD_MORNING, session.screen)
+        assertEquals(1, audio().getStreamVolume(AudioManager.STREAM_ALARM))
+    }
+
+    @Test
+    fun aVolumeAlreadyAboveTheFloorIsLeftAlone() {
+        val max = audio().getStreamMaxVolume(AudioManager.STREAM_ALARM)
+        audio().setStreamVolume(AudioManager.STREAM_ALARM, max, 0)
+        ring(alarm())
+        advance(Duration.ofSeconds(2))
+        assertEquals(max, audio().getStreamVolume(AudioManager.STREAM_ALARM))
+    }
+
+    @Test
+    fun eachProblemOfTheMissionGetsTheFullTime() {
+        ring(alarm(taskCount = 3))
+        send(AlarmRingService.ACTION_START_MISSION)
+        advance(Duration.ofSeconds(30))
+        assertEquals(MISSION_TOTAL_SECONDS - 30, mission.secondsLeft)
+        type(mission.answer)
+        send(AlarmRingService.ACTION_MISSION_CONFIRM)
+        assertEquals(1, mission.index)
+        assertEquals(MISSION_TOTAL_SECONDS, mission.secondsLeft)
+    }
+
+    @Test
+    fun theMissionOnlyExistsOnceTheTimeRanOut() {
+        ring(alarm())
+        assertNull("a fresh session has no mission", session.mission)
+        send(AlarmRingService.ACTION_START_MISSION)
+        assertEquals(SessionScreen.MISSION, session.screen)
+        assertNotNull(session.mission)
+
+        advance(Duration.ofSeconds(MISSION_TOTAL_SECONDS + 1L))
+        assertEquals(SessionScreen.RINGING, session.screen)
+        assertNotNull("the ring screen after a timeout carries a mission", session.mission)
+
+        send(AlarmRingService.ACTION_START_MISSION)
+        assertEquals(SessionScreen.MISSION, session.screen)
+    }
+
+    @Test
+    fun theOngoingNotificationCarriesTheAppColor() {
+        val service = ring(alarm())
+        assertEquals(0xFFE8663C.toInt(), shadowOf(service).lastForegroundNotification!!.color)
     }
 }

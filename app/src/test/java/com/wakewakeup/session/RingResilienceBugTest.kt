@@ -12,7 +12,6 @@ import com.wakewakeup.testing.idleMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
-import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -36,7 +35,6 @@ class RingResilienceBugTest {
         controller?.destroy()
     }
 
-    @Ignore("TEC-02: erro no banco no disparo derruba o AlarmReceiver sem iniciar o serviço (alarme mudo)")
     @Test
     fun aDatabaseFailureStillStartsTheRingingService() {
         val alarm = env.save(Alarm(hour = 7, minute = 0, label = "", days = (0..6).toSet()))
@@ -49,7 +47,6 @@ class RingResilienceBugTest {
         assertEquals("o serviço de toque deveria ter sido iniciado mesmo sem banco", 1, started.size)
     }
 
-    @Ignore("TEC-03: o player local não tem OnErrorListener: erro no meio do toque deixa o alarme mudo")
     @Test
     fun aLocalPlayerThatErrorsMidRingIsReplacedByAnotherSound() {
         ShadowMediaPlayer.setCreateListener { _, shadow -> players += shadow }

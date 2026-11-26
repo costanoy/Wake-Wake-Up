@@ -19,7 +19,6 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
-import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -81,7 +80,6 @@ class ServiceLogicBugTest {
 
     private fun history() = runBlocking { env.history.observeLastDays(7).first() }
 
-    @Ignore("LOG-06: confirmar duas vezes a ultima tarefa grava dois despertares no historico")
     @Test
     fun confirmingTwiceRecordsOneWakeUp() {
         ring(alarm())
@@ -95,7 +93,6 @@ class ServiceLogicBugTest {
         assertEquals(1, history().size)
     }
 
-    @Ignore("LOG-06: Espere na tela Bom dia regrava a sessao no vigia e o alarme tocaria de novo")
     @Test
     fun anEspereTapOnGoodMorningDoesNotRearmTheWatchdog() {
         ring(alarm())
@@ -109,7 +106,6 @@ class ServiceLogicBugTest {
         assertEquals(0, AlarmSessionState.session.value!!.waits)
     }
 
-    @Ignore("LOG-06: Desistir na tela do toque cria uma missao")
     @Test
     fun giveUpOnTheRingingScreenDoesNotCreateAMission() {
         ring(alarm())
@@ -117,7 +113,6 @@ class ServiceLogicBugTest {
         assertNull(AlarmSessionState.session.value!!.mission)
     }
 
-    @Ignore("LOG-03: dois alarmes no mesmo minuto misturam rotulo de um e missao do outro")
     @Test
     fun twoAlarmsInTheSameMinuteKeepLabelAndMissionTogether() {
         val once = alarm(label = "Uma vez", days = emptySet(), taskType = TaskType.PHRASE)
@@ -133,7 +128,6 @@ class ServiceLogicBugTest {
         assertEquals("mission of the alarm shown on screen (${session.alarmLabel})", expected, session.mission!!.type)
     }
 
-    @Ignore("LOG-03: falha ao ler o banco antes do som deixa o alarme mudo")
     @Test
     fun theAlarmStillRingsWhenTheDatabaseFailsAtRingTime() {
         val alarm = alarm()
@@ -146,7 +140,6 @@ class ServiceLogicBugTest {
         assertNotNull("silent alarm", playing())
     }
 
-    @Ignore("LOG-04: erro do MediaPlayer depois que comecou a tocar nao tem reserva")
     @Test
     fun aPlayerThatFailsWhileRingingIsReplaced() {
         ring(alarm())
@@ -158,7 +151,6 @@ class ServiceLogicBugTest {
         assertTrue("same player kept", now !== failing)
     }
 
-    @Ignore("LOG-10: segundo alarme durante a missao reinicia a sessao e derruba a tela da missao")
     @Test
     fun aSecondAlarmDuringTheMissionDoesNotResetIt() {
         val first = alarm()
@@ -171,7 +163,6 @@ class ServiceLogicBugTest {
         assertEquals(SessionScreen.MISSION, AlarmSessionState.session.value!!.screen)
     }
 
-    @Ignore("LOG-10: segundo alarme durante o Espere zera as esperas")
     @Test
     fun aSecondAlarmKeepsTheWaitsOfTheFirst() {
         val first = alarm()
@@ -182,7 +173,6 @@ class ServiceLogicBugTest {
         assertEquals(1, AlarmSessionState.session.value!!.waits)
     }
 
-    @Ignore("LOG-02: o servico nao garante volume de alarme minimo")
     @Test
     fun theAlarmStreamIsRaisedToAnAudibleFloorWhileRinging() {
         val audio = env.app.getSystemService(AudioManager::class.java)
