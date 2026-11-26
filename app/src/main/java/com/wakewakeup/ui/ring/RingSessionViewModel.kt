@@ -17,7 +17,9 @@ import com.wakewakeup.session.PreAlarmPlanner
 import com.wakewakeup.session.RingSession
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 
 class RingSessionViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -31,6 +33,14 @@ class RingSessionViewModel(application: Application) : AndroidViewModel(applicat
     var companionsSkipped by mutableStateOf<List<Occurrence>>(emptyList())
         private set
     private var companionsFor: Long? = null
+
+    /** Bom dia: the average time to wake up over the last week, in minutes (null: no earlier wake-up). */
+    var weekAverageMinutes by mutableStateOf<Int?>(null)
+        private set
+
+    /** The history was read, so Bom dia can compare (or say it is the first). */
+    var comparisonReady by mutableStateOf(false)
+        private set
 
     fun startMission() = send(AlarmRingService.ACTION_START_MISSION)
     fun holdOn() = send(AlarmRingService.ACTION_HOLD_ON)
@@ -47,6 +57,7 @@ class RingSessionViewModel(application: Application) : AndroidViewModel(applicat
         if (companionsFor == session.startedAtMillis) return
         companionsFor = session.startedAtMillis
         companionsSkipped = emptyList()
+        loadWeekAverage(session)
         viewModelScope.launch {
             try {
                 companions = PreAlarmPlanner.companions(container.alarmRepository.getAll(), System.currentTimeMillis())
@@ -54,6 +65,30 @@ class RingSessionViewModel(application: Application) : AndroidViewModel(applicat
                 throw e
             } catch (e: Exception) {
                 companions = emptyList()
+            }
+        }
+    }
+
+    /** Reads the last week once per session, off the main thread (Room), without today's own record. */
+    private fun loadWeekAverage(session: RingSession) {
+        viewModelScope.launch {
+            try {
+                val finished = session.finished
+                val today = LocalDate.now()
+                val past = container.wakeHistoryRepository.observeLastDays(7).first().toMutableList()
+                // The wake-up that just ended is recorded on Concluir; if it is already there, leave it out.
+                if (finished != null) {
+                    past.indexOfLast {
+                        it.date == today && it.durationSec == finished.durationSec &&
+                            it.wokeHour == finished.wokeHour && it.wokeMinute == finished.wokeMinute
+                    }.takeIf { it >= 0 }?.let { past.removeAt(it) }
+                }
+                weekAverageMinutes = if (past.isEmpty()) null else (past.sumOf { it.durationSec } / past.size + 30) / 60
+                comparisonReady = true
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                comparisonReady = false
             }
         }
     }

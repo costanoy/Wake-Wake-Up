@@ -94,6 +94,8 @@ class RingActivity : ComponentActivity() {
                             companionsSkipped = viewModel.companionsSkipped.isNotEmpty(),
                             onSkipCompanions = viewModel::skipCompanions,
                             onUndoCompanions = viewModel::undoCompanions,
+                            averageMinutes = viewModel.weekAverageMinutes,
+                            comparisonReady = viewModel.comparisonReady,
                         )
                     }
                     else -> RingScreen(

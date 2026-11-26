@@ -5,4 +5,13 @@
     <string name="mission_time_low">Faltam %1$d s. Depois o alarme volta a tocar.</string>
     <string name="phrase_wrong_here">Não confere. Corrija a partir da letra sublinhada.</string>
     <string name="phrase_wrong_extra">Não confere. Tem texto sobrando no fim.</string>
+    <string name="gm_first">Primeiro despertar registrado.</string>
+    <string name="gm_faster">%1$d min mais rápido que a sua média da semana.</string>
+    <string name="gm_same">Na sua média da semana.</string>
+    <string name="gm_slower">%1$d min acima da sua média da semana.</string>
+    <plurals name="gm_seconds_spoken">
+        <item quantity="one">%d segundo</item>
+        <item quantity="many">%d segundos</item>
+        <item quantity="other">%d segundos</item>
+    </plurals>
 </resources>

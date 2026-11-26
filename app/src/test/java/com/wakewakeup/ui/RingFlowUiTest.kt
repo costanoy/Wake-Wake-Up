@@ -381,6 +381,58 @@ class RingFlowUiTest {
         compose.onNodeWithText("0:15").assertIsDisplayed()
     }
 
+    private fun recordWeek(vararg durationsSec: Int) = runBlocking {
+        durationsSec.forEachIndexed { i, sec ->
+            env.history.record(
+                com.wakewakeup.data.WakeHistoryEntry(
+                    date = java.time.LocalDate.now().minusDays(i + 1L),
+                    alarmHour = 6, alarmMinute = 30, wokeHour = 6, wokeMinute = 40, waits = 0, durationSec = sec,
+                ),
+            )
+        }
+    }
+
+    /** Opens Bom dia directly, with a wake-up that took [durationSec]. */
+    private fun openGoodMorning(durationSec: Int) {
+        openWithSession {
+            it.copy(
+                screen = SessionScreen.GOOD_MORNING,
+                finished = com.wakewakeup.session.FinishedInfo(0, 6, 30, 6, 30 + durationSec / 60, durationSec),
+            )
+        }
+        compose.waitForText(str(R.string.good_morning))
+        // The digits come in as 00 and flip to the value once.
+        compose.mainClock.advanceTimeBy(500)
+    }
+
+    @Test
+    fun goodMorningSaysHowMuchFasterThanTheWeeklyAverage() {
+        recordWeek(600, 600, 600)
+        openGoodMorning(360)
+        compose.waitForText(str(R.string.gm_faster, 4))
+        compose.onNodeWithContentDescription(context.resources.getQuantityString(R.plurals.minutes_spoken, 6, 6)).assertIsDisplayed()
+    }
+
+    @Test
+    fun goodMorningSaysHowMuchOverTheWeeklyAverage() {
+        recordWeek(300, 300)
+        openGoodMorning(480)
+        compose.waitForText(str(R.string.gm_slower, 3))
+    }
+
+    @Test
+    fun goodMorningWithNoHistoryIsTheFirstOnRecord() {
+        openGoodMorning(360)
+        compose.waitForText(str(R.string.gm_first))
+    }
+
+    @Test
+    fun aQuickWakeUpIsShownInSeconds() {
+        openGoodMorning(20)
+        compose.onNodeWithContentDescription(context.resources.getQuantityString(R.plurals.gm_seconds_spoken, 20, 20)).assertIsDisplayed()
+        compose.onNodeWithText(str(R.string.second_short).uppercase()).assertIsDisplayed()
+    }
+
     @Test
     fun backDoesntDismissTheAlarm() {
         ring()
