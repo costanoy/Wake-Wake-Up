@@ -12,6 +12,7 @@ import android.os.PowerManager
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
+import androidx.core.os.UserManagerCompat
 import com.wakewakeup.MainActivity
 import com.wakewakeup.R
 import com.wakewakeup.data.Alarm
@@ -69,6 +70,7 @@ class PreAlarmCheck(private val context: Context, private val dao: AlarmDao) {
 
     /** Arms (or cancels) the next check. Runs after every change to the alarms and app start. */
     suspend fun reschedule(now: Long = System.currentTimeMillis()) {
+        if (!UserManagerCompat.isUserUnlocked(context)) return
         val alarms = enabledAlarms()
         dropStaleOffer(alarms, now)
         if (!notificationsAllowed()) {
@@ -86,6 +88,7 @@ class PreAlarmCheck(private val context: Context, private val dao: AlarmDao) {
 
     /** The check itself, delivered to [PreAlarmReceiver]. */
     suspend fun check(now: Long = System.currentTimeMillis()) {
+        if (!UserManagerCompat.isUserUnlocked(context)) return
         if (!notificationsAllowed()) {
             cancelCheck()
             return
@@ -117,6 +120,7 @@ class PreAlarmCheck(private val context: Context, private val dao: AlarmDao) {
 
     /** MainActivity is showing: whatever is coming up, the user can see it there. */
     fun appSeen(now: Long = System.currentTimeMillis()) {
+        if (!UserManagerCompat.isUserUnlocked(context)) return
         prefs.edit().putLong(KEY_APP_SEEN, now).apply()
     }
 
@@ -151,6 +155,7 @@ class PreAlarmCheck(private val context: Context, private val dao: AlarmDao) {
     }
 
     fun cancelOffer() {
+        if (!UserManagerCompat.isUserUnlocked(context)) return
         NotificationManagerCompat.from(context).cancel(NotificationIds.PRE_ALARM)
         prefs.edit().remove(KEY_POSTED).apply()
     }

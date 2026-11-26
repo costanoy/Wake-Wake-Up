@@ -38,7 +38,6 @@ class AppLogicBugTest {
 
     private val everyDay = (0..6).toSet()
 
-    @Ignore("LOG-01: componentes do alarme nao sao directBootAware")
     @Test
     fun theRingComponentsAreDirectBootAware() {
         val pm = env.app.packageManager
@@ -49,7 +48,6 @@ class AppLogicBugTest {
         assertTrue("RingActivity", pm.getActivityInfo(name(RingActivity::class.java), 0).directBootAware)
     }
 
-    @Ignore("LOG-01: BootReceiver nao escuta LOCKED_BOOT_COMPLETED")
     @Test
     fun theBootReceiverListensToLockedBootCompleted() {
         val receivers = env.app.packageManager.queryBroadcastReceivers(Intent(Intent.ACTION_LOCKED_BOOT_COMPLETED), PackageManager.MATCH_DIRECT_BOOT_AWARE or PackageManager.MATCH_DIRECT_BOOT_UNAWARE)

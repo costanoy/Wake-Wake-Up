@@ -6,13 +6,11 @@ import android.content.pm.PackageManager
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.wakewakeup.testing.AppEnv
 import org.junit.Assert.assertTrue
-import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
 /** TEC-01: sem Direct Boot, o alarme não toca se o celular reiniciar e não for desbloqueado. */
-@Ignore("TEC-01: sem Direct Boot, o alarme não toca se o celular reiniciar e não for desbloqueado")
 @RunWith(AndroidJUnit4::class)
 class DirectBootBugTest {
 

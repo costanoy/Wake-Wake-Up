@@ -50,6 +50,8 @@ class AlarmScheduler(private val context: Context) {
         )
         return try {
             alarmManager.setAlarmClock(AlarmManager.AlarmClockInfo(triggerAt, showIntent), ringIntent(alarm))
+            // A small copy for the restart before the first unlock; never in the way of arming.
+            runCatching { ArmedRings.put(context, alarm, triggerAt) }
             true
         } catch (e: SecurityException) {
             // Exact-alarm access was revoked between the check and the call.
@@ -65,6 +67,7 @@ class AlarmScheduler(private val context: Context) {
 
     fun cancel(alarm: Alarm) {
         alarmManager.cancel(ringIntent(alarm))
+        runCatching { ArmedRings.remove(context, alarm.id) }
     }
 }
 
