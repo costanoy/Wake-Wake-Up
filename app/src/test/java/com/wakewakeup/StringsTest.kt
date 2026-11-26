@@ -12,21 +12,26 @@ class StringsTest {
 
     private data class Res(val kind: String, val name: String, val values: List<String>)
 
+    /** Reads and adds up every strings*.xml in the folder, so files added by later work are checked too. */
     private fun load(folder: String): Map<String, Res> {
-        val file = File("src/main/res/$folder/strings.xml")
-        assertTrue("missing $file", file.exists())
-        val doc = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(file)
-        val root = doc.documentElement
+        val dir = File("src/main/res/$folder")
+        val files = dir.listFiles { f -> f.name.startsWith("strings") && f.name.endsWith(".xml") }?.sortedBy { it.name }.orEmpty()
+        assertTrue("missing $dir/strings.xml", files.any { it.name == "strings.xml" })
         val out = mutableMapOf<String, Res>()
-        val nodes = root.childNodes
-        for (i in 0 until nodes.length) {
-            val el = nodes.item(i) as? Element ?: continue
-            val name = el.getAttribute("name")
-            val values = when (el.tagName) {
-                "string" -> listOf(el.textContent)
-                else -> el.getElementsByTagName("item").let { items -> (0 until items.length).map { items.item(it).textContent } }
+        for (file in files) {
+            val doc = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(file)
+            val nodes = doc.documentElement.childNodes
+            for (i in 0 until nodes.length) {
+                val el = nodes.item(i) as? Element ?: continue
+                val name = el.getAttribute("name")
+                val values = when (el.tagName) {
+                    "string" -> listOf(el.textContent)
+                    else -> el.getElementsByTagName("item").let { items -> (0 until items.length).map { items.item(it).textContent } }
+                }
+                val key = "${el.tagName}/$name"
+                assertTrue("duplicate $key in ${file.name}", key !in out)
+                out[key] = Res(el.tagName, name, values)
             }
-            out["${el.tagName}/$name"] = Res(el.tagName, name, values)
         }
         return out
     }
