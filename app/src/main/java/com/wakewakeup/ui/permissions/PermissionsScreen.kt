@@ -33,6 +33,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import com.wakewakeup.R
 import com.wakewakeup.ui.components.BackHeader
+import com.wakewakeup.ui.components.GraphiteKey
 import com.wakewakeup.ui.components.Lamp
 import com.wakewakeup.ui.components.LedSegment
 import com.wakewakeup.ui.components.OrangeKey
@@ -205,7 +206,10 @@ private fun PermissionPlate(title: String, description: String, granted: Boolean
             SunkKey(stringResource(R.string.allowed))
         } else {
             // Every plate's key says PERMITIR, so TalkBack names the one this is.
-            OrangeKey(stringResource(R.string.allow), onClick = onAllow, contentDescription = stringResource(R.string.cd_allow, title))
+            val cd = stringResource(R.string.cd_allow, title)
+            // The only-recommended item must not compete with the required ones for the orange.
+            if (recommended) GraphiteKey(stringResource(R.string.allow), onClick = onAllow, contentDescription = cd)
+            else OrangeKey(stringResource(R.string.allow), onClick = onAllow, contentDescription = cd)
         }
     }
 }
