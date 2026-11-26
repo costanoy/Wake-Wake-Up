@@ -1,5 +1,6 @@
 package com.wakewakeup.session
 
+import android.annotation.SuppressLint
 import android.content.Intent
 import android.graphics.Color
 import android.os.Build
@@ -112,6 +113,7 @@ class RingActivity : ComponentActivity() {
      * Volume up still works, but lowering or muting the alarm is not a way out of the mission:
      * the keys are swallowed while it rings, until Bom dia.
      */
+    @SuppressLint("RestrictedApi") // androidx marks the override as library-private; the platform method is public.
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         val key = event.keyCode
         if (key == KeyEvent.KEYCODE_VOLUME_DOWN || key == KeyEvent.KEYCODE_VOLUME_MUTE) {
