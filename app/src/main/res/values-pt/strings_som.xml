@@ -3,4 +3,8 @@
     <string name="skip_confirm_hint">Digite o resultado e toque em OK</string>
     <string name="sounds_app">Sons do app</string>
     <string name="sounds_phone">Sons do celular</string>
+    <string name="cd_stop_preview">Parar %1$s</string>
+    <string name="radio_connecting">Conectando…</string>
+    <string name="radio_station_failed">Não tocou agora. Tente outra rádio.</string>
+    <string name="sound_failed">Não deu para tocar este som.</string>
 </resources>

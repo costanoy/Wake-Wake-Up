@@ -55,6 +55,7 @@ import com.wakewakeup.ui.components.faceplate
 import com.wakewakeup.ui.components.nonScaling
 import com.wakewakeup.ui.components.visor
 import com.wakewakeup.ui.edit.EditAlarmViewModel
+import com.wakewakeup.ui.theme.ErrorText
 import com.wakewakeup.ui.theme.Housing
 import com.wakewakeup.ui.theme.Ink
 import com.wakewakeup.ui.theme.InkMuted
@@ -76,7 +77,7 @@ private sealed interface RadioResults {
  * Pick an internet radio station to wake up to instead of an alarm sound. With nothing
  * typed it lists the most listened stations in the phone's country; typing searches by name.
  * Tapping a station selects it and plays a few seconds so you know the stream works; its play
- * key only plays those seconds.
+ * key toggles those seconds on and off.
  */
 @Composable
 fun RadioScreen(onBack: () -> Unit, viewModel: EditAlarmViewModel) {
@@ -188,8 +189,10 @@ fun RadioScreen(onBack: () -> Unit, viewModel: EditAlarmViewModel) {
                                     homeCountry = homeCountry,
                                     selected = station.streamUrl == draft.soundUri,
                                     playing = player.isPreviewing(station.streamUrl),
+                                    connecting = player.loading && player.isPreviewing(station.streamUrl),
+                                    failed = player.isFailed(station.streamUrl),
                                     onSelect = { select(station) },
-                                    onPlay = { player.play(station.streamUrl, STREAM_PREVIEW_MS) },
+                                    onPlay = { player.toggle(station.streamUrl, STREAM_PREVIEW_MS) },
                                 )
                                 if (index < state.stations.lastIndex) PlateDivider()
                             }
@@ -220,6 +223,8 @@ private fun StationRow(
     homeCountry: String,
     selected: Boolean,
     playing: Boolean,
+    connecting: Boolean,
+    failed: Boolean,
     onSelect: () -> Unit,
     onPlay: () -> Unit,
 ) {
@@ -245,8 +250,11 @@ private fun StationRow(
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
-            if (detail.isNotEmpty()) {
-                Text(detail, style = WwuType.caption, color = InkMuted, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            when {
+                connecting -> Text(stringResource(R.string.radio_connecting), style = WwuType.caption, color = Vfd, maxLines = 1)
+                failed -> Text(stringResource(R.string.radio_station_failed), style = WwuType.caption, color = ErrorText)
+                detail.isNotEmpty() ->
+                    Text(detail, style = WwuType.caption, color = InkMuted, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
         Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
@@ -255,9 +263,9 @@ private fun StationRow(
                 onClick = onPlay,
                 size = 36.dp,
                 style = RoundStyle.Graphite,
-                contentDescription = stringResource(R.string.cd_play_preview, station.name),
+                contentDescription = stringResource(if (playing) R.string.cd_stop_preview else R.string.cd_play_preview, station.name),
                 baseDepth = 2.dp,
-            ) { PlayGlyph(9.dp, 12.dp, if (playing) Vfd else Ink, nudge = 1.dp) }
+            ) { if (playing) StopGlyph(10.dp, Vfd) else PlayGlyph(9.dp, 12.dp, Ink, nudge = 1.dp) }
         }
     }
 }

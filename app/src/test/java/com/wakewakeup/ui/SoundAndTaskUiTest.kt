@@ -126,6 +126,23 @@ class SoundAndTaskUiTest {
     }
 
     @Test
+    fun theSoundPreviewKeyTurnsIntoStopWhileItPlays() {
+        openEditor()
+        compose.onNodeWithText(str(R.string.sound_default)).performClick()
+        compose.waitForText(str(R.string.sound_bell_name))
+        val name = str(R.string.sound_phone_name)
+        // Choosing a sound plays it for a moment.
+        compose.onNodeWithText(name).performClick()
+        // Playing: the key says stop, and the display says preview.
+        compose.waitForDescription(str(R.string.cd_stop_preview, name))
+        compose.onNodeWithText(str(R.string.preview_label).uppercase()).assertIsDisplayed()
+
+        compose.onNodeWithContentDescription(str(R.string.cd_stop_preview, name)).performClick()
+        compose.waitForDescription(str(R.string.cd_play_preview, name))
+        compose.waitForNoText(str(R.string.preview_label).uppercase())
+    }
+
+    @Test
     fun pickingASongFromThePhone() {
         val alarm = openEditor()
         compose.onNodeWithText(str(R.string.sound_default)).performClick()

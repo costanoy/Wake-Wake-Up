@@ -6,13 +6,20 @@ import android.media.MediaPlayer
 import android.media.RingtoneManager
 import android.net.Uri
 import androidx.compose.runtime.Composable
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -32,7 +39,27 @@ class SoundPreview(private val context: Context, private val scope: CoroutineSco
     var previewing by mutableStateOf<String?>(null)
         private set
 
+    /** True from the moment a preview is asked for until the player is ready to start. */
+    var loading by mutableStateOf(false)
+        private set
+
+    /** The uri whose preview could not start (error, or never connected), until the next [play]. */
+    private var failed by mutableStateOf<String?>(null)
+
     fun isPreviewing(uri: String?) = previewing == (uri ?: DEFAULT)
+
+    fun isFailed(uri: String?) = failed == (uri ?: DEFAULT)
+
+    /** The preview key: stops what is playing for [uri], or plays it. */
+    fun toggle(uri: String?, durationMs: Long) {
+        if (isPreviewing(uri)) stop() else play(uri, durationMs)
+    }
+
+    private fun fail() {
+        val key = previewing
+        stop()
+        failed = key
+    }
 
     fun play(uri: String?, durationMs: Long) {
         stop()
@@ -42,10 +69,12 @@ class SoundPreview(private val context: Context, private val scope: CoroutineSco
         val mp = MediaPlayer()
         player = mp
         previewing = uri ?: DEFAULT
+        failed = null
+        loading = true
         // A station can take the connection and never send audio: don't stay lit waiting for it.
         stopJob = scope.launch {
             delay(START_TIMEOUT_MS)
-            stop()
+            fail()
         }
         runCatching {
             mp.setAudioAttributes(
@@ -57,6 +86,7 @@ class SoundPreview(private val context: Context, private val scope: CoroutineSco
             mp.setDataSource(context, target)
             mp.setOnPreparedListener {
                 if (player !== mp) return@setOnPreparedListener
+                loading = false
                 it.start()
                 stopJob?.cancel()
                 stopJob = scope.launch {
@@ -64,10 +94,10 @@ class SoundPreview(private val context: Context, private val scope: CoroutineSco
                     stop()
                 }
             }
-            mp.setOnErrorListener { _, _, _ -> if (player === mp) stop(); true }
+            mp.setOnErrorListener { _, _, _ -> if (player === mp) fail(); true }
             mp.setOnCompletionListener { if (player === mp) stop() }
             mp.prepareAsync()
-        }.onFailure { stop() }
+        }.onFailure { fail() }
     }
 
     fun stop() {
@@ -79,6 +109,7 @@ class SoundPreview(private val context: Context, private val scope: CoroutineSco
         }
         player = null
         previewing = null
+        loading = false
     }
 
     companion object {
@@ -96,3 +127,8 @@ fun rememberSoundPreview(): SoundPreview {
     DisposableEffect(Unit) { onDispose { preview.stop() } }
     return preview
 }
+
+/** The stop key's square: what the play triangle turns into while a preview is on. */
+@Composable
+internal fun StopGlyph(size: Dp, color: Color) =
+    Canvas(Modifier.size(size)) { drawRoundRect(color, cornerRadius = CornerRadius(1.5.dp.toPx())) }

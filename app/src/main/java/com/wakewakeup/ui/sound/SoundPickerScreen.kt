@@ -71,6 +71,7 @@ import com.wakewakeup.ui.components.rememberReduceMotion
 import com.wakewakeup.ui.components.visor
 import com.wakewakeup.ui.edit.EditAlarmViewModel
 import com.wakewakeup.ui.theme.Action
+import com.wakewakeup.ui.theme.ErrorText
 import com.wakewakeup.ui.theme.Housing
 import com.wakewakeup.ui.theme.Ink
 import com.wakewakeup.ui.theme.InkMuted
@@ -129,6 +130,8 @@ fun SoundPickerScreen(onBack: () -> Unit, onOpenRadio: () -> Unit, viewModel: Ed
     LaunchedEffect(systemSounds != null) { if (systemSounds != null) selectedRequester.bringIntoView() }
     fun preview(option: SoundOption) =
         player.play(option.uri, if (option.uri.isStreamUrl()) STREAM_PREVIEW_MS else PREVIEW_MS)
+    fun toggle(option: SoundOption) =
+        player.toggle(option.uri, if (option.uri.isStreamUrl()) STREAM_PREVIEW_MS else PREVIEW_MS)
     fun select(option: SoundOption) {
         viewModel.setSound(option.uri, if (option.uri == null) null else option.name)
         preview(option)
@@ -238,8 +241,8 @@ fun SoundPickerScreen(onBack: () -> Unit, onOpenRadio: () -> Unit, viewModel: Ed
 
             val bundledUris = bundled.mapTo(HashSet()) { it.uri }
             val phoneOptions = options.filterNot { it.uri.isStreamUrl() || it.uri in bundledUris }
-            SoundSection(R.string.sounds_app, bundled, draft.soundUri, player, selectedRequester, ::select, ::preview)
-            SoundSection(R.string.sounds_phone, phoneOptions, draft.soundUri, player, selectedRequester, ::select, ::preview)
+            SoundSection(R.string.sounds_app, bundled, draft.soundUri, player, selectedRequester, ::select, ::toggle)
+            SoundSection(R.string.sounds_phone, phoneOptions, draft.soundUri, player, selectedRequester, ::select, ::toggle)
             Spacer(Modifier.height(24.dp))
         }
     }
@@ -334,6 +337,7 @@ private fun SoundSection(
                 option = option,
                 selected = selected,
                 playing = player.isPreviewing(option.uri),
+                failed = player.isFailed(option.uri),
                 onSelect = { onSelect(option) },
                 onPlay = { onPlay(option) },
                 modifier = if (selected) Modifier.bringIntoViewRequester(selectedRequester) else Modifier,
@@ -348,6 +352,7 @@ private fun SoundRow(
     option: SoundOption,
     selected: Boolean,
     playing: Boolean,
+    failed: Boolean,
     onSelect: () -> Unit,
     onPlay: () -> Unit,
     modifier: Modifier = Modifier,
@@ -369,7 +374,9 @@ private fun SoundRow(
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
-            if (option.description != null) {
+            if (failed) {
+                Text(stringResource(R.string.sound_failed), style = WwuType.caption, color = ErrorText)
+            } else if (option.description != null) {
                 Text(option.description, style = WwuType.caption, color = InkMuted)
             }
         }
@@ -378,9 +385,9 @@ private fun SoundRow(
                 onClick = onPlay,
                 size = 36.dp,
                 style = RoundStyle.Graphite,
-                contentDescription = stringResource(R.string.cd_play_preview, option.name),
+                contentDescription = stringResource(if (playing) R.string.cd_stop_preview else R.string.cd_play_preview, option.name),
                 baseDepth = 2.dp,
-            ) { PlayGlyph(9.dp, 12.dp, if (playing) Vfd else Ink, nudge = 1.dp) }
+            ) { if (playing) StopGlyph(10.dp, Vfd) else PlayGlyph(9.dp, 12.dp, Ink, nudge = 1.dp) }
         }
     }
 }
