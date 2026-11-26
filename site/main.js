@@ -15,7 +15,7 @@
   var EN = /^en/i.test(document.documentElement.lang);
   var T = EN ? {
     now: 'Now: ',
-    rising: 'RISING', max: 'MAX', backIn: 'BACK IN 0:0', noLimit: 'NO LIMIT',
+    rising: 'RISING', max: 'MAX', backIn: 'BACK IN 0:0', noLimit: 'TAP TO SNOOZE', held: 'SNOOZED',
     enter: 'Enter the result', wrong: 'Wrong. Try again.', right: 'Right. Alarm off.',
     store: 'GET IT ON GOOGLE PLAY', storeName: 'Get Wake Wake Up on Google Play',
     soon: 'COMING SOON TO GOOGLE PLAY', androidOnly: 'ANDROID ONLY',
@@ -26,7 +26,7 @@
     days: ['THU', 'FRI', 'SAT', 'SUN', 'MON', 'TUE', 'TODAY']
   } : {
     now: 'Agora: ',
-    rising: 'SUBINDO', max: 'MÁXIMO', backIn: 'VOLTA EM 0:0', noLimit: 'SEM LIMITE',
+    rising: 'SUBINDO', max: 'MÁXIMO', backIn: 'VOLTA EM 0:0', noLimit: 'TOQUE PARA ADIAR', held: 'ADIADO',
     enter: 'Digite o resultado', wrong: 'Errado. Tente de novo.', right: 'Certo. Alarme desligado.',
     store: 'BAIXAR NO GOOGLE PLAY', storeName: 'Baixar o Wake Wake Up no Google Play',
     soon: 'EM BREVE NO GOOGLE PLAY', androidOnly: 'SÓ PARA ANDROID',
@@ -270,7 +270,7 @@
   $('espere').addEventListener('click', function () {
     holds++;
     holdLeft = 5;
-    espereCount.textContent = T.noLimit + ' · ' + holds + '×';
+    espereCount.textContent = T.held + ' · ' + holds + '×';
     clearInterval(holdTimer);
     paintVolume();
     holdTimer = setInterval(function () {
@@ -316,7 +316,7 @@
         state = 'ok';
         clearTimeout(okTimer);
         okTimer = setTimeout(function () { state = 'idle'; answer = ''; paintCalc(); }, 1800);
-      } else if (answer && answer !== '-') {
+      } else if (answer) {
         state = 'wrong';
         shake();
       }
@@ -327,8 +327,7 @@
     var current = state === 'idle' ? answer : '';
     if (key === 'C') current = '';
     else if (key === 'B') current = current.slice(0, -1);
-    else if (key === 'M') current = current.charAt(0) === '-' ? current.slice(1) : '-' + current;
-    else if (current.replace('-', '').length < 4) current += key;
+    else if (current.length < 4) current += key;
     answer = current;
     state = 'idle';
     clearTimeout(okTimer);
@@ -344,7 +343,6 @@
     var key = /^[0-9]$/.test(event.key) ? event.key
       : event.key === 'Backspace' ? 'B'
       : event.key === 'Escape' || event.key === 'Delete' ? 'C'
-      : event.key === '-' || event.key === 'Subtract' ? 'M'
       : null;
     if (!key) return;
     event.preventDefault();
