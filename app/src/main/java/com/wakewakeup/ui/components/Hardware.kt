@@ -221,6 +221,23 @@ fun Modifier.bottomFade(state: ScrollState, height: Dp = 24.dp, color: Color = H
     }
 }
 
+/**
+ * Mirror of [bottomFade]: once the column has scrolled, its top [height] fades into the housing,
+ * so a row passing under a fixed readout dissolves instead of being sliced off. Goes before
+ * verticalScroll: Modifier.weight(1f).topFade(scroll).verticalScroll(scroll).
+ */
+fun Modifier.topFade(state: ScrollState, height: Dp = 24.dp, color: Color = Housing): Modifier = drawWithContent {
+    drawContent()
+    if (state.canScrollBackward) {
+        val h = height.toPx().coerceAtMost(size.height)
+        drawRect(
+            Brush.verticalGradient(listOf(color, color.copy(alpha = 0f)), startY = 0f, endY = h),
+            topLeft = Offset.Zero,
+            size = Size(size.width, h),
+        )
+    }
+}
+
 // ---------------------------------------------------------------------------------------------
 // Text
 // ---------------------------------------------------------------------------------------------
