@@ -4,12 +4,14 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -93,28 +95,37 @@ fun SkipConfirmScreen(
             backDescription = stringResource(R.string.cd_back),
             onBack = onDone,
         )
-        Column(
-            Modifier
-                .weight(1f)
-                .fillMaxWidth()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp),
-        ) {
-            when (stage) {
-                SkipStage.LOADING -> Unit
-                SkipStage.STALE -> Text(
-                    stringResource(R.string.skip_confirm_stale),
-                    style = WwuType.body,
-                    color = Ink,
-                    modifier = Modifier.padding(top = 24.dp, start = 4.dp, end = 4.dp),
-                )
-                SkipStage.CONFIRM, SkipStage.DONE -> {
-                    viewModel.rows.forEach { SkipRowCard(it, turnedOff = stage == SkipStage.DONE) }
-                    if (stage == SkipStage.CONFIRM) {
-                        Gate(viewModel)
-                        Spacer(Modifier.height(24.dp))
-                        GraphiteKey(stringResource(R.string.skip_confirm_keep), onClick = onDone, modifier = Modifier.fillMaxWidth())
-                    } else {
+        // On a tall screen the cards stay on top and the sum with KEEP sits at the foot, like the mission;
+        // on a short one the column is taller than the screen and just scrolls.
+        BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
+            val confirming = stage == SkipStage.CONFIRM
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+                    .heightIn(min = maxHeight)
+                    .padding(horizontal = 16.dp),
+                verticalArrangement = if (confirming) Arrangement.SpaceBetween else Arrangement.Top,
+            ) {
+                when (stage) {
+                    SkipStage.LOADING -> Unit
+                    SkipStage.STALE -> Text(
+                        stringResource(R.string.skip_confirm_stale),
+                        style = WwuType.body,
+                        color = Ink,
+                        modifier = Modifier.padding(top = 24.dp, start = 4.dp, end = 4.dp),
+                    )
+                    SkipStage.CONFIRM -> {
+                        Column { viewModel.rows.forEach { SkipRowCard(it, turnedOff = false) } }
+                        Column {
+                            Gate(viewModel)
+                            Spacer(Modifier.height(24.dp))
+                            GraphiteKey(stringResource(R.string.skip_confirm_keep), onClick = onDone, modifier = Modifier.fillMaxWidth())
+                            Spacer(Modifier.height(16.dp))
+                        }
+                    }
+                    SkipStage.DONE -> {
+                        viewModel.rows.forEach { SkipRowCard(it, turnedOff = true) }
                         Row(
                             Modifier.padding(top = 20.dp, start = 4.dp).semantics { liveRegion = LiveRegionMode.Polite },
                             verticalAlignment = Alignment.CenterVertically,
@@ -125,8 +136,8 @@ fun SkipConfirmScreen(
                         }
                     }
                 }
+                if (!confirming) Spacer(Modifier.height(16.dp))
             }
-            Spacer(Modifier.height(16.dp))
         }
 
         // While confirming, the keypad's OK is the only confirm and Keep sits under it, inside the scroll.

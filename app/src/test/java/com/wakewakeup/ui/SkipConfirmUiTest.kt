@@ -11,6 +11,7 @@ import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -112,6 +113,18 @@ class SkipConfirmUiTest {
         assertNull(notifications.getNotification(NotificationIds.SKIP_RECEIPT))
         // Back on the list, where the alarm is on as usual.
         compose.waitForDescription(str(R.string.cd_alarm_switch, "%02d:%02d".format(alarm.hour, alarm.minute)))
+    }
+
+    @Test
+    @Config(qualifiers = "w411dp-h1100dp-xxhdpi")
+    fun onATallScreenTheSumAndKeepSitAtTheFoot() {
+        val (alarm, at) = alarmInTwoHours()
+        open(alarm, at)
+        compose.waitForText(str(R.string.skip_confirm_keep).uppercase())
+        val keep = compose.onNodeWithText(str(R.string.skip_confirm_keep).uppercase()).fetchSemanticsNode().boundsInRoot
+        val root = compose.onRoot().fetchSemanticsNode().boundsInRoot
+        val gap = (root.bottom - keep.bottom) / context.resources.displayMetrics.density
+        assertTrue("KEEP floats $gap dp above the foot", gap <= 40f)
     }
 
     @Test

@@ -288,6 +288,8 @@ open class ScreenshotTour {
         compose.waitForText("Trabalho")
         compose.onNodeWithContentDescription(str(R.string.cd_stats_icon)).performClick()
         compose.waitForText(str(R.string.minutes_to_wake).uppercase())
+        // Only exists once the database answered: the skeleton has no times.
+        compose.waitForText("06:42")
         shot("19-estatisticas", ::mainActivity)
     }
 

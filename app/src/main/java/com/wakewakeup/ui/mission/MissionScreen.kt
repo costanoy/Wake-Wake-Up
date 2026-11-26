@@ -189,7 +189,7 @@ private fun androidx.compose.foundation.layout.ColumnScope.MathBody(
     }
     val (message, messageColor) = when {
         mission.wrong -> stringResource(R.string.wrong_try_again) to ErrorText
-        mission.secondsLeft <= TIME_LOW_SECONDS -> stringResource(R.string.mission_time_low, mission.secondsLeft) to ErrorText
+        mission.secondsLeft <= TIME_LOW_SECONDS -> stringResource(R.string.mission_time_low) to ErrorText
         mission.justCorrect -> stringResource(R.string.correct_next) to VfdBright
         else -> stringResource(R.string.enter_result) to InkMuted
     }
@@ -377,7 +377,7 @@ private fun androidx.compose.foundation.layout.ColumnScope.PhraseBody(
             when {
                 // Tells where it went wrong: from the underlined letter, or text left over at the end.
                 mission.wrong -> stringResource(if (matched < phrase.length) R.string.phrase_wrong_here else R.string.phrase_wrong_extra)
-                mission.secondsLeft <= TIME_LOW_SECONDS -> stringResource(R.string.mission_time_low, mission.secondsLeft)
+                mission.secondsLeft <= TIME_LOW_SECONDS -> stringResource(R.string.mission_time_low)
                 else -> stringResource(R.string.chars_of, matched, phrase.length)
             },
             style = WwuType.bodyS,

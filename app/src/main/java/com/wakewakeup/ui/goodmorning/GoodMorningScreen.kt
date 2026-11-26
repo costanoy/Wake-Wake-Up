@@ -1,5 +1,6 @@
 package com.wakewakeup.ui.goodmorning
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -56,6 +57,7 @@ import com.wakewakeup.ui.components.faceplate
 import com.wakewakeup.ui.components.formatClock
 import com.wakewakeup.ui.components.panelDate
 import com.wakewakeup.ui.components.rememberReduceMotion
+import com.wakewakeup.ui.theme.EspereLabelPlate
 import com.wakewakeup.ui.theme.Ink
 import com.wakewakeup.ui.theme.InkMuted
 import com.wakewakeup.ui.theme.Vfd
@@ -124,20 +126,28 @@ fun GoodMorningScreen(
                         modifier = Modifier.padding(start = 8.dp, bottom = 10.dp),
                     )
                 }
-                Text(stringResource(R.string.to_really_wake), style = WwuType.bodyS, color = Ink)
-                if (comparisonReady) {
-                    // Compared with their own week, never with a score: no points, streaks or praise.
-                    val diff = if (averageMinutes == null) 0 else averageMinutes - minutes
-                    Text(
-                        when {
-                            averageMinutes == null -> stringResource(R.string.gm_first)
-                            diff > 0 -> stringResource(R.string.gm_faster, diff)
-                            diff < 0 -> stringResource(R.string.gm_slower, -diff)
-                            else -> stringResource(R.string.gm_same)
-                        },
-                        style = WwuType.bodyStrong,
-                        color = Ink,
-                    )
+                // Dark plate, as under the ESPERE label: the sunrise gradient gets lighter lower on a short phone,
+                // and cream text straight on it falls under 4.5:1.
+                Column(
+                    Modifier
+                        .background(EspereLabelPlate, WwuShape.field)
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                ) {
+                    Text(stringResource(R.string.to_really_wake), style = WwuType.bodyS, color = Ink)
+                    if (comparisonReady) {
+                        // Compared with their own week, never with a score: no points, streaks or praise.
+                        val diff = if (averageMinutes == null) 0 else averageMinutes - minutes
+                        Text(
+                            when {
+                                averageMinutes == null -> stringResource(R.string.gm_first)
+                                diff > 0 -> stringResource(R.string.gm_faster, diff)
+                                diff < 0 -> stringResource(R.string.gm_slower, -diff)
+                                else -> stringResource(R.string.gm_same)
+                            },
+                            style = WwuType.bodyStrong,
+                            color = Ink,
+                        )
+                    }
                 }
             }
             if (companions.isNotEmpty()) {

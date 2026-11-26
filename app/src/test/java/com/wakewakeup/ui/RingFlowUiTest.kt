@@ -375,10 +375,31 @@ class RingFlowUiTest {
             )
         }
         compose.waitForText("0:23")
-        assertTrue(compose.onAllNodesWithText(str(R.string.mission_time_low, 23)).fetchSemanticsNodes().isEmpty())
+        assertTrue(compose.onAllNodesWithText(str(R.string.mission_time_low)).fetchSemanticsNodes().isEmpty())
         AlarmSessionState.update { it.copy(mission = it.mission!!.copy(secondsLeft = 15)) }
-        compose.waitForText(str(R.string.mission_time_low, 15))
+        compose.waitForText(str(R.string.mission_time_low))
         compose.onNodeWithText("0:15").assertIsDisplayed()
+    }
+
+    @Test
+    fun theLiveRegionOfTheMissionNeverCarriesTheCountdown() {
+        // TalkBack reads a liveRegion again every time its text changes: the seconds must not be in it.
+        openWithSession {
+            it.copy(
+                screen = SessionScreen.MISSION,
+                mission = com.wakewakeup.session.MissionState(TaskType.MATH, 0, 1, secondsLeft = 15, question = "1 + 1", answer = "2"),
+            )
+        }
+        compose.waitForText(str(R.string.mission_time_low))
+        fun liveTexts() = compose.onAllNodes(androidx.compose.ui.test.SemanticsMatcher.keyIsDefined(androidx.compose.ui.semantics.SemanticsProperties.LiveRegion))
+            .fetchSemanticsNodes()
+            .flatMap { node -> node.config.getOrElse(androidx.compose.ui.semantics.SemanticsProperties.Text) { emptyList() }.map { it.text } }
+        val before = liveTexts()
+        assertTrue(before.contains(str(R.string.mission_time_low)))
+        AlarmSessionState.update { it.copy(mission = it.mission!!.copy(secondsLeft = 14)) }
+        compose.waitForText("0:14")
+        assertEquals(before, liveTexts())
+        assertTrue(liveTexts().none { it.contains("14") || it.contains("15") })
     }
 
     private fun recordWeek(vararg durationsSec: Int) = runBlocking {
