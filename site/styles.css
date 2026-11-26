@@ -141,11 +141,11 @@ a.lang__opt:active { transform: translateY(1px); box-shadow: 0 1px 0 var(--housi
 .hero__text .lead { max-width: 720px; }
 .hero h1 { font-size: clamp(44px, 7vw, 96px); font-weight: 600; letter-spacing: -.02em; line-height: 1; }
 .lead { font-size: clamp(17px, 1.6vw, 21px); line-height: 1.5; color: var(--ink); text-wrap: pretty; }
-.hero__cta { margin-top: auto; display: flex; flex-direction: column; align-items: center; gap: 8px; }
-.hero__test { padding: 8px 6px; font-size: 14px; font-weight: 600; color: var(--on-action); text-decoration: underline; text-underline-offset: 3px; }
-.hero__test:hover { color: var(--housing-deep); text-decoration-thickness: 2px; }
-/* On the bright part of the gradients a dark ring reads better than the amber one. */
-.hero__cta :focus-visible, .final__download :focus-visible { outline-color: var(--on-action); }
+.hero__cta { margin-top: auto; display: flex; flex-direction: column; align-items: center; gap: 14px; }
+/* A dark key, like .pill: the 48 px target and the contrast do not depend on the gradient behind it. */
+.hero__test { min-height: 48px; padding: 0 18px; box-sizing: border-box; border-radius: 24px; display: inline-flex; align-items: center; background: var(--key); box-shadow: 0 3px 0 var(--housing-deep), inset 0 1px 0 rgba(255, 255, 255, .08); color: var(--ink); font-size: 14px; font-weight: 600; text-decoration: none; }
+.hero__test:hover { color: var(--ink); }
+.hero__test:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--housing-deep); }
 /* Short laptop screens: a smaller clock keeps the download button above the fold. */
 @media (min-width: 900px) and (max-height: 820px) {
   .clock { --w: clamp(52px, calc((100vw - 120px) / 7), 76px); }
@@ -154,8 +154,10 @@ a.lang__opt:active { transform: translateY(1px); box-shadow: 0 1px 0 var(--housi
 
 /* ------------------------------------------------------------------ Download button */
 /* The link is in the HTML; main.js may swap it for a plate of the same size. */
-.download { display: flex; flex-direction: column; align-items: center; gap: 12px; text-decoration: none; color: var(--on-action); font-size: 13px; font-weight: 600; letter-spacing: .14em; text-align: center; }
-a.download:hover { color: var(--on-action); }
+.download { display: flex; flex-direction: column; align-items: center; gap: 12px; text-decoration: none; color: var(--ink); font-size: 13px; font-weight: 600; letter-spacing: .14em; text-align: center; }
+/* Small text never sits straight on the sunrise gradient: the label is a dark plate (same as the video button). */
+.download__label { background: var(--housing); padding: 6px 10px; border-radius: 5px; }
+a.download:hover { color: var(--ink); }
 a.download:active { transform: translateY(3px); }
 .download__button { position: relative; width: 96px; height: 96px; border-radius: 50%; background: radial-gradient(circle at 50% 62%, #D4552D 0%, #EE7449 72%); box-shadow: 0 5px 0 var(--action-base), 0 14px 24px rgba(0, 0, 0, .4), inset 0 2px 5px rgba(0, 0, 0, .25), inset 0 -1px 0 rgba(255, 255, 255, .2); }
 .download__button::before { content: ""; position: absolute; left: 45px; top: 28px; width: 6px; height: 22px; border-radius: 2px; background: var(--on-action); }
@@ -299,7 +301,9 @@ a.download:active { transform: translateY(3px); }
 .final__text { display: flex; flex-direction: column; gap: 16px; align-items: center; max-width: 720px; }
 .final__download { display: flex; flex-direction: column; align-items: center; gap: 20px; }
 .final__download .download { margin-bottom: -4px; }
-.apk-note { max-width: 440px; font-size: 14px; line-height: 1.5; font-weight: 400; color: var(--on-action); text-wrap: balance; }
+.final__notes { width: min(100%, 440px); box-sizing: border-box; border-radius: 12px; padding: 16px 18px; display: flex; flex-direction: column; gap: 10px; text-align: left; }
+.final__notes:not(:has([data-apk-note]:not([hidden]), [data-desktop-note]:not([hidden]), [data-ios-note]:not([hidden]))) { display: none; }
+.apk-note { font-size: 15px; line-height: 1.5; color: var(--ink); }
 .final h2 { font-size: clamp(40px, 6vw, 80px); font-weight: 600; letter-spacing: -.02em; line-height: 1; }
 
 /* Test signup: a faceplate on the sunrise; the key reveals how to ask for access (no script needed). */
