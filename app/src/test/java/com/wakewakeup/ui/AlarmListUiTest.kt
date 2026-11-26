@@ -267,6 +267,50 @@ class AlarmListUiTest {
         assertEquals(25, saved.minute)
     }
 
+    private fun typeInTheTimeDialog(digits: String) {
+        compose.waitForText(str(R.string.type_time_title))
+        compose.onNode(hasSetTextAction() and hasAnyAncestor(isDialog())).performTextInput(digits)
+    }
+
+    @Test
+    fun typingFourDigitsSetsTheTime() {
+        launch()
+        compose.waitForDescription(str(R.string.create_alarm))
+        compose.onNodeWithContentDescription(str(R.string.create_alarm)).performClick()
+        waitForDrum(R.string.hour, 7)
+
+        compose.onNode(drum(R.string.hour)).performClick()
+        typeInTheTimeDialog("0645")
+        compose.onNodeWithText(str(R.string.confirm).uppercase()).performClick()
+        compose.waitForNoText(str(R.string.type_time_title))
+        waitForDrum(R.string.hour, 6)
+        waitForDrum(R.string.minute, 45)
+
+        compose.onNodeWithContentDescription(str(R.string.save)).performClick()
+        compose.waitForDescription(str(R.string.cd_alarm_switch, "06:45"))
+        val saved = alarms().single()
+        assertEquals(6, saved.hour)
+        assertEquals(45, saved.minute)
+    }
+
+    @Test
+    fun aTimeThatDoesNotExistShowsTheErrorAndKeepsTheDialog() {
+        launch()
+        compose.waitForDescription(str(R.string.create_alarm))
+        compose.onNodeWithContentDescription(str(R.string.create_alarm)).performClick()
+        waitForDrum(R.string.minute, 0)
+
+        compose.onNode(drum(R.string.minute)).performClick()
+        typeInTheTimeDialog("2575")
+        compose.waitForText(str(R.string.type_time_invalid))
+        compose.onNodeWithText(str(R.string.confirm).uppercase()).performClick()
+        compose.waitForIdle()
+        compose.onNodeWithText(str(R.string.type_time_title)).assertIsDisplayed()
+        compose.onNodeWithText(str(R.string.type_time_invalid)).assertIsDisplayed()
+        // Nothing moved behind the dialog.
+        compose.onNode(drum(R.string.hour)).assert(hasStateDescription("07"))
+    }
+
     @Test
     fun deletingTakesTwoTaps() {
         val alarm = env.save(Alarm(hour = 6, minute = 30, label = "Trabalho", days = setOf(0, 1, 2, 3, 4)))

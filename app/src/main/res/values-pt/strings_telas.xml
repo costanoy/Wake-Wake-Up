@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Editar alarme: digitar a hora -->
+    <string name="cd_type_time">Digitar a hora</string>
+    <string name="type_time_title">Digite a hora</string>
+    <string name="type_time_hint">Quatro números. Ex.: 0645 para 06:45.</string>
+    <string name="type_time_invalid">Essa hora não existe. Use de 00:00 a 23:59.</string>
+    <string name="cancel">Cancelar</string>
+</resources>
