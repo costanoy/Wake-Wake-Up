@@ -423,8 +423,9 @@ private fun PlateRow(
     onClick: (() -> Unit)? = null,
     value: @Composable RowScope.() -> Unit,
 ) {
-    // Sized in sp, so the column grows with the font and MISSÃO never breaks onto two lines.
-    val labelWidth = with(LocalDensity.current) { 64.sp.toDp() }
+    // Sized by the label's own font size, so the column grows with the label at any font scale
+    // (a fixed 64 sp barely grows from Android 14 on, where large text scales non-linearly).
+    val labelWidth = with(LocalDensity.current) { WwuType.label.fontSize.toDp() } * 5.4f
     Row(
         modifier = Modifier
             .fillMaxWidth()

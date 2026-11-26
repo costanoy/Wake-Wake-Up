@@ -22,6 +22,7 @@ import androidx.compose.ui.test.performCustomAccessibilityActionWithLabel
 import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.wakewakeup.MainActivity
@@ -329,6 +330,22 @@ class AlarmListUiTest {
         compose.onNodeWithText(str(R.string.type_time_invalid)).assertIsDisplayed()
         // Nothing moved behind the dialog.
         compose.onNode(drum(R.string.hour)).assert(hasStateDescription("07"))
+    }
+
+    @Config(qualifiers = "en-rUS-w411dp-h891dp-xxhdpi", fontScale = 1.3f)
+    @Test
+    fun theMissionLabelFitsItsColumnWithALargeFont() {
+        launch()
+        compose.waitForDescription(str(R.string.create_alarm))
+        compose.onNodeWithContentDescription(str(R.string.create_alarm)).performClick()
+        compose.waitForText(str(R.string.new_alarm))
+
+        val label = compose.onNodeWithText(str(R.string.task).uppercase())
+        label.assertIsDisplayed()
+        val layouts = mutableListOf<TextLayoutResult>()
+        label.fetchSemanticsNode().config[SemanticsActions.GetTextLayoutResult].action!!(layouts)
+        assertFalse("MISSION is cut off", layouts.single().hasVisualOverflow)
+        assertEquals(1, layouts.single().lineCount)
     }
 
     @Test
