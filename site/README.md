@@ -51,6 +51,20 @@ para mandar e-mail para vinicostamaga@outlook.com. Funciona sem JavaScript (é u
 Substitua `wake-wake-up.apk` pelo novo arquivo, com o mesmo nome. O `.htaccess` manda o navegador sempre conferir o APK,
 mas o CDN da Hostinger pode guardar a versão antiga: depois de trocar, limpe o cache do CDN no hPanel.
 
+1. Gere o APK de release assinado (`bash ferramentas/gradle.sh :app:assembleRelease`, com o `keystore.properties`) e copie
+   `app/build/outputs/apk/release/app-release.apk` para `site/wake-wake-up.apk`.
+2. **Antes de enviar**, rode `bash ferramentas/conferir-apk-site.sh`. Ele falha se o APK for de debug, estiver assinado com
+   `CN=Android Debug`, tiver `versionName` diferente do de `app/build.gradle.kts` ou passar de 12 MB, e imprime versão e tamanho.
+   Não envie enquanto ele não passar.
+3. Ajuste `apkVersion` e `apkSize` em `site-config.js` para os valores que o script imprimiu (o botão mostra os dois).
+4. **Site e APK sobem juntos.** A página não pode descrever um recurso que o APK publicado não tem: nunca envie o site novo
+   com o APK antigo, nem o contrário.
+
+Aviso temporário: o bloco "Como instalar" tem uma linha mandando desinstalar a versão anterior baixada aqui (o APK antigo era de
+debug, e o Android não atualiza um app por cima de outro assinado com chave diferente). **Essa linha sai na atualização
+seguinte do site**, quando quase ninguém mais tiver o APK de debug. Ela é o último `<p>` do bloco `#instalar` / `#install`
+em `index.html` e `en/index.html`.
+
 ## Cache
 
 - HTML, CSS e JS saem com `Cache-Control: no-cache` (o navegador sempre confere se mudou).
