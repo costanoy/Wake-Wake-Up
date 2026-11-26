@@ -1,8 +1,10 @@
 package com.wakewakeup.ui
 
+import android.Manifest
 import android.app.Activity
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.media.AudioManager
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -21,9 +23,11 @@ import com.wakewakeup.session.AlarmSessionState
 import com.wakewakeup.session.FinishedInfo
 import com.wakewakeup.session.MissionGenerator
 import com.wakewakeup.session.MissionState
+import com.wakewakeup.session.Occurrence
+import com.wakewakeup.session.PreAlarmCheck
 import com.wakewakeup.session.RingActivity
 import com.wakewakeup.session.SessionScreen
-import com.wakewakeup.session.nextTriggerEpochDay
+import com.wakewakeup.session.nextRingMillis
 import com.wakewakeup.testing.AppEnv
 import com.wakewakeup.testing.FakeRadio
 import com.wakewakeup.ui.permissions.AlarmPermissions
@@ -34,6 +38,7 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import java.io.File
@@ -61,6 +66,11 @@ open class ScreenshotTour {
     fun onlyWhenAsked() {
         assumeTrue("set WWU_SCREENSHOTS to render the screens", System.getenv("WWU_SCREENSHOTS") != null)
         FakeRadio.install()
+        // A phone as people have it: notifications allowed and the alarm volume up, so the list
+        // only warns about what Robolectric can't grant (full screen on the lock screen).
+        shadowOf(context).grantPermissions(Manifest.permission.POST_NOTIFICATIONS)
+        val audio = context.getSystemService(AudioManager::class.java)
+        audio.setStreamVolume(AudioManager.STREAM_ALARM, audio.getStreamMaxVolume(AudioManager.STREAM_ALARM) * 5 / 7, 0)
     }
 
     @After
@@ -147,6 +157,11 @@ open class ScreenshotTour {
 
         compose.onNode(hasSetTextAction()).performTextInput("Trabalho")
         for (day in 0..4) compose.onNodeWithContentDescription(context.resources.getStringArray(R.array.day_full)[day]).performClick()
+        // A new alarm has no delete key: save it, then open it again.
+        compose.onNodeWithContentDescription(str(R.string.save)).performClick()
+        compose.waitForText("Trabalho")
+        compose.onNodeWithText("Trabalho").performClick()
+        compose.waitForText(str(R.string.edit_alarm))
         compose.onNodeWithContentDescription(str(R.string.delete)).performClick()
         compose.waitForDescription(str(R.string.delete_confirm))
         shot("08-editando-excluir-armado", ::mainActivity)
@@ -232,6 +247,16 @@ open class ScreenshotTour {
         compose.onNodeWithContentDescription(str(R.string.cd_stats_icon)).performClick()
         compose.waitForText(str(R.string.minutes_to_wake).uppercase())
         shot("19-estatisticas", ::mainActivity)
+    }
+
+    @Test
+    fun skipConfirm() {
+        // Where the pre-alarm notification's "Desativar" leads.
+        val alarm = env.save(Alarm(hour = 6, minute = 30, label = "Trabalho", days = setOf(0, 1, 2, 3, 4)))
+        val at = nextRingMillis(alarm)
+        main = ActivityScenario.launch(PreAlarmCheck.confirmSkipIntent(context, listOf(Occurrence(alarm.id, at, alarm.label, alarm.hour, alarm.minute))))
+        compose.waitForText(str(R.string.skip_confirm_title))
+        shot("21-confirmar-desativar", ::mainActivity)
     }
 
     @Test

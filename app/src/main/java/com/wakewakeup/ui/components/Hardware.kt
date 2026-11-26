@@ -3,8 +3,10 @@ package com.wakewakeup.ui.components
 import android.provider.Settings
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -23,6 +25,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -32,8 +35,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.dropShadow
 import androidx.compose.ui.draw.innerShadow
 import androidx.compose.ui.geometry.CornerRadius
@@ -41,6 +46,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.StrokeCap
@@ -57,12 +63,13 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.TextUnit
@@ -83,10 +90,10 @@ import com.wakewakeup.ui.theme.GraphiteDark
 import com.wakewakeup.ui.theme.GraphiteLight
 import com.wakewakeup.ui.theme.GrilleFace
 import com.wakewakeup.ui.theme.GrilleHole
+import com.wakewakeup.ui.theme.Housing
 import com.wakewakeup.ui.theme.HousingDeep
 import com.wakewakeup.ui.theme.Ink
 import com.wakewakeup.ui.theme.InkMuted
-import com.wakewakeup.ui.theme.InkOff
 import com.wakewakeup.ui.theme.KeyFaceBottom
 import com.wakewakeup.ui.theme.KeyFaceTop
 import com.wakewakeup.ui.theme.KeyLedOff
@@ -194,6 +201,25 @@ fun Modifier.speakerGrille(shape: Shape = WwuShape.faceplateSmall): Modifier = t
     }
     .topHighlight(shape, 0.06f)
 
+/**
+ * While there is more to scroll, the bottom [height] of a scrolling column fades into the
+ * housing, so the next plate dissolves instead of looking sliced off by the edge. Goes before
+ * verticalScroll: Modifier.weight(1f).bottomFade(scroll).verticalScroll(scroll).
+ */
+fun Modifier.bottomFade(state: ScrollState, height: Dp = 24.dp, color: Color = Housing): Modifier = drawWithContent {
+    drawContent()
+    // Read while drawing, so reaching the end only redraws.
+    if (state.canScrollForward) {
+        val h = height.toPx().coerceAtMost(size.height)
+        val top = size.height - h
+        drawRect(
+            Brush.verticalGradient(listOf(color.copy(alpha = 0f), color), startY = top, endY = size.height),
+            topLeft = Offset(0f, top),
+            size = Size(size.width, h),
+        )
+    }
+}
+
 // ---------------------------------------------------------------------------------------------
 // Text
 // ---------------------------------------------------------------------------------------------
@@ -218,6 +244,7 @@ fun VfdText(
     style: TextStyle = WwuType.vfd(size, tracking),
     textAlign: TextAlign? = null,
     maxLines: Int = Int.MAX_VALUE,
+    overflow: TextOverflow = TextOverflow.Clip,
 ) {
     Text(
         text,
@@ -226,13 +253,35 @@ fun VfdText(
         color = color,
         textAlign = textAlign,
         maxLines = maxLines,
+        overflow = overflow,
     )
 }
 
-/** Screen-print label: 12/600, caps, wide tracking. */
+/**
+ * Screen-print label: 12/600, caps, wide tracking. A label that must stay one word on a narrow
+ * column passes maxLines = 1 and softWrap = false, so it never breaks mid-word.
+ */
 @Composable
-fun PrintLabel(text: String, modifier: Modifier = Modifier, color: Color = InkMuted, style: TextStyle = WwuType.label, textAlign: TextAlign? = null) {
-    Text(text.uppercase(), modifier = modifier, style = style, color = color, textAlign = textAlign)
+fun PrintLabel(
+    text: String,
+    modifier: Modifier = Modifier,
+    color: Color = InkMuted,
+    style: TextStyle = WwuType.label,
+    textAlign: TextAlign? = null,
+    maxLines: Int = Int.MAX_VALUE,
+    softWrap: Boolean = true,
+    overflow: TextOverflow = TextOverflow.Clip,
+) {
+    Text(
+        text.uppercase(),
+        modifier = modifier,
+        style = style,
+        color = color,
+        textAlign = textAlign,
+        maxLines = maxLines,
+        softWrap = softWrap,
+        overflow = overflow,
+    )
 }
 
 /** Back row: 48×48 "‹" + title 20/600. */
@@ -354,7 +403,12 @@ fun RoundButton(
     }
 }
 
-/** Round button with its screen-print caption underneath. */
+/**
+ * Round button with its screen-print caption underneath. [reserveLabel] is the other caption
+ * the button switches to (EXCLUIR / TOQUE DE NOVO): the column keeps room for the longer one,
+ * so the key never moves under the finger between taps. [labelPlate] prints the caption on a
+ * small plate where the background behind it is busy (the sunrise).
+ */
 @Composable
 fun LabeledRoundButton(
     label: String,
@@ -367,11 +421,24 @@ fun LabeledRoundButton(
     gap: Dp = 8.dp,
     baseDepth: Dp = 4.dp,
     softShadow: Shadow? = null,
+    reserveLabel: String? = null,
+    labelPlate: Color? = null,
     glyph: @Composable BoxScope.() -> Unit,
 ) {
     Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(gap)) {
         RoundButton(onClick = onClick, size = size, style = style, contentDescription = label, baseDepth = baseDepth, softShadow = softShadow, content = glyph)
-        PrintLabel(label, color = labelColor, style = labelStyle, textAlign = TextAlign.Center)
+        // The button already reads the label; without this TalkBack would stop on the caption too.
+        Box(
+            Modifier
+                .clearAndSetSemantics {}
+                .then(if (labelPlate != null) Modifier.background(labelPlate, WwuShape.field).padding(horizontal = 12.dp, vertical = 6.dp) else Modifier),
+            contentAlignment = Alignment.Center,
+        ) {
+            PrintLabel(label, color = labelColor, style = labelStyle, textAlign = TextAlign.Center)
+            if (reserveLabel != null) {
+                PrintLabel(reserveLabel, Modifier.alpha(0f), color = labelColor, style = labelStyle, textAlign = TextAlign.Center)
+            }
+        }
     }
 }
 
@@ -441,7 +508,9 @@ fun PlayGlyph(width: Dp, height: Dp, color: Color = OnAction, nudge: Dp = 0.dp) 
 
 /**
  * Latching key ("piano key"): raised with a 3 dp base when up; sunk 2 dp with an inner shadow
- * and a lit orange LED when down.
+ * and a lit orange LED when down. [Role.Checkbox] latches on and off by itself (a day);
+ * [Role.RadioButton] is one choice of several (a mode, a difficulty), and the row holding the
+ * group adds Modifier.selectableGroup().
  */
 @Composable
 fun LatchKey(
@@ -451,20 +520,24 @@ fun LatchKey(
     shape: Shape = WwuShape.keySmall,
     description: String? = null,
     visualInset: Dp = 0.dp,
+    role: Role = Role.Checkbox,
     content: @Composable BoxScope.(down: Boolean) -> Unit,
 ) {
     val haptic = LocalHapticFeedback.current
     val sink by animateDpAsState(if (down) 2.dp else 0.dp, tween(PRESS_MS), label = "latch")
+    val interaction = remember { MutableInteractionSource() }
+    val press = {
+        haptic.performHapticFeedback(HapticFeedbackType.VirtualKey)
+        onClick()
+    }
     Box(
-        modifier = modifier
-            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, role = Role.Checkbox) {
-                haptic.performHapticFeedback(HapticFeedbackType.VirtualKey)
-                onClick()
-            }
-            .semantics {
-                if (description != null) contentDescription = description
-                selected = down
+        modifier = modifier.then(
+            if (role == Role.RadioButton) {
+                Modifier.selectable(selected = down, interactionSource = interaction, indication = null, role = role, onClick = press)
+            } else {
+                Modifier.toggleable(value = down, interactionSource = interaction, indication = null, role = role, onValueChange = { press() })
             },
+        ),
     ) {
         Box(
             modifier = Modifier
@@ -480,7 +553,15 @@ fun LatchKey(
                     },
                 ),
         )
-        Box(Modifier.matchParentSize().padding(horizontal = visualInset).graphicsLayer { translationY = sink.toPx() }) { content(down) }
+        // The description sits on the printed face rather than on the key, so TalkBack reads it
+        // in place of the face ("segunda", not "segunda, SEG").
+        Box(
+            Modifier
+                .matchParentSize()
+                .padding(horizontal = visualInset)
+                .graphicsLayer { translationY = sink.toPx() }
+                .then(if (description != null) Modifier.semantics { contentDescription = description } else Modifier),
+        ) { content(down) }
     }
 }
 
@@ -507,9 +588,24 @@ fun Lamp(color: Color, lit: Boolean = true, size: Dp = 8.dp, glowAlpha: Float = 
     )
 }
 
-/** Rectangular orange action key (ATIVAR, PERMITIR): 48 dp tall, sinks 2 dp. */
+/**
+ * A rectangular key's printed text. TalkBack reads [contentDescription], when there is one, in
+ * place of it: four PERMITIR keys in a row need to say which permission each one allows.
+ */
 @Composable
-fun OrangeKey(text: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+private fun KeyText(text: String, color: Color, contentDescription: String?) {
+    Text(
+        text.uppercase(),
+        modifier = if (contentDescription != null) Modifier.semantics { this.contentDescription = contentDescription } else Modifier,
+        style = WwuType.label,
+        color = color,
+        maxLines = 1,
+    )
+}
+
+/** Rectangular orange action key (PULAR, PERMITIR): 48 dp tall, sinks 2 dp. */
+@Composable
+fun OrangeKey(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, contentDescription: String? = null) {
     val interaction = remember { MutableInteractionSource() }
     val travel = pressTravel(interaction, 2.dp)
     val haptic = LocalHapticFeedback.current
@@ -528,13 +624,13 @@ fun OrangeKey(text: String, onClick: () -> Unit, modifier: Modifier = Modifier) 
             .padding(horizontal = 16.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Text(text.uppercase(), style = WwuType.label, color = OnAction, maxLines = 1)
+        KeyText(text, OnAction, contentDescription)
     }
 }
 
 /** Rectangular graphite key for the quieter choice beside an orange one (DESFAZER, MANTER). */
 @Composable
-fun GraphiteKey(text: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+fun GraphiteKey(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, contentDescription: String? = null) {
     val interaction = remember { MutableInteractionSource() }
     val travel = pressTravel(interaction, 2.dp)
     val haptic = LocalHapticFeedback.current
@@ -553,7 +649,7 @@ fun GraphiteKey(text: String, onClick: () -> Unit, modifier: Modifier = Modifier
             .padding(horizontal = 16.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Text(text.uppercase(), style = WwuType.label, color = Ink, maxLines = 1)
+        KeyText(text, Ink, contentDescription)
     }
 }
 
@@ -573,9 +669,13 @@ fun SunkKey(text: String, modifier: Modifier = Modifier, color: Color = Vfd) {
     }
 }
 
-/** Full-width pill (CONTINUAR): orange when enabled, sunk otherwise. Always tappable. */
+/**
+ * Full-width pill (CONTINUAR). [primary] is the orange way forward; otherwise a raised graphite
+ * pill for the quieter way out (continuing without every permission). Both are real keys: a
+ * sunk pill would read as disabled although it can be tapped.
+ */
 @Composable
-fun PillButton(text: String, enabled: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+fun PillButton(text: String, primary: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val interaction = remember { MutableInteractionSource() }
     val travel = pressTravel(interaction, 2.dp)
     val haptic = LocalHapticFeedback.current
@@ -585,11 +685,11 @@ fun PillButton(text: String, enabled: Boolean, onClick: () -> Unit, modifier: Mo
             .fillMaxWidth()
             .height(56.dp)
             .clickable(interactionSource = interaction, indication = null, role = Role.Button) {
-                haptic.performHapticFeedback(if (enabled) HapticFeedbackType.Confirm else HapticFeedbackType.Reject)
+                haptic.performHapticFeedback(if (primary) HapticFeedbackType.Confirm else HapticFeedbackType.VirtualKey)
                 onClick()
             }
             .then(
-                if (enabled) {
+                if (primary) {
                     Modifier
                         .dropShadow(shape, blur(14.dp, 8.dp, 0.5f))
                         .solidBase(shape, ActionBase, 3.dp - travel)
@@ -605,14 +705,15 @@ fun PillButton(text: String, enabled: Boolean, onClick: () -> Unit, modifier: Mo
                         }
                 } else {
                     Modifier
+                        .solidBase(shape, HousingDeep, 3.dp - travel)
                         .graphicsLayer { translationY = travel.toPx() }
-                        .background(KeyPressed, shape)
-                        .innerShadow(shape, blur(4.dp, 2.dp, 0.8f))
+                        .background(Brush.verticalGradient(listOf(KeyFaceTop, KeyFaceBottom)), shape)
+                        .topHighlight(shape, 0.08f, Color.White)
                 },
             ),
         contentAlignment = Alignment.Center,
     ) {
-        Text(text.uppercase(), style = WwuType.pill, color = if (enabled) OnAction else InkOff)
+        Text(text.uppercase(), style = WwuType.pill, color = if (primary) OnAction else Ink)
     }
 }
 
@@ -640,6 +741,9 @@ fun SlideSwitch(
         if (reduce) tween(0) else tween(240, easing = SnapEasing),
         label = "knob",
     )
+    // Off goes dark: the knob covers the window but not its glow, which would leave a warm halo
+    // around an alarm that won't ring.
+    val lit by animateFloatAsState(if (checked) 1f else 0f, if (reduce) tween(0) else tween(240), label = "window")
     val trackShape = WwuShape.field
     Box(
         modifier = modifier
@@ -672,6 +776,12 @@ fun SlideSwitch(
                     .padding(start = 4.dp, top = 4.dp, bottom = 4.dp)
                     .width(22.dp)
                     .fillMaxHeight()
+                    .graphicsLayer {
+                        alpha = lit
+                        // Fades each draw instead of an offscreen copy, which would crop the glow
+                        // to the window while it fades.
+                        compositingStrategy = CompositingStrategy.ModulateAlpha
+                    }
                     .glow(window, Action, 8.dp, 0.5f)
                     .background(Action, window),
             )
@@ -830,13 +940,14 @@ fun PlateDivider(modifier: Modifier = Modifier) {
     Box(modifier.fillMaxWidth().height(1.dp).background(com.wakewakeup.ui.theme.Divider))
 }
 
-/** A labelled readout inside a small visor (ALARME 06:30). */
+/** A labelled readout inside a small visor (ALARME 06:30), read by TalkBack as one stop. */
 @Composable
 fun RowScope.VisorStat(label: String, value: String, bright: Boolean = false) {
     Column(
         Modifier
             .weight(1f)
             .visor(WwuShape.visorSmall, lip = false)
+            .semantics(mergeDescendants = true) {}
             .padding(10.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {

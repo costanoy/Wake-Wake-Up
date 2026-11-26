@@ -21,7 +21,8 @@ import kotlinx.coroutines.launch
 /**
  * Short previews on the alarm stream, so what you hear is how loud the alarm will be.
  * The preview window is counted from when audio actually starts (a radio stream needs a
- * moment to connect), and [previewing] says which sound, if any, is on right now.
+ * moment to connect), a preview that never starts gives up after a while, and [previewing]
+ * says which sound, if any, is on right now.
  */
 class SoundPreview(private val context: Context, private val scope: CoroutineScope) {
     private var player: MediaPlayer? = null
@@ -41,6 +42,11 @@ class SoundPreview(private val context: Context, private val scope: CoroutineSco
         val mp = MediaPlayer()
         player = mp
         previewing = uri ?: DEFAULT
+        // A station can take the connection and never send audio: don't stay lit waiting for it.
+        stopJob = scope.launch {
+            delay(START_TIMEOUT_MS)
+            stop()
+        }
         runCatching {
             mp.setAudioAttributes(
                 AudioAttributes.Builder()
@@ -52,6 +58,7 @@ class SoundPreview(private val context: Context, private val scope: CoroutineSco
             mp.setOnPreparedListener {
                 if (player !== mp) return@setOnPreparedListener
                 it.start()
+                stopJob?.cancel()
                 stopJob = scope.launch {
                     delay(durationMs)
                     stop()
@@ -76,6 +83,7 @@ class SoundPreview(private val context: Context, private val scope: CoroutineSco
 
     companion object {
         private const val DEFAULT = "default"
+        private const val START_TIMEOUT_MS = 10_000L
     }
 }
 

@@ -7,8 +7,9 @@ import android.os.PowerManager
 import android.provider.Settings
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
+import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
-import androidx.compose.ui.test.onFirst
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.lifecycle.Lifecycle
@@ -49,7 +50,15 @@ class PermissionsUiTest {
         compose.waitForIdle()
     }
 
-    private fun granted() = AlarmPermission.entries.count { AlarmPermissions.isGranted(context, it) }
+    /** What "x de 3" counts: battery is only recommended. */
+    private val required = AlarmPermission.entries.filter { it.required }
+
+    private fun granted() = required.count { AlarmPermissions.isGranted(context, it) }
+
+    private val plateTitles = listOf(R.string.perm_notifications_title, R.string.perm_exact_title, R.string.perm_fullscreen_title, R.string.perm_battery_title)
+
+    /** What TalkBack calls the PERMITIR key of the plate titled [title]. */
+    private fun allowKey(title: Int) = str(R.string.cd_allow, str(title))
 
     private fun grantAllButFullScreen() {
         shadowOf(context).grantPermissions(Manifest.permission.POST_NOTIFICATIONS)
@@ -61,15 +70,17 @@ class PermissionsUiTest {
     fun firstLaunchWalksThroughThePermissionsOnce() {
         launch()
         compose.waitForText(str(R.string.perm_title))
-        compose.onNodeWithText(str(R.string.perm_count, granted(), 4).uppercase()).assertIsDisplayed()
-        for (title in listOf(R.string.perm_notifications_title, R.string.perm_exact_title, R.string.perm_fullscreen_title, R.string.perm_battery_title)) {
+        compose.onNodeWithText(str(R.string.perm_count, granted(), 3).uppercase()).assertIsDisplayed()
+        for (title in plateTitles) {
             compose.onNodeWithText(str(title)).assertIsDisplayed()
         }
+        // Battery is there too, marked as only recommended.
+        compose.onNodeWithText(str(R.string.perm_recommended).uppercase()).assertIsDisplayed()
 
         // Continuing with something missing warns first, then lets you through.
         compose.onNodeWithText(str(R.string.continue_label).uppercase()).performClick()
         compose.waitForText(str(R.string.perm_nag))
-        compose.onNodeWithText(str(R.string.continue_label).uppercase()).performClick()
+        compose.onNodeWithText(str(R.string.continue_anyway).uppercase()).performClick()
         compose.waitForText(str(R.string.empty_title))
 
         // Never again after that.
@@ -83,10 +94,10 @@ class PermissionsUiTest {
     fun notificationsAreAskedInTheAppOnlyTheFirstTime() {
         launch()
         compose.waitForText(str(R.string.perm_title))
-        val allow = str(R.string.allow).uppercase()
+        val allow = allowKey(R.string.perm_notifications_title)
 
         // First tap: the system permission dialog.
-        compose.onAllNodesWithText(allow).onFirst().performClick()
+        compose.onNodeWithContentDescription(allow).performClick()
         compose.waitForIdle()
         var asked: List<String>? = null
         scenario!!.onActivity { asked = shadowOf(it).lastRequestedPermission?.requestedPermissions?.toList() }
@@ -95,7 +106,7 @@ class PermissionsUiTest {
 
         // A "no" can only be undone in Settings, so the next tap goes there.
         shadowOf(context).clearNextStartedActivities()
-        compose.onAllNodesWithText(allow).onFirst().performClick()
+        compose.onNodeWithContentDescription(allow).performClick()
         compose.waitForIdle()
         assertEquals(Settings.ACTION_APP_NOTIFICATION_SETTINGS, shadowOf(context).nextStartedActivity?.action)
     }
@@ -105,13 +116,15 @@ class PermissionsUiTest {
         launch()
         compose.waitForText(str(R.string.perm_title))
         val pages = mutableListOf<String?>()
-        val allow = str(R.string.allow).uppercase()
         // Notifications are first; skip the in-app dialog by marking it asked.
         AlarmPermissions.markNotificationsAsked(context)
-        val rows = compose.onAllNodesWithText(allow).fetchSemanticsNodes().size
-        for (i in 0 until rows) {
+        for (title in plateTitles) {
+            // Each key says which permission it allows, so TalkBack doesn't read four alike.
+            val key = allowKey(title)
+            // Exact alarms are already allowed (AppEnv): that plate shows LIBERADO instead.
+            if (compose.onAllNodesWithContentDescription(key).fetchSemanticsNodes().isEmpty()) continue
             shadowOf(context).clearNextStartedActivities()
-            compose.onAllNodesWithText(allow)[i].performClick()
+            compose.onNodeWithContentDescription(key).performClick()
             compose.waitForIdle()
             val intent = shadowOf(context).nextStartedActivity
             pages += intent?.action
@@ -120,6 +133,7 @@ class PermissionsUiTest {
                 assertEquals("package:${context.packageName}", intent?.data.toString())
             }
         }
+        assertEquals(pages.toString(), 3, pages.size)
         assertTrue(pages.toString(), pages.contains(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
         assertTrue(pages.toString(), pages.all { it != null })
     }
@@ -132,7 +146,7 @@ class PermissionsUiTest {
         grantAllButFullScreen()
         scenario!!.moveToState(Lifecycle.State.STARTED)
         scenario!!.moveToState(Lifecycle.State.RESUMED)
-        compose.waitForText(str(R.string.perm_count, granted(), 4).uppercase())
+        compose.waitForText(str(R.string.perm_count, granted(), 3).uppercase())
         assertTrue(granted() > before)
         assertTrue(compose.onAllNodesWithText(str(R.string.allowed).uppercase()).fetchSemanticsNodes().size >= 3)
     }
@@ -161,5 +175,16 @@ class PermissionsUiTest {
         ShadowAlarmManager.setCanScheduleExactAlarms(true)
         assertTrue(AlarmPermissions.isGranted(context, AlarmPermission.EXACT_ALARMS))
         assertTrue((context.getSystemService(Context.ALARM_SERVICE) as AlarmManager).canScheduleExactAlarms())
+    }
+
+    @Test
+    fun batteryIsOnlyRecommended() {
+        assertEquals(3, required.size)
+        assertFalse(AlarmPermission.BATTERY.required)
+        // Exact alarms come allowed (AppEnv) and Robolectric can't allow the full screen.
+        shadowOf(context).grantPermissions(Manifest.permission.POST_NOTIFICATIONS)
+        assertFalse(AlarmPermissions.isGranted(context, AlarmPermission.BATTERY))
+        // Battery saving still on, yet only the full screen counts as missing.
+        assertEquals(listOf(AlarmPermission.FULL_SCREEN), AlarmPermissions.missingRequired(context))
     }
 }

@@ -1,7 +1,7 @@
 package com.wakewakeup.ui.navigation
 
 object Destinations {
-    const val PERMISSIONS = "permissions"
+    const val PERMISSIONS = "permissions?fromList={fromList}"
     const val LIST = "list"
     const val EDIT = "edit/{alarmId}"
     const val TASK = "task"
@@ -13,7 +13,11 @@ object Destinations {
     const val ARG_ALARM_ID = "alarmId"
     const val ARG_SKIP_IDS = "ids"
     const val ARG_SKIP_ATS = "ats"
+    const val ARG_FROM_LIST = "fromList"
     const val NEW_ALARM_ID = -1L
+
+    /** [fromList]: opened from the list's warning, so it returns there instead of leading on. */
+    fun permissions(fromList: Boolean) = "permissions?fromList=$fromList"
 
     fun edit(alarmId: Long) = "edit/$alarmId"
 

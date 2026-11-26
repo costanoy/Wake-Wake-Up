@@ -26,6 +26,8 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.DpOffset
@@ -153,13 +155,23 @@ fun GoodMorningScreen(
                     Text(stringResource(R.string.see_stats), style = WwuType.bodyS, color = InkMuted)
                     Chevron(color = InkMuted, size = 12.dp)
                 }
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    PrintLabel(stringResource(R.string.done), color = Ink)
+                // CONCLUIR and its ✓ are one target, and one stop for TalkBack: a thumb that lands
+                // on the caption starts the day too.
+                val done = stringResource(R.string.done)
+                Row(
+                    Modifier
+                        .heightIn(min = 48.dp)
+                        .clickable(role = Role.Button, onClick = onStartDay)
+                        .clearAndSetSemantics { contentDescription = done },
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    PrintLabel(done, color = Ink)
                     RoundButton(
                         onClick = onStartDay,
                         size = 60.dp,
                         style = RoundStyle.Action,
-                        contentDescription = stringResource(R.string.done),
+                        contentDescription = null,
                         baseDepth = 3.dp,
                     ) { CheckGlyph(60.dp) }
                 }

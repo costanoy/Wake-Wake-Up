@@ -22,11 +22,19 @@ class RadioBrowserTest {
         val stations = RadioBrowser.search("", "BR")
         assertEquals(
             listOf(
-                RadioStation("Radio Um", "https://um.example/stream", "Brazil", "pop, rock"),
-                RadioStation("Radio Dois", "https://dois.example/live", "Brazil", ""),
+                RadioStation("Radio Um", "https://um.example/stream", "Brazil", "BR", "pop, rock"),
+                RadioStation("Radio Dois", "https://dois.example/live", "Brazil", "BR", ""),
+                RadioStation("Radio Tres", "https://tres.example/stream", "The United States Of America", "US", "talk"),
             ),
             stations,
         )
+    }
+
+    @Test
+    fun aStationWithoutACountryCodeKeepsAnEmptyOne() = runBlocking {
+        FakeRadio.body = """[{"name": "Radio Sem Pais", "url_resolved": "https://sempais.example/stream", "country": "Brazil", "tags": ""}]"""
+        // The screen then falls back to the directory's own country name.
+        assertEquals("", RadioBrowser.search("", "BR").single().countryCode)
     }
 
     @Test

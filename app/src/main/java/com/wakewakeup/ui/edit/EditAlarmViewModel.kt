@@ -28,19 +28,27 @@ class EditAlarmViewModel(application: Application) : AndroidViewModel(applicatio
     var isNew by mutableStateOf(true)
         private set
 
+    /** The alarm as the editor opened it, so leaving can tell whether anything would be lost. */
+    private var original = defaultDraft()
+
+    /** True when leaving now would lose a change, here or on the task and sound screens. */
+    val isDirty: Boolean get() = draft != original
+
     private var loadedForId: Long? = null
     private var busy = false
 
     fun startNew() {
         loadedForId = Destinations.NEW_ALARM_ID
         isNew = true
-        draft = defaultDraft()
+        original = defaultDraft()
+        draft = original
     }
 
     /** Opening an alarm from the list: its card already has it, so the editor never shows a stale draft. */
     fun startEdit(alarm: Alarm) {
         loadedForId = alarm.id
         isNew = false
+        original = alarm
         draft = alarm
     }
 
@@ -49,7 +57,10 @@ class EditAlarmViewModel(application: Application) : AndroidViewModel(applicatio
         loadedForId = alarmId
         isNew = false
         viewModelScope.launch {
-            repository.getById(alarmId)?.let { draft = it }
+            repository.getById(alarmId)?.let {
+                original = it
+                draft = it
+            }
         }
     }
 
@@ -69,6 +80,12 @@ class EditAlarmViewModel(application: Application) : AndroidViewModel(applicatio
     fun setMinute(minute: Int) {
         draft = draft.copy(minute = minute)
     }
+
+    // The time drums step from the draft itself rather than from the value they last drew: a fast
+    // drag or a flick steps several times between two frames.
+    fun stepHour(delta: Int) = setHour(Math.floorMod(draft.hour + delta, 24))
+
+    fun stepMinute(delta: Int) = setMinute(Math.floorMod(draft.minute + delta, 60))
 
     fun toggleDay(dayIndex: Int) {
         val days = draft.days.toMutableSet()
@@ -108,6 +125,7 @@ class EditAlarmViewModel(application: Application) : AndroidViewModel(applicatio
             try {
                 val id = repository.save(draft.copy(enabled = true))
                 draft = draft.copy(id = id, enabled = true)
+                original = draft
                 isNew = false
                 loadedForId = null
                 onSaved()

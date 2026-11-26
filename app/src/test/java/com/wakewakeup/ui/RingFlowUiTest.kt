@@ -2,14 +2,18 @@ package com.wakewakeup.ui
 
 import android.content.Intent
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertWidthIsEqualTo
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
+import androidx.compose.ui.test.onAllNodesWithContentDescription
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.wakewakeup.MainActivity
@@ -24,6 +28,7 @@ import com.wakewakeup.session.MissionGenerator
 import com.wakewakeup.session.RingActivity
 import com.wakewakeup.session.SessionScreen
 import com.wakewakeup.testing.AppEnv
+import com.wakewakeup.ui.components.formatClock
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -37,6 +42,7 @@ import org.robolectric.Robolectric
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.android.controller.ServiceController
 import org.robolectric.annotation.Config
+import java.time.LocalTime
 
 /**
  * The whole wake-up, the way it happens on the phone: the service starts ringing, the ring
@@ -52,6 +58,7 @@ class RingFlowUiTest {
     private var service: ServiceController<AlarmRingService>? = null
     private var screen: ActivityScenario<RingActivity>? = null
     private var startId = 0
+    private var ringScreenOpenedAt: LocalTime = LocalTime.now()
 
     @After
     fun close() {
@@ -86,6 +93,7 @@ class RingFlowUiTest {
         service!!.startCommand(0, ++startId)
         waitFor("ringing") { session != null }
         assertTrue(RingActivity::class.java.name in openedActivities())
+        ringScreenOpenedAt = LocalTime.now()
         screen = ActivityScenario.launch(RingActivity::class.java)
         compose.waitForDescription(str(R.string.start_mission))
         openedActivities()
@@ -106,10 +114,32 @@ class RingFlowUiTest {
         }
     }
 
+    /** Starts the mission and answers it right, on to Bom dia. */
+    private fun solveTheMission() {
+        compose.onNodeWithContentDescription(str(R.string.start_mission)).performClick()
+        waitFor("mission") { session?.screen == SessionScreen.MISSION }
+        pressKeys(session!!.mission!!.answer)
+        waitFor("typed") { session?.mission?.typed == session?.mission?.answer }
+        compose.onNodeWithContentDescription(str(R.string.confirm)).performClick()
+        waitFor("good morning") { session?.screen == SessionScreen.GOOD_MORNING }
+        compose.waitForText(str(R.string.good_morning))
+    }
+
+    /** The ringing clock reads the time now: the minute the screen opened, or the one after. */
+    private fun assertClockShowsNow() {
+        val now = listOf(ringScreenOpenedAt, LocalTime.now()).map { formatClock(it.hour, it.minute) }.distinct()
+        assertTrue(
+            "the clock should read ${now.joinToString(" or ")}",
+            now.any { compose.onAllNodesWithContentDescription(it).fetchSemanticsNodes().isNotEmpty() },
+        )
+    }
+
     @Test
     fun theWholeRitualFromRingingToGoodMorning() {
         ring()
-        compose.onNodeWithContentDescription("06:30").assertIsDisplayed()
+        // The big digits are the time now; the alarm's own time is printed under them.
+        assertClockShowsNow()
+        compose.onNodeWithText(str(R.string.ring_alarm_at, "06:30").uppercase()).assertIsDisplayed()
         compose.onNodeWithText(str(R.string.espere_title).uppercase()).assertIsDisplayed()
 
         // Espere: five quiet minutes, counted.
@@ -117,6 +147,8 @@ class RingFlowUiTest {
         waitFor("espere") { session?.holdUntilMillis != null }
         compose.waitForText(str(R.string.espere_returns_in))
         compose.onNodeWithText(str(R.string.times, 1)).assertIsDisplayed()
+        // The countdown is labelled minutes and seconds, so it doesn't read as a time of day.
+        compose.onNodeWithText(str(R.string.second_short).uppercase(), useUnmergedTree = true).assertIsDisplayed()
 
         // "I'm up": the mission.
         compose.onNodeWithContentDescription(str(R.string.awake_start_mission)).performClick()
@@ -124,6 +156,8 @@ class RingFlowUiTest {
         compose.waitForText(str(R.string.problem_of, 1, 1).uppercase())
         val mission = session!!.mission!!
         compose.onNodeWithText("${mission.question} =").assertIsDisplayed()
+        // Keys sized to the screen: 76 dp on a 411 dp phone.
+        compose.onNode(hasText("7") and hasClickAction()).assertWidthIsEqualTo(76.dp)
 
         // A wrong answer first.
         val wrong = if (mission.answer == "99") "98" else "99"
@@ -150,14 +184,25 @@ class RingFlowUiTest {
     }
 
     @Test
+    fun afterAnEspereTheBarCountsInsteadOfSayingNoLimit() {
+        ring()
+        compose.onNodeWithText(str(R.string.espere_sub).uppercase()).assertIsDisplayed()
+        compose.onNodeWithText(str(R.string.espere_title).uppercase()).performClick()
+        waitFor("espere") { session?.holdUntilMillis != null }
+
+        // Espere runs on the wall clock, which Robolectric doesn't fast-forward: end its five
+        // minutes by hand. Then it rings again.
+        AlarmRingService::class.java.getDeclaredField("holdUntilMillis").apply { isAccessible = true }
+            .set(service!!.get(), System.currentTimeMillis() - 1)
+        waitFor("ringing again") { session?.holdUntilMillis == null }
+        compose.waitForText(str(R.string.espere_used_n, 1).uppercase())
+        assertTrue(compose.onAllNodesWithText(str(R.string.espere_sub).uppercase()).fetchSemanticsNodes().isEmpty())
+    }
+
+    @Test
     fun seeStatsOpensTheStatsScreen() {
         ring()
-        compose.onNodeWithContentDescription(str(R.string.start_mission)).performClick()
-        waitFor("mission") { session?.screen == SessionScreen.MISSION }
-        pressKeys(session!!.mission!!.answer)
-        waitFor("typed") { session?.mission?.typed == session?.mission?.answer }
-        compose.onNodeWithContentDescription(str(R.string.confirm)).performClick()
-        waitFor("good morning") { session?.screen == SessionScreen.GOOD_MORNING }
+        solveTheMission()
         compose.waitForText(str(R.string.see_stats))
         compose.onNodeWithText(str(R.string.see_stats)).performClick()
         waitFor("main screen opened") { MainActivity::class.java.name in openedActivities() }
@@ -165,11 +210,24 @@ class RingFlowUiTest {
     }
 
     @Test
+    fun theConcluirCaptionIsPartOfItsKey() {
+        ring()
+        solveTheMission()
+        // One stop for TalkBack, and the caption is as good a target as the ✓.
+        assertEquals(1, compose.onAllNodesWithContentDescription(str(R.string.done)).fetchSemanticsNodes().size)
+        compose.onNodeWithText(str(R.string.done).uppercase(), useUnmergedTree = true).performClick()
+        waitFor("session over") { session == null }
+    }
+
+    @Test
     fun cantSolveItSwitchesToTypingThePhrase() {
         ring()
         compose.onNodeWithContentDescription(str(R.string.start_mission)).performClick()
         waitFor("mission") { session?.screen == SessionScreen.MISSION }
+        // Two taps: the first only arms the key.
         compose.onNodeWithText(str(R.string.cant_solve).uppercase()).performClick()
+        compose.waitForText(str(R.string.cant_solve_confirm).uppercase())
+        compose.onNodeWithText(str(R.string.cant_solve_confirm).uppercase()).performClick()
         waitFor("phrase") { session?.mission?.type == TaskType.PHRASE }
         val phrase = MissionGenerator.phraseOfTheDay()
         compose.waitForText(str(R.string.type_phrase_short).uppercase())
@@ -180,6 +238,21 @@ class RingFlowUiTest {
         compose.waitForText(str(R.string.chars_of, phrase.length, phrase.length))
         compose.onNodeWithContentDescription(str(R.string.confirm)).performClick()
         waitFor("good morning") { session?.screen == SessionScreen.GOOD_MORNING }
+    }
+
+    @Test
+    fun aStrayTapOnCantSolveKeepsTheSums() {
+        ring()
+        compose.onNodeWithContentDescription(str(R.string.start_mission)).performClick()
+        waitFor("mission") { session?.screen == SessionScreen.MISSION }
+        compose.onNodeWithText(str(R.string.cant_solve).uppercase()).performClick()
+        compose.waitForText(str(R.string.cant_solve_confirm).uppercase())
+
+        // Left alone, it disarms after 3 seconds, and the mission is still the sums.
+        compose.mainClock.advanceTimeBy(3_100)
+        compose.waitForText(str(R.string.cant_solve).uppercase())
+        pump()
+        assertEquals(TaskType.MATH, session?.mission?.type)
     }
 
     @Test

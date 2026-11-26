@@ -1,6 +1,8 @@
 package com.wakewakeup.ui.edit
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.exponentialDecay
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
@@ -30,6 +32,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -39,16 +42,26 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.setProgress
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import com.wakewakeup.R
 import com.wakewakeup.ui.components.BackHeader
 import com.wakewakeup.ui.components.CheckGlyph
@@ -58,23 +71,29 @@ import com.wakewakeup.ui.components.CrossGlyph
 import com.wakewakeup.ui.components.DayKeys
 import com.wakewakeup.ui.components.FlipNumber
 import com.wakewakeup.ui.components.FlipSize
+import com.wakewakeup.ui.components.GraphiteKey
 import com.wakewakeup.ui.components.LabeledRoundButton
+import com.wakewakeup.ui.components.OrangeKey
 import com.wakewakeup.ui.components.PlateDivider
 import com.wakewakeup.ui.components.PrintLabel
 import com.wakewakeup.ui.components.RoundStyle
+import com.wakewakeup.ui.components.bottomFade
 import com.wakewakeup.ui.components.faceplate
 import com.wakewakeup.ui.components.softShadow
 import com.wakewakeup.ui.components.taskSummary
 import com.wakewakeup.ui.components.visor
+import com.wakewakeup.ui.theme.ErrorText
 import com.wakewakeup.ui.theme.Housing
 import com.wakewakeup.ui.theme.Ink
 import com.wakewakeup.ui.theme.InkMuted
-import com.wakewakeup.ui.theme.ErrorText
 import com.wakewakeup.ui.theme.Vfd
 import com.wakewakeup.ui.theme.WwuShape
 import com.wakewakeup.ui.theme.WwuType
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlin.math.abs
+import kotlin.math.roundToInt
 
 @Composable
 fun EditAlarmScreen(
@@ -89,13 +108,30 @@ fun EditAlarmScreen(
     LaunchedEffect(alarmId) { viewModel.load(alarmId) }
     val draft = viewModel.draft
     val isNew = viewModel.isNew
-    val leave = {
+
+    // ‹ and the system Back leave the same way: straight out when nothing changed, otherwise
+    // after asking, so a stray Back never throws edits away unseen.
+    var askingToLeave by rememberSaveable { mutableStateOf(false) }
+    fun discardAndLeave() {
+        askingToLeave = false
         viewModel.discardUnsaved()
         onCancel()
     }
-    // The system Back leaves the way the header's does: without saving, and without the edits
-    // waiting there the next time this alarm is opened.
-    BackHandler(onBack = leave)
+    fun leave() {
+        if (viewModel.isDirty) askingToLeave = true else discardAndLeave()
+    }
+    BackHandler { leave() }
+    if (askingToLeave) {
+        LeaveDialog(
+            isNew = isNew,
+            onDismiss = { askingToLeave = false },
+            onDiscard = { discardAndLeave() },
+            onSave = {
+                askingToLeave = false
+                viewModel.save(onSaved)
+            },
+        )
+    }
 
     // Delete needs two taps: the first arms it ("TOQUE DE NOVO"), which disarms after 3 s.
     var deleteArmed by rememberSaveable { mutableStateOf(false) }
@@ -117,21 +153,44 @@ fun EditAlarmScreen(
         BackHeader(
             title = stringResource(if (isNew) R.string.new_alarm else R.string.edit_alarm),
             backDescription = stringResource(R.string.cd_back),
-            onBack = leave,
+            onBack = { leave() },
         )
 
+        val scroll = rememberScrollState()
         Column(
             Modifier
                 .weight(1f)
-                .verticalScroll(rememberScrollState()),
+                .bottomFade(scroll)
+                .verticalScroll(scroll),
         ) {
             TimePickerVisor(
                 hour = draft.hour,
                 minute = draft.minute,
                 onHour = viewModel::setHour,
                 onMinute = viewModel::setMinute,
+                onHourStep = viewModel::stepHour,
+                onMinuteStep = viewModel::stepMinute,
                 modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 10.dp),
             )
+
+            // The days right under the time: together they say when it rings.
+            PrintLabel(
+                stringResource(R.string.days),
+                modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 8.dp),
+            )
+            DayKeys(
+                activeDays = draft.days,
+                onToggle = viewModel::toggleDay,
+                modifier = Modifier.padding(horizontal = 10.dp),
+            )
+            if (draft.days.isEmpty()) {
+                Text(
+                    stringResource(R.string.days_none_hint),
+                    style = WwuType.caption,
+                    color = InkMuted,
+                    modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 8.dp),
+                )
+            }
 
             Column(
                 Modifier
@@ -150,7 +209,7 @@ fun EditAlarmScreen(
                         contentAlignment = Alignment.CenterStart,
                     ) {
                         if (draft.label.isEmpty()) {
-                            Text(stringResource(R.string.name_hint), style = WwuType.body, color = InkMuted.copy(alpha = 0.6f), maxLines = 1)
+                            Text(stringResource(R.string.name_hint), style = WwuType.body, color = InkMuted.copy(alpha = 0.8f), maxLines = 1)
                         }
                         BasicTextField(
                             value = draft.label,
@@ -184,16 +243,6 @@ fun EditAlarmScreen(
                     )
                 }
             }
-
-            PrintLabel(
-                stringResource(R.string.days),
-                modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 18.dp, bottom = 8.dp),
-            )
-            DayKeys(
-                activeDays = draft.days,
-                onToggle = viewModel::toggleDay,
-                modifier = Modifier.padding(horizontal = 10.dp),
-            )
             Spacer(Modifier.height(24.dp))
         }
 
@@ -201,25 +250,33 @@ fun EditAlarmScreen(
             Modifier
                 .fillMaxWidth()
                 .padding(start = 40.dp, end = 40.dp, bottom = 32.dp, top = 8.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
+            // A new alarm has nothing to delete yet (‹ abandons it), and SALVAR keeps its place.
+            horizontalArrangement = if (isNew) Arrangement.End else Arrangement.SpaceBetween,
             verticalAlignment = Alignment.Bottom,
         ) {
-            LabeledRoundButton(
-                label = stringResource(if (deleteArmed) R.string.delete_confirm else R.string.delete),
-                onClick = {
-                    if (deleteArmed) {
-                        deleteArmed = false
-                        viewModel.deleteCurrent(onDeleted)
-                    } else {
-                        deleteArmed = true
-                    }
-                },
-                size = 60.dp,
-                style = RoundStyle.Danger,
-                baseDepth = 3.dp,
-                labelColor = if (deleteArmed) ErrorText else InkMuted,
-                softShadow = softShadow(14.dp, 8.dp, 0.5f),
-            ) { CrossGlyph(60.dp) }
+            if (!isNew) {
+                LabeledRoundButton(
+                    label = stringResource(if (deleteArmed) R.string.delete_confirm else R.string.delete),
+                    onClick = {
+                        if (deleteArmed) {
+                            deleteArmed = false
+                            viewModel.deleteCurrent(onDeleted)
+                        } else {
+                            deleteArmed = true
+                        }
+                    },
+                    size = 60.dp,
+                    style = RoundStyle.Danger,
+                    // Measured after SALVAR: at the largest font sizes its captions wrap instead
+                    // of squeezing the save key.
+                    modifier = Modifier.weight(1f, fill = false),
+                    baseDepth = 3.dp,
+                    labelColor = if (deleteArmed) ErrorText else InkMuted,
+                    softShadow = softShadow(14.dp, 8.dp, 0.5f),
+                    // Room for the longer caption either way, so the key stays under the confirming tap.
+                    reserveLabel = stringResource(if (deleteArmed) R.string.delete else R.string.delete_confirm),
+                ) { CrossGlyph(60.dp) }
+            }
             LabeledRoundButton(
                 label = stringResource(R.string.save),
                 onClick = { viewModel.save(onSaved) },
@@ -231,6 +288,42 @@ fun EditAlarmScreen(
     }
 }
 
+/** Asked when leaving with something unsaved: DESCARTAR goes without it, SALVAR keeps it. */
+@Composable
+private fun LeaveDialog(isNew: Boolean, onDismiss: () -> Unit, onDiscard: () -> Unit, onSave: () -> Unit) {
+    Dialog(onDismissRequest = onDismiss) {
+        // No soft shadow: the dialog's window ends at the plate and would cut it off, and the
+        // dimmed screen behind already sets the plate apart. The padding keeps its base in view.
+        Column(
+            Modifier
+                .padding(bottom = 2.dp)
+                .faceplate(WwuShape.faceplateLarge, softShadow = false)
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                stringResource(if (isNew) R.string.leave_new_title else R.string.leave_edit_title),
+                style = WwuType.titleS,
+                color = Ink,
+            )
+            Text(
+                stringResource(if (isNew) R.string.leave_new_body else R.string.leave_edit_body),
+                style = WwuType.bodyS,
+                color = InkMuted,
+            )
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(top = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End),
+            ) {
+                GraphiteKey(stringResource(R.string.discard), onClick = onDiscard)
+                OrangeKey(stringResource(R.string.save), onClick = onSave)
+            }
+        }
+    }
+}
+
 @Composable
 private fun PlateRow(
     label: String,
@@ -238,6 +331,8 @@ private fun PlateRow(
     onClick: (() -> Unit)? = null,
     value: @Composable RowScope.() -> Unit,
 ) {
+    // Sized in sp, so the column grows with the font and MISSÃO never breaks onto two lines.
+    val labelWidth = with(LocalDensity.current) { 64.sp.toDp() }
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -246,7 +341,7 @@ private fun PlateRow(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        PrintLabel(label, modifier = Modifier.width(62.dp))
+        PrintLabel(label, modifier = Modifier.width(labelWidth), maxLines = 1, softWrap = false)
         value()
         if (onClick != null) Chevron(color = InkMuted, size = 14.dp)
     }
@@ -254,7 +349,8 @@ private fun PlateRow(
 
 /**
  * HH : MM as flip drums in a recessed visor. The neighbours above and below step −1 / +1 on tap;
- * dragging a drum turns it card by card with a haptic tick per step.
+ * dragging a drum turns it card by card with a haptic tick per step, and a flick spins it on.
+ * TalkBack adjusts each drum like a slider, and the minutes ten at a time too.
  */
 @Composable
 private fun TimePickerVisor(
@@ -262,8 +358,12 @@ private fun TimePickerVisor(
     minute: Int,
     onHour: (Int) -> Unit,
     onMinute: (Int) -> Unit,
+    onHourStep: (Int) -> Unit,
+    onMinuteStep: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val plusTen = stringResource(R.string.cd_minutes_plus_10)
+    val minusTen = stringResource(R.string.cd_minutes_minus_10)
     Row(
         modifier
             .fillMaxWidth()
@@ -278,7 +378,8 @@ private fun TimePickerVisor(
             label = stringResource(R.string.hour),
             downDescription = stringResource(R.string.cd_hour_down),
             upDescription = stringResource(R.string.cd_hour_up),
-            onChange = onHour,
+            onSet = onHour,
+            onStep = onHourStep,
         )
         ColonDots(6.dp, 10.dp, InkMuted, horizontalPadding = 0.dp, modifier = Modifier.offset(y = (-9).dp))
         Drum(
@@ -287,12 +388,20 @@ private fun TimePickerVisor(
             label = stringResource(R.string.minute),
             downDescription = stringResource(R.string.cd_minute_down),
             upDescription = stringResource(R.string.cd_minute_up),
-            onChange = onMinute,
+            onSet = onMinute,
+            onStep = onMinuteStep,
+            actions = listOf(
+                CustomAccessibilityAction(plusTen) { onMinuteStep(10); true },
+                CustomAccessibilityAction(minusTen) { onMinuteStep(-10); true },
+            ),
         )
     }
 }
 
 private val DRAG_STEP = 28.dp
+
+/** Lifting the finger faster than this (per second) sets the drum spinning on its own. */
+private val FLING_SPEED = 600.dp
 
 @Composable
 private fun Drum(
@@ -301,44 +410,93 @@ private fun Drum(
     label: String,
     downDescription: String,
     upDescription: String,
-    onChange: (Int) -> Unit,
+    onSet: (Int) -> Unit,
+    onStep: (Int) -> Unit,
+    actions: List<CustomAccessibilityAction> = emptyList(),
 ) {
     val haptic = LocalHapticFeedback.current
-    val current by rememberUpdatedState(value)
-    val change by rememberUpdatedState(onChange)
-    val stepPx = with(LocalDensity.current) { DRAG_STEP.toPx() }
+    val currentOnSet by rememberUpdatedState(onSet)
+    val currentOnStep by rememberUpdatedState(onStep)
+    val scope = rememberCoroutineScope()
+    var spin by remember { mutableStateOf<Job?>(null) }
     fun step(delta: Int) {
         haptic.performHapticFeedback(HapticFeedbackType.SegmentTick)
-        change(Math.floorMod(current + delta, modulo))
+        currentOnStep(delta)
     }
 
     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Neighbour(Math.floorMod(value - 1, modulo), downDescription) { step(-1) }
+        Neighbour(Math.floorMod(value - 1, modulo), downDescription) {
+            spin?.cancel()
+            step(-1)
+        }
         Box(
-            Modifier.pointerInput(Unit) {
-                var accumulated = 0f
-                detectVerticalDragGestures(
-                    onDragStart = { accumulated = 0f },
-                ) { change, dragAmount ->
-                    change.consume()
-                    accumulated += dragAmount
-                    // Dragging down pulls the previous card over, like turning a drum.
-                    while (abs(accumulated) >= stepPx) {
-                        val dir = if (accumulated > 0) -1 else 1
-                        step(dir)
-                        accumulated += dir * stepPx
+            Modifier
+                .semantics(mergeDescendants = true) {
+                    // Adjustable: TalkBack's swipe up or down turns the drum one card.
+                    progressBarRangeInfo = ProgressBarRangeInfo(value.toFloat(), 0f..(modulo - 1).toFloat(), steps = modulo - 2)
+                    // Read as "07", not as a percentage of the range.
+                    stateDescription = "%02d".format(value)
+                    setProgress { target ->
+                        currentOnSet(target.roundToInt().coerceIn(0, modulo - 1))
+                        true
                     }
+                    if (actions.isNotEmpty()) customActions = actions
                 }
-            },
+                .pointerInput(Unit) {
+                    val stepPx = DRAG_STEP.toPx()
+                    val flingPx = FLING_SPEED.toPx()
+                    val tracker = VelocityTracker()
+                    var accumulated = 0f
+                    // Dragging down pulls the previous card over, like turning a drum.
+                    fun turn(delta: Float) {
+                        accumulated += delta
+                        while (abs(accumulated) >= stepPx) {
+                            val dir = if (accumulated > 0) -1 else 1
+                            step(dir)
+                            accumulated += dir * stepPx
+                        }
+                    }
+                    detectVerticalDragGestures(
+                        onDragStart = {
+                            spin?.cancel()
+                            accumulated = 0f
+                            tracker.resetTracking()
+                        },
+                        onDragEnd = {
+                            val velocity = tracker.calculateVelocity().y
+                            if (abs(velocity) > flingPx) {
+                                spin = scope.launch {
+                                    // Short of a full turn, so a flick never lands back where it began.
+                                    val reach = (modulo - 1) * stepPx
+                                    val wheel = Animatable(0f)
+                                    wheel.updateBounds(-reach, reach)
+                                    var last = 0f
+                                    wheel.animateDecay(velocity, exponentialDecay(frictionMultiplier = 2.5f)) {
+                                        turn(wheel.value - last)
+                                        last = wheel.value
+                                    }
+                                }
+                            }
+                        },
+                    ) { change, dragAmount ->
+                        change.consume()
+                        tracker.addPosition(change.uptimeMillis, change.position)
+                        turn(dragAmount)
+                    }
+                },
         ) {
             FlipNumber(
                 text = "%02d".format(value),
                 size = FlipSize.M,
-                spokenText = "$label %02d".format(value),
+                spokenText = label,
             )
         }
-        Neighbour(Math.floorMod(value + 1, modulo), upDescription) { step(1) }
-        PrintLabel(label)
+        Neighbour(Math.floorMod(value + 1, modulo), upDescription) {
+            spin?.cancel()
+            step(1)
+        }
+        // The drum already says its name to TalkBack; the printed caption would be a second stop.
+        PrintLabel(label, modifier = Modifier.clearAndSetSemantics {})
     }
 }
 

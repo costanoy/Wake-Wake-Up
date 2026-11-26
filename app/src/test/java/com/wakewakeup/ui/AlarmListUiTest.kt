@@ -1,16 +1,24 @@
 package com.wakewakeup.ui
 
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.assertIsOn
+import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isDialog
 import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performCustomAccessibilityActionWithLabel
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTextInput
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -90,30 +98,57 @@ class AlarmListUiTest {
     }
 
     @Test
+    fun aRingADayOrMoreAwayShowsItsDayAndTime() {
+        // Weekly, two days from now: a countdown in hours would leave you working out which morning.
+        val day = LocalDate.now().plusDays(2)
+        env.save(Alarm(hour = 9, minute = 0, label = "Feira", days = setOf(isoDayIndexOf(day))))
+        launch()
+        compose.waitForText("Feira")
+        val short = context.resources.getStringArray(R.array.day_short)[isoDayIndexOf(day)]
+        compose.waitForText("$short, 09:00".uppercase())
+    }
+
+    @Test
+    fun aRingAWeekOrMoreAwaySaysItIsTheNextOne() {
+        // Weekly and skipping the day after tomorrow: it rings that weekday of the week after.
+        val day = LocalDate.now().plusDays(2)
+        env.save(Alarm(hour = 9, minute = 0, label = "Feira", days = setOf(isoDayIndexOf(day)), skipDate = day.toEpochDay()))
+        launch()
+        compose.waitForText("Feira")
+        val short = context.resources.getStringArray(R.array.day_short)[isoDayIndexOf(day)]
+        compose.waitForText("${str(R.string.day_next_week, short)}, 09:00".uppercase())
+    }
+
+    @Test
     fun creatingAnAlarmFromScratch() {
         launch()
         compose.waitForDescription(str(R.string.create_alarm))
         compose.onNodeWithContentDescription(str(R.string.create_alarm)).performClick()
 
         compose.waitForText(str(R.string.new_alarm))
-        compose.onNodeWithContentDescription("${str(R.string.hour)} 07").assertIsDisplayed()
+        compose.onNode(drum(R.string.hour)).assert(hasStateDescription("07")).assertIsDisplayed()
         compose.onNodeWithContentDescription(str(R.string.cd_hour_up)).performClick()
         compose.onNodeWithContentDescription(str(R.string.cd_minute_down)).performClick()
-        compose.onNodeWithContentDescription("${str(R.string.hour)} 08").assertIsDisplayed()
-        compose.onNodeWithContentDescription("${str(R.string.minute)} 59").assertIsDisplayed()
+        compose.onNode(drum(R.string.hour)).assert(hasStateDescription("08"))
+        compose.onNode(drum(R.string.minute)).assert(hasStateDescription("59"))
 
         compose.onNode(hasSetTextAction()).performTextInput("Academia")
+        // The day keys print MON TUE WED, like the cards. No day picked yet: it rings once.
+        compose.onNodeWithText(context.resources.getStringArray(R.array.day_short)[0].uppercase()).assertIsDisplayed()
+        compose.onNodeWithText(str(R.string.days_none_hint)).assertIsDisplayed()
         compose.onNodeWithContentDescription(dayNames[0]).performClick()
         compose.onNodeWithContentDescription(dayNames[2]).performClick()
-        compose.onNodeWithContentDescription(dayNames[2]).assertIsSelected()
+        compose.onNodeWithContentDescription(dayNames[2]).assertIsOn()
+        compose.waitForNoText(str(R.string.days_none_hint))
 
-        // Task: switch to the phrase.
+        // Task: switch to the phrase. DONE only goes back; nothing is saved yet.
         compose.onNodeWithText(context.resources.getQuantityString(R.plurals.task_summary_math, 3, 3)).performClick()
         compose.waitForText(str(R.string.task_setup_title))
         compose.onNodeWithContentDescription(str(R.string.mode_phrase)).performClick()
         compose.waitForText(str(R.string.phrase_today).uppercase())
-        compose.onNodeWithContentDescription(str(R.string.save)).performClick()
+        compose.onNodeWithContentDescription(str(R.string.ready)).performClick()
         compose.waitForText(str(R.string.task_summary_phrase))
+        assertTrue(alarms().isEmpty())
 
         compose.onNodeWithContentDescription(str(R.string.save)).performClick()
         compose.waitForDescription(str(R.string.cd_alarm_switch, "08:59"))
@@ -140,7 +175,7 @@ class AlarmListUiTest {
         compose.waitForText("Trabalho")
         compose.onNodeWithText("Trabalho").performClick()
         compose.waitForText(str(R.string.edit_alarm))
-        compose.waitForDescription("${str(R.string.hour)} 06")
+        waitForDrum(R.string.hour, 6)
         compose.onNodeWithContentDescription(str(R.string.cd_minute_up)).performClick()
         compose.onNodeWithContentDescription(str(R.string.save)).performClick()
         compose.waitForDescription("06:31")
@@ -158,16 +193,78 @@ class AlarmListUiTest {
         launch()
         compose.waitForText("Trabalho")
         compose.onNodeWithText("Trabalho").performClick()
-        compose.waitForDescription("${str(R.string.hour)} 06")
+        waitForDrum(R.string.hour, 6)
         compose.onNodeWithContentDescription(str(R.string.cd_hour_up)).performClick()
-        compose.onNodeWithContentDescription("${str(R.string.hour)} 07").assertIsDisplayed()
+        compose.onNode(drum(R.string.hour)).assert(hasStateDescription("07"))
         compose.onNodeWithContentDescription(str(R.string.cd_back)).performClick()
 
+        // Something changed, so ‹ asks first; DISCARD leaves the alarm as it was.
+        compose.waitForText(str(R.string.leave_edit_title))
+        compose.onNodeWithText(str(R.string.leave_edit_body)).assertExists()
+        compose.onNodeWithText(str(R.string.discard).uppercase()).performClick()
         compose.waitForDescription("06:30")
         assertEquals(6, env.reload(alarm)!!.hour)
         // Opening it again shows what's saved, not the abandoned edit.
         compose.onNodeWithText("Trabalho").performClick()
-        compose.waitForDescription("${str(R.string.hour)} 06")
+        waitForDrum(R.string.hour, 6)
+    }
+
+    @Test
+    fun theSystemBackAsksBeforeLosingAChange() {
+        val alarm = env.save(Alarm(hour = 6, minute = 30, label = "Trabalho", days = setOf(0, 1, 2, 3, 4)))
+        launch()
+        compose.waitForText("Trabalho")
+        compose.onNodeWithText("Trabalho").performClick()
+        waitForDrum(R.string.hour, 6)
+        compose.onNodeWithContentDescription(str(R.string.cd_minute_up)).performClick()
+
+        scenario!!.onActivity { it.onBackPressedDispatcher.onBackPressed() }
+        compose.waitForText(str(R.string.leave_edit_title))
+        // SAVE in the dialog saves, like the round key.
+        compose.onNode(hasText(str(R.string.save).uppercase()) and hasAnyAncestor(isDialog())).performClick()
+        compose.waitForDescription("06:31")
+        assertEquals(31, env.reload(alarm)!!.minute)
+        assertTrue(compose.onAllNodes(isDialog()).fetchSemanticsNodes().isEmpty())
+    }
+
+    @Test
+    fun theSystemBackLeavesAnUntouchedAlarmAtOnce() {
+        env.save(Alarm(hour = 6, minute = 30, label = "Trabalho", days = setOf(0, 1, 2, 3, 4)))
+        launch()
+        compose.waitForText("Trabalho")
+        compose.onNodeWithText("Trabalho").performClick()
+        waitForDrum(R.string.hour, 6)
+        // Changed and changed back is unchanged too.
+        compose.onNodeWithContentDescription(dayNames[5]).performClick()
+        compose.onNodeWithContentDescription(dayNames[5]).performClick()
+
+        scenario!!.onActivity { it.onBackPressedDispatcher.onBackPressed() }
+        compose.waitForDescription("06:30")
+        assertTrue(compose.onAllNodes(isDialog()).fetchSemanticsNodes().isEmpty())
+    }
+
+    @OptIn(ExperimentalTestApi::class)
+    @Test
+    fun theTimeDrumsWorkWithTalkBack() {
+        launch()
+        compose.waitForDescription(str(R.string.create_alarm))
+        compose.onNodeWithContentDescription(str(R.string.create_alarm)).performClick()
+        waitForDrum(R.string.hour, 7)
+
+        // Each drum is a slider TalkBack can set, and the minutes also go ten at a time.
+        compose.onNode(drum(R.string.hour)).performSemanticsAction(SemanticsActions.SetProgress) { it(6f) }
+        compose.onNode(drum(R.string.minute)).performSemanticsAction(SemanticsActions.SetProgress) { it(25f) }
+        compose.onNode(drum(R.string.minute)).performCustomAccessibilityActionWithLabel(str(R.string.cd_minutes_plus_10))
+        waitForDrum(R.string.minute, 35)
+        compose.onNode(drum(R.string.minute)).performCustomAccessibilityActionWithLabel(str(R.string.cd_minutes_minus_10))
+        waitForDrum(R.string.minute, 25)
+        compose.onNode(drum(R.string.hour)).assert(hasStateDescription("06"))
+
+        compose.onNodeWithContentDescription(str(R.string.save)).performClick()
+        compose.waitForDescription(str(R.string.cd_alarm_switch, "06:25"))
+        val saved = alarms().single()
+        assertEquals(6, saved.hour)
+        assertEquals(25, saved.minute)
     }
 
     @Test
@@ -176,11 +273,14 @@ class AlarmListUiTest {
         launch()
         compose.waitForText("Trabalho")
         compose.onNodeWithText("Trabalho").performClick()
-        compose.waitForDescription("${str(R.string.hour)} 06")
+        waitForDrum(R.string.hour, 6)
 
+        val key = compose.onNodeWithContentDescription(str(R.string.delete)).fetchSemanticsNode().boundsInRoot
         compose.onNodeWithContentDescription(str(R.string.delete)).performClick()
         compose.waitForDescription(str(R.string.delete_confirm))
         assertNotNull("one tap must not delete", env.reload(alarm))
+        // The longer caption doesn't push the key aside, so the second tap lands on it.
+        assertEquals(key, compose.onNodeWithContentDescription(str(R.string.delete_confirm)).fetchSemanticsNode().boundsInRoot)
 
         // Left alone, it disarms after 3 seconds.
         compose.mainClock.advanceTimeBy(3_100)
@@ -194,15 +294,51 @@ class AlarmListUiTest {
     }
 
     @Test
-    fun deletingANewAlarmJustLeaves() {
+    fun leavingANewAlarmSavesNothing() {
         launch()
         compose.waitForDescription(str(R.string.create_alarm))
         compose.onNodeWithContentDescription(str(R.string.create_alarm)).performClick()
-        compose.waitForDescription(str(R.string.delete))
-        compose.onNodeWithContentDescription(str(R.string.delete)).performClick()
-        compose.onNodeWithContentDescription(str(R.string.delete_confirm)).performClick()
+        waitForDrum(R.string.hour, 7)
+        // Nothing to delete yet: ‹ is the way out, straight away while nothing was touched.
+        assertTrue(compose.onAllNodesWithContentDescription(str(R.string.delete)).fetchSemanticsNodes().isEmpty())
+        compose.onNodeWithContentDescription(str(R.string.cd_back)).performClick()
+        compose.waitForText(str(R.string.empty_title))
+
+        // Once something is set, it asks, and DISCARD creates nothing.
+        compose.onNodeWithContentDescription(str(R.string.create_alarm)).performClick()
+        waitForDrum(R.string.hour, 7)
+        compose.onNodeWithContentDescription(dayNames[0]).performClick()
+        compose.onNodeWithContentDescription(str(R.string.cd_back)).performClick()
+        compose.waitForText(str(R.string.leave_new_title))
+        compose.onNodeWithText(str(R.string.discard).uppercase()).performClick()
         compose.waitForText(str(R.string.empty_title))
         assertTrue(alarms().isEmpty())
+    }
+
+    @Test
+    fun aCardReadsItsDaysAsOnePhrase() {
+        env.save(Alarm(hour = 6, minute = 30, label = "Trabalho", days = setOf(0, 1, 2, 3, 4)))
+        env.save(Alarm(hour = 9, minute = 0, label = "Fim de semana", days = setOf(5, 6), enabled = false))
+        env.save(Alarm(hour = 7, minute = 15, label = "Academia", days = setOf(0, 2, 4)))
+        env.save(Alarm(hour = 8, minute = 0, label = "Diario", days = (0..6).toSet()))
+        launch()
+        compose.waitForText("Academia")
+        // Not seven abbreviations per card: what TalkBack says is the days that ring.
+        compose.onNodeWithContentDescription(str(R.string.days_weekdays)).assertExists()
+        compose.onNodeWithContentDescription(str(R.string.days_weekend)).assertExists()
+        compose.onNodeWithContentDescription(str(R.string.days_every_day)).assertExists()
+        compose.onNodeWithContentDescription(str(R.string.days_and, "${dayNames[0]}, ${dayNames[2]}", dayNames[4])).assertExists()
+    }
+
+    /** The editor's hour or minute drum, which TalkBack adjusts like a slider ("Hour", "07"). */
+    private fun drum(labelRes: Int) =
+        hasContentDescription(str(labelRes)) and SemanticsMatcher.keyIsDefined(SemanticsActions.SetProgress)
+
+    private fun waitForDrum(labelRes: Int, value: Int) {
+        val shown = "%02d".format(value)
+        compose.waitFor("${str(labelRes)} drum at $shown") {
+            compose.onAllNodes(drum(labelRes) and hasStateDescription(shown)).fetchSemanticsNodes().isNotEmpty()
+        }
     }
 
     @Test
@@ -248,6 +384,9 @@ class AlarmListUiTest {
         val oneOff = env.save(Alarm(hour = 5, minute = 0, label = "Viagem", days = emptySet()))
         launch()
         compose.waitForText("Viagem")
+        // One line with the day it rings, not seven unlit days that read as "never".
+        val ringsOn = LocalDate.ofEpochDay(nextTriggerEpochDay(oneOff))
+        compose.onNodeWithContentDescription(str(R.string.once_on_day, dayName(ringsOn))).assertIsDisplayed()
         compose.onNodeWithContentDescription(str(R.string.cd_alarm_switch, "05:00")).performClick()
         compose.waitFor("alarm off") { env.reload(oneOff)?.enabled == false && env.scheduledFor(oneOff) == null }
         compose.waitForIdle()

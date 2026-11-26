@@ -59,8 +59,18 @@ class StringsTest {
     fun dayArraysHaveSevenEntries() {
         for (folder in listOf("values", "values-pt")) {
             val res = load(folder)
-            for (array in listOf("day_letters", "day_short", "day_full")) {
+            for (array in listOf("day_short", "day_full")) {
                 assertEquals("$folder/$array", 7, res.getValue("string-array/$array").values.size)
+            }
+        }
+    }
+
+    /** The day keys and the cards print day_short: a key face on a 360 dp phone holds three letters. */
+    @Test
+    fun shortDayNamesFitADayKey() {
+        for (folder in listOf("values", "values-pt")) {
+            load(folder).getValue("string-array/day_short").values.forEach { name ->
+                assertTrue("$folder/day_short: \"$name\"", name.trim().length in 1..3)
             }
         }
     }

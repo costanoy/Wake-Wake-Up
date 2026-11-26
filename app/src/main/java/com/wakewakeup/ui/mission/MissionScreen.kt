@@ -3,9 +3,9 @@ package com.wakewakeup.ui.mission
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -39,7 +39,6 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -60,6 +59,7 @@ import com.wakewakeup.session.MissionState
 import com.wakewakeup.ui.components.CalcKeys
 import com.wakewakeup.ui.components.CalculatorKeypad
 import com.wakewakeup.ui.components.CheckGlyph
+import com.wakewakeup.ui.components.GraphiteKey
 import com.wakewakeup.ui.components.LedMeter
 import com.wakewakeup.ui.components.PrintLabel
 import com.wakewakeup.ui.components.RoundButton
@@ -78,6 +78,7 @@ import com.wakewakeup.ui.theme.Vfd
 import com.wakewakeup.ui.theme.VfdBright
 import com.wakewakeup.ui.theme.WwuShape
 import com.wakewakeup.ui.theme.WwuType
+import kotlinx.coroutines.delay
 import kotlin.math.ceil
 
 private const val TIMER_SEGMENTS = 20
@@ -170,52 +171,78 @@ private fun androidx.compose.foundation.layout.ColumnScope.MathBody(
     }
     val answerColor = if (mission.wrong) ErrorDisplay else VfdBright
 
-    Column(
-        Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
+    // Giving up takes two taps: a stray one would swap the sums for the phrase and lose the
+    // progress. The first arms it ("TOQUE DE NOVO PARA TROCAR"), which disarms after 3 s.
+    var giveUpArmed by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(giveUpArmed) {
+        if (giveUpArmed) {
+            delay(3000)
+            giveUpArmed = false
+        }
+    }
+
+    BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
+        // Keys as big as the width allows (four keys, three 16 dp gaps, inside the display's
+        // 20 dp margins), set low under the thumb while the display stays on top, like a
+        // calculator's. Short screens scroll.
+        val keySize = ((maxWidth - 40.dp - 16.dp * 3) / 4).coerceIn(56.dp, 76.dp)
         Column(
             Modifier
-                .padding(start = 20.dp, end = 20.dp, top = 18.dp)
-                .graphicsLayer { translationX = shake.value.dp.toPx() }
                 .fillMaxWidth()
-                .height(150.dp)
-                .visor(WwuShape.visorMedium, depth = 3.dp, blurRadius = 8.dp)
-                .padding(horizontal = 18.dp, vertical = 14.dp),
-            verticalArrangement = Arrangement.SpaceBetween,
+                .verticalScroll(rememberScrollState())
+                .heightIn(min = maxHeight),
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            VfdText("${mission.question} =", 34.sp.nonScaling(), glowRadius = 8.dp, glowAlpha = 0.5f, maxLines = 1)
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
-                Text(
-                    message,
-                    style = WwuType.caption,
-                    color = messageColor,
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(bottom = 6.dp)
-                        .semantics { liveRegion = LiveRegionMode.Polite },
-                )
-                val size = 64.sp.nonScaling()
-                Text(
-                    mission.typed.replace("-", "−").ifEmpty { "_" },
-                    style = WwuType.flip(size).copy(shadow = glowShadow(answerColor, 10.dp, 0.55f)),
-                    color = answerColor,
-                    maxLines = 1,
-                )
+            Column(
+                Modifier
+                    .padding(start = 20.dp, end = 20.dp, top = 18.dp)
+                    .graphicsLayer { translationX = shake.value.dp.toPx() }
+                    .fillMaxWidth()
+                    .height(150.dp)
+                    .visor(WwuShape.visorMedium, depth = 3.dp, blurRadius = 8.dp)
+                    .padding(horizontal = 18.dp, vertical = 14.dp),
+                verticalArrangement = Arrangement.SpaceBetween,
+            ) {
+                VfdText("${mission.question} =", 34.sp.nonScaling(), glowRadius = 8.dp, glowAlpha = 0.5f, maxLines = 1)
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
+                    Text(
+                        message,
+                        style = WwuType.caption,
+                        color = messageColor,
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(bottom = 6.dp)
+                            .semantics { liveRegion = LiveRegionMode.Polite },
+                    )
+                    val size = 64.sp.nonScaling()
+                    Text(
+                        mission.typed.replace("-", "−").ifEmpty { "_" },
+                        style = WwuType.flip(size).copy(shadow = glowShadow(answerColor, 10.dp, 0.55f)),
+                        color = answerColor,
+                        maxLines = 1,
+                    )
+                }
             }
+
+            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.weight(1f))
+            CalculatorKeypad(onKey = { key -> if (key == CalcKeys.OK) onConfirm() else onKey(key) }, key = keySize)
+
+            Spacer(Modifier.height(16.dp))
+            GraphiteKey(
+                stringResource(if (giveUpArmed) R.string.cant_solve_confirm else R.string.cant_solve),
+                onClick = {
+                    if (giveUpArmed) {
+                        giveUpArmed = false
+                        onGiveUp()
+                    } else {
+                        giveUpArmed = true
+                    }
+                },
+                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+            )
+            Spacer(Modifier.height(16.dp))
         }
-
-        Spacer(Modifier.height(24.dp))
-        CalculatorKeypad(onKey = { key -> if (key == CalcKeys.OK) onConfirm() else onKey(key) })
-
-        Spacer(Modifier.height(16.dp))
-        PrintLabel(
-            stringResource(R.string.cant_solve),
-            modifier = Modifier
-                .clickable(role = Role.Button, onClick = onGiveUp)
-                .heightIn(min = 48.dp)
-                .padding(horizontal = 16.dp, vertical = 16.dp),
-        )
     }
 }
 

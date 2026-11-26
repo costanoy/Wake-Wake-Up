@@ -1,7 +1,6 @@
 package com.wakewakeup.ui.sound
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,6 +15,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -43,6 +44,7 @@ import com.wakewakeup.data.RadioBrowser
 import com.wakewakeup.data.RadioStation
 import com.wakewakeup.ui.components.BackHeader
 import com.wakewakeup.ui.components.Lamp
+import com.wakewakeup.ui.components.OrangeKey
 import com.wakewakeup.ui.components.PlateDivider
 import com.wakewakeup.ui.components.PlayGlyph
 import com.wakewakeup.ui.components.PrintLabel
@@ -73,7 +75,8 @@ private sealed interface RadioResults {
 /**
  * Pick an internet radio station to wake up to instead of an alarm sound. With nothing
  * typed it lists the most listened stations in the phone's country; typing searches by name.
- * Tapping a station selects it and plays a few seconds so you know the stream works.
+ * Tapping a station selects it and plays a few seconds so you know the stream works; its play
+ * key only plays those seconds.
  */
 @Composable
 fun RadioScreen(onBack: () -> Unit, viewModel: EditAlarmViewModel) {
@@ -81,6 +84,8 @@ fun RadioScreen(onBack: () -> Unit, viewModel: EditAlarmViewModel) {
     val player = rememberSoundPreview()
     val keyboard = LocalSoftwareKeyboardController.current
 
+    // The phone's country: what the popular list shows, so its stations needn't name it.
+    val homeCountry = remember { Locale.getDefault().country.ifBlank { "BR" } }
     var query by rememberSaveable { mutableStateOf("") }
     var results by remember { mutableStateOf<RadioResults>(RadioResults.Loading) }
     var attempt by remember { mutableStateOf(0) }
@@ -88,7 +93,7 @@ fun RadioScreen(onBack: () -> Unit, viewModel: EditAlarmViewModel) {
         results = RadioResults.Loading
         if (query.isNotBlank()) delay(500) // wait for the typing to pause
         results = try {
-            RadioResults.Loaded(RadioBrowser.search(query, Locale.getDefault().country.ifBlank { "BR" }))
+            RadioResults.Loaded(RadioBrowser.search(query, homeCountry))
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -122,7 +127,7 @@ fun RadioScreen(onBack: () -> Unit, viewModel: EditAlarmViewModel) {
             contentAlignment = Alignment.CenterStart,
         ) {
             if (query.isEmpty()) {
-                Text(stringResource(R.string.radio_search_hint), style = WwuType.bodyInput, color = InkMuted.copy(alpha = 0.6f), maxLines = 1)
+                Text(stringResource(R.string.radio_search_hint), style = WwuType.bodyInput, color = InkMuted.copy(alpha = 0.8f), maxLines = 1)
             }
             BasicTextField(
                 value = query,
@@ -156,13 +161,10 @@ fun RadioScreen(onBack: () -> Unit, viewModel: EditAlarmViewModel) {
                     color = InkMuted,
                     modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 12.dp),
                 )
-                PrintLabel(
+                OrangeKey(
                     stringResource(R.string.radio_retry),
-                    color = Ink,
-                    modifier = Modifier
-                        .padding(top = 4.dp)
-                        .clickable(role = Role.Button) { attempt++ }
-                        .padding(16.dp),
+                    onClick = { attempt++ },
+                    modifier = Modifier.padding(top = 16.dp),
                 )
             }
             is RadioResults.Loaded -> if (state.stations.isEmpty()) {
@@ -177,14 +179,17 @@ fun RadioScreen(onBack: () -> Unit, viewModel: EditAlarmViewModel) {
                             Modifier
                                 .fillMaxWidth()
                                 .faceplate(softShadow = false)
-                                .padding(start = 14.dp, end = 6.dp, top = 4.dp, bottom = 4.dp),
+                                .padding(start = 14.dp, end = 6.dp, top = 4.dp, bottom = 4.dp)
+                                .selectableGroup(),
                         ) {
                             state.stations.forEachIndexed { index, station ->
                                 StationRow(
                                     station = station,
+                                    homeCountry = homeCountry,
                                     selected = station.streamUrl == draft.soundUri,
                                     playing = player.isPreviewing(station.streamUrl),
                                     onSelect = { select(station) },
+                                    onPlay = { player.play(station.streamUrl, STREAM_PREVIEW_MS) },
                                 )
                                 if (index < state.stations.lastIndex) PlateDivider()
                             }
@@ -210,13 +215,24 @@ private fun StatusVisor(text: String) {
 }
 
 @Composable
-private fun StationRow(station: RadioStation, selected: Boolean, playing: Boolean, onSelect: () -> Unit) {
-    val detail = listOf(station.country, station.tags).filter { it.isNotBlank() }.joinToString(" · ")
+private fun StationRow(
+    station: RadioStation,
+    homeCountry: String,
+    selected: Boolean,
+    playing: Boolean,
+    onSelect: () -> Unit,
+    onPlay: () -> Unit,
+) {
+    // A station from the phone's own country goes straight to its genres.
+    val country = remember(station, homeCountry) {
+        if (station.countryCode.equals(homeCountry, ignoreCase = true)) "" else countryName(station)
+    }
+    val detail = listOf(country, station.tags).filter { it.isNotBlank() }.joinToString(" · ")
     Row(
         Modifier
             .fillMaxWidth()
             .heightIn(min = 56.dp)
-            .clickable(role = Role.RadioButton, onClick = onSelect),
+            .selectable(selected = selected, role = Role.RadioButton, onClick = onSelect),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
@@ -234,8 +250,9 @@ private fun StationRow(station: RadioStation, selected: Boolean, playing: Boolea
             }
         }
         Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+            // Only a preview, like the play keys on the sound screen: the row is what picks a station.
             RoundButton(
-                onClick = onSelect,
+                onClick = onPlay,
                 size = 36.dp,
                 style = RoundStyle.Graphite,
                 contentDescription = stringResource(R.string.cd_play_preview, station.name),
@@ -243,4 +260,12 @@ private fun StationRow(station: RadioStation, selected: Boolean, playing: Boolea
             ) { PlayGlyph(9.dp, 12.dp, if (playing) Vfd else Ink, nudge = 1.dp) }
         }
     }
+}
+
+/** "Brasil" in a Portuguese UI; the directory's English name when the code means nothing here. */
+private fun countryName(station: RadioStation): String {
+    val local = runCatching {
+        Locale.Builder().setRegion(station.countryCode).build().getDisplayCountry(Locale.getDefault())
+    }.getOrNull()
+    return local?.takeIf { it.isNotBlank() && !it.equals(station.countryCode, ignoreCase = true) } ?: station.country
 }

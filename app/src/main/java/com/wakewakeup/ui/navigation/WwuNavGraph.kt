@@ -55,12 +55,23 @@ fun WwuNavGraph(
         popEnterTransition = { fadeIn(fastFade) },
         popExitTransition = { fadeOut(fastFade) },
     ) {
-        composable(Destinations.PERMISSIONS) { entry ->
+        composable(
+            route = Destinations.PERMISSIONS,
+            arguments = listOf(navArgument(Destinations.ARG_FROM_LIST) { type = NavType.BoolType; defaultValue = false }),
+        ) { entry ->
+            val fromList = entry.arguments?.getBoolean(Destinations.ARG_FROM_LIST) ?: false
             PermissionsScreen(
+                fromList = fromList,
                 onContinue = {
                     entry.ifResumed {
-                        navController.navigate(Destinations.LIST) {
-                            popUpTo(Destinations.PERMISSIONS) { inclusive = true }
+                        // From the list's warning it's a detour back to that same list; at first
+                        // launch it leads on to the list and leaves nothing behind it.
+                        if (fromList) {
+                            navController.popBackStack()
+                        } else {
+                            navController.navigate(Destinations.LIST) {
+                                popUpTo(Destinations.PERMISSIONS) { inclusive = true }
+                            }
                         }
                     }
                 },
@@ -81,6 +92,7 @@ fun WwuNavGraph(
                     }
                 },
                 onStats = { entry.ifResumed { navController.navigate(Destinations.STATS) } },
+                onOpenPermissions = { entry.ifResumed { navController.navigate(Destinations.permissions(fromList = true)) } },
             )
         }
         composable(

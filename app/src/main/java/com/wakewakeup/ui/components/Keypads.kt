@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -48,12 +49,10 @@ import com.wakewakeup.ui.theme.FnKeyMid
 import com.wakewakeup.ui.theme.HousingDeep
 import com.wakewakeup.ui.theme.Ink
 import com.wakewakeup.ui.theme.OnAction
-import com.wakewakeup.ui.theme.WwuShape
 import com.wakewakeup.ui.theme.WwuType
 
 private enum class CalcKind { Digit, Function, Confirm }
 
-private val KEY = 64.dp
 private val GAP_V = 14.dp
 private val GAP_H = 16.dp
 
@@ -68,30 +67,32 @@ object CalcKeys {
 /**
  * Braun ET 66 style keypad: convex round keys in three families — graphite digits, cream
  * function keys (C, ⌫), and an orange OK pill spanning two rows; 0 spans two columns.
+ * [key] is a round key's diameter, so a screen can size the keypad to its width.
  */
 @Composable
-fun CalculatorKeypad(onKey: (String) -> Unit, modifier: Modifier = Modifier) {
-    val digitKey: @Composable (String) -> Unit = { d -> CalcKey(d, CalcKind.Digit, onKey) }
+fun CalculatorKeypad(onKey: (String) -> Unit, modifier: Modifier = Modifier, key: Dp = 64.dp) {
+    val digitKey: @Composable (String) -> Unit = { d -> CalcKey(d, CalcKind.Digit, onKey, width = key, height = key) }
     Column(modifier, verticalArrangement = Arrangement.spacedBy(GAP_V)) {
         Row(horizontalArrangement = Arrangement.spacedBy(GAP_H)) {
             digitKey("7"); digitKey("8"); digitKey("9")
-            CalcKey(CalcKeys.CLEAR, CalcKind.Function, onKey, description = stringResource(R.string.cd_key_clear))
+            CalcKey(CalcKeys.CLEAR, CalcKind.Function, onKey, width = key, height = key, description = stringResource(R.string.cd_key_clear))
         }
         Row(horizontalArrangement = Arrangement.spacedBy(GAP_H)) {
             digitKey("4"); digitKey("5"); digitKey("6")
-            CalcKey(CalcKeys.BACKSPACE, CalcKind.Function, onKey, description = stringResource(R.string.cd_key_backspace))
+            CalcKey(CalcKeys.BACKSPACE, CalcKind.Function, onKey, width = key, height = key, description = stringResource(R.string.cd_key_backspace))
         }
         Row(horizontalArrangement = Arrangement.spacedBy(GAP_H)) {
             Column(verticalArrangement = Arrangement.spacedBy(GAP_V)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(GAP_H)) { digitKey("1"); digitKey("2"); digitKey("3") }
                 Row(horizontalArrangement = Arrangement.spacedBy(GAP_H)) {
-                    CalcKey("0", CalcKind.Digit, onKey, width = KEY * 2 + GAP_H)
-                    CalcKey(CalcKeys.SIGN, CalcKind.Digit, onKey, description = stringResource(R.string.cd_key_sign))
+                    CalcKey("0", CalcKind.Digit, onKey, width = key * 2 + GAP_H, height = key)
+                    CalcKey(CalcKeys.SIGN, CalcKind.Digit, onKey, width = key, height = key, description = stringResource(R.string.cd_key_sign))
                 }
             }
             CalcKey(
                 CalcKeys.OK, CalcKind.Confirm, onKey,
-                height = KEY * 2 + GAP_V,
+                width = key,
+                height = key * 2 + GAP_V,
                 description = stringResource(R.string.confirm),
             )
         }
@@ -103,14 +104,15 @@ private fun CalcKey(
     key: String,
     kind: CalcKind,
     onKey: (String) -> Unit,
-    width: Dp = KEY,
-    height: Dp = KEY,
+    width: Dp,
+    height: Dp,
     description: String? = null,
 ) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     val haptic = LocalHapticFeedback.current
-    val shape: Shape = if (width == height) CircleShape else WwuShape.calcPill
+    // 0 and OK are pills with fully round ends at any key size.
+    val shape: Shape = if (width == height) CircleShape else RoundedCornerShape(percent = 50)
     val base = when (kind) {
         CalcKind.Digit -> HousingDeep
         CalcKind.Function -> FnKeyBase

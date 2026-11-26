@@ -14,8 +14,12 @@ import android.provider.Settings
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 
-/** The four things Android must allow for an alarm to really ring on a locked, idle phone. */
-enum class AlarmPermission { NOTIFICATIONS, EXACT_ALARMS, FULL_SCREEN, BATTERY }
+/**
+ * What Android must allow for an alarm to really ring on a locked, idle phone. Battery is only
+ * recommended ([required] false): alarm clocks ring through battery saving anyway (setAlarmClock),
+ * it just helps on phones whose makers close apps at night.
+ */
+enum class AlarmPermission(val required: Boolean = true) { NOTIFICATIONS, EXACT_ALARMS, FULL_SCREEN, BATTERY(required = false) }
 
 object AlarmPermissions {
     private const val PREFS = "wwu_prefs"
@@ -41,9 +45,14 @@ object AlarmPermissions {
             context.getSystemService(PowerManager::class.java).isIgnoringBatteryOptimizations(context.packageName)
     }
 
-    fun allGranted(context: Context) = AlarmPermission.entries.all { isGranted(context, it) }
+    /** The required ones Android doesn't allow right now; the alarm list warns while there are any. */
+    fun missingRequired(context: Context): List<AlarmPermission> =
+        AlarmPermission.entries.filter { it.required && !isGranted(context, it) }
 
-    /** Shown once, at first launch, unless everything is already allowed. */
+    /** Everything required is allowed (battery, only recommended, doesn't count). */
+    fun allGranted(context: Context) = missingRequired(context).isEmpty()
+
+    /** Shown once, at first launch, unless everything required is already allowed. */
     fun shouldShowOnboarding(context: Context): Boolean =
         !prefs(context).getBoolean(KEY_ONBOARDED, false) && !allGranted(context)
 

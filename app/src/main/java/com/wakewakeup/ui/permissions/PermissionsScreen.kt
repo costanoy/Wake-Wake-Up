@@ -39,6 +39,7 @@ import com.wakewakeup.ui.components.PillButton
 import com.wakewakeup.ui.components.PrintLabel
 import com.wakewakeup.ui.components.SunkKey
 import com.wakewakeup.ui.components.VfdText
+import com.wakewakeup.ui.components.bottomFade
 import com.wakewakeup.ui.components.faceplate
 import com.wakewakeup.ui.components.nonScaling
 import com.wakewakeup.ui.components.visor
@@ -51,12 +52,13 @@ import com.wakewakeup.ui.theme.WwuShape
 import com.wakewakeup.ui.theme.WwuType
 
 /**
- * "Antes de começar": the four system permissions an alarm needs, each with its LED (coral
- * pending / amber granted). State is re-read from the system every time the screen resumes,
- * since most of them are granted on a system settings page.
+ * "Antes de começar": the system permissions an alarm needs, each with its LED (coral pending /
+ * amber granted), then battery, which is only recommended and never holds anything up. State is
+ * re-read from the system every time the screen resumes, since most of them are granted on a
+ * system settings page. Opened from the list's warning ([fromList]), CONTINUAR just goes back.
  */
 @Composable
-fun PermissionsScreen(onContinue: () -> Unit) {
+fun PermissionsScreen(onContinue: () -> Unit, fromList: Boolean = false) {
     val context = LocalContext.current
     fun readAll() = AlarmPermission.entries.associateWith { AlarmPermissions.isGranted(context, it) }
     var granted by remember { mutableStateOf(readAll()) }
@@ -75,17 +77,20 @@ fun PermissionsScreen(onContinue: () -> Unit) {
         }
     }
 
-    val count = granted.count { it.value }
-    val total = AlarmPermission.entries.size
-    val all = count == total
+    val required = AlarmPermission.entries.filter { it.required }
+    val count = required.count { granted[it] == true }
+    val all = count == required.size
 
+    val scroll = rememberScrollState()
     Column(Modifier.fillMaxSize().background(Housing).statusBarsPadding().navigationBarsPadding()) {
-        Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
+        // On a small phone the last plate fades into the edge instead of looking sliced off.
+        Column(Modifier.weight(1f).bottomFade(scroll).verticalScroll(scroll)) {
             Column(
                 Modifier.padding(start = 20.dp, end = 20.dp, top = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                PrintLabel(stringResource(R.string.perm_eyebrow))
+                // From the list's warning there is nothing left to start.
+                if (!fromList) PrintLabel(stringResource(R.string.perm_eyebrow))
                 Text(stringResource(R.string.perm_title), style = WwuType.titleM, color = Ink)
                 Text(stringResource(R.string.perm_body), style = WwuType.bodyS, color = InkMuted)
             }
@@ -102,11 +107,11 @@ fun PermissionsScreen(onContinue: () -> Unit) {
                 PrintLabel(stringResource(R.string.perm_granted_label))
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        AlarmPermission.entries.forEach { p ->
+                        required.forEach { p ->
                             LedSegment(lit = granted[p] == true, hot = false, modifier = Modifier.size(width = 18.dp, height = 8.dp))
                         }
                     }
-                    VfdText(stringResource(R.string.perm_count, count, total).uppercase(), 20.sp.nonScaling())
+                    VfdText(stringResource(R.string.perm_count, count, required.size).uppercase(), 20.sp.nonScaling())
                 }
             }
 
@@ -125,6 +130,7 @@ fun PermissionsScreen(onContinue: () -> Unit) {
                         title = stringResource(title),
                         description = stringResource(desc),
                         granted = granted[p] == true,
+                        recommended = !p.required,
                         onAllow = { request(p) },
                     )
                 }
@@ -137,12 +143,13 @@ fun PermissionsScreen(onContinue: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             PillButton(
-                text = stringResource(R.string.continue_label),
-                enabled = all,
+                text = stringResource(if (nag) R.string.continue_anyway else R.string.continue_label),
+                primary = all,
                 onClick = {
-                    // Without everything allowed, the first tap explains the risk; a second
-                    // tap continues anyway (it can all be granted later in Settings).
-                    if (all || nag) {
+                    // With something required missing, the first tap explains the risk and a
+                    // second continues anyway: the list keeps warning until it's fixed. Opened
+                    // from that warning, it's just the way back.
+                    if (all || nag || fromList) {
                         AlarmPermissions.markOnboarded(context)
                         onContinue()
                     } else {
@@ -166,7 +173,7 @@ fun PermissionsScreen(onContinue: () -> Unit) {
 }
 
 @Composable
-private fun PermissionPlate(title: String, description: String, granted: Boolean, onAllow: () -> Unit) {
+private fun PermissionPlate(title: String, description: String, granted: Boolean, recommended: Boolean, onAllow: () -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()
@@ -175,15 +182,18 @@ private fun PermissionPlate(title: String, description: String, granted: Boolean
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Lamp(if (granted) Vfd else Action, glowAlpha = if (granted) 0.6f else 0.5f)
+        // Nothing is wrong without a recommended item, so it stays unlit rather than coral.
+        Lamp(if (granted) Vfd else Action, lit = granted || !recommended, glowAlpha = if (granted) 0.6f else 0.5f)
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            if (recommended) PrintLabel(stringResource(R.string.perm_recommended))
             Text(title, style = WwuType.bodyStrong, color = Ink)
             Text(description, style = WwuType.caption, color = InkMuted)
         }
         if (granted) {
             SunkKey(stringResource(R.string.allowed))
         } else {
-            OrangeKey(stringResource(R.string.allow), onClick = onAllow)
+            // Every plate's key says PERMITIR, so TalkBack names the one this is.
+            OrangeKey(stringResource(R.string.allow), onClick = onAllow, contentDescription = stringResource(R.string.cd_allow, title))
         }
     }
 }
