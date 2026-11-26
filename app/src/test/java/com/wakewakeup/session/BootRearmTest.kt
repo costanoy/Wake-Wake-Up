@@ -107,7 +107,9 @@ class BootRearmTest {
     }
 
     @Test
-    fun aRingTheWatchdogStillHoldsIsNotSwitchedOffAtBoot() {
+    fun aRingTheWatchdogStillHoldsIsSwitchedOffInTheListButTheSessionSurvives() {
+        // REV-01: a one-time ring that rang with the phone locked was never switched off; the
+        // restart's boot pass does it now, session or not. The session keeps its own copy.
         val once = env.save(Alarm(hour = 8, minute = 0, label = "", days = emptySet()))
         ArmedRings.put(env.app, once, System.currentTimeMillis() - 10 * 60_000L)
         AlarmSessionState.start(once, startedAtMillis = System.currentTimeMillis() - 9 * 60_000L, waits = 0)
@@ -117,6 +119,25 @@ class BootRearmTest {
 
         env.deliverBroadcast(Intent(Intent.ACTION_BOOT_COMPLETED))
 
-        assertTrue(env.reload(once)!!.enabled)
+        awaitUntil(message = "the one-time alarm off") { !env.reload(once)!!.enabled }
+        assertNull(env.scheduledFor(once))
+        assertNotNull(RingWatchdog.saved(env.app))
+    }
+
+    @Test
+    fun aOneTimeAlarmThatRangWhileLockedAndIsStillOpenAtTheUnlockDoesNotRingTomorrow() {
+        // REV-01: the ring moment was under 2 minutes ago and the session is still open.
+        val once = env.save(Alarm(hour = 7, minute = 0, label = "", days = emptySet()))
+        ArmedRings.put(env.app, once, System.currentTimeMillis() - 30_000L)
+        env.app.getSystemService(AlarmManager::class.java).cancelAll()
+        lockUser()
+        AlarmSessionState.start(once, startedAtMillis = System.currentTimeMillis() - 20_000L, waits = 0)
+        shadowOf(env.app.getSystemService(UserManager::class.java)).setUserUnlocked(true)
+
+        env.deliverBroadcast(Intent(Intent.ACTION_BOOT_COMPLETED))
+
+        awaitUntil(message = "the one-time alarm off") { !env.reload(once)!!.enabled }
+        assertNull(env.scheduledFor(once))
+        AlarmSessionState.clear()
     }
 }
