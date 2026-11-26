@@ -1,6 +1,7 @@
 package com.wakewakeup.ui.sound
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -34,6 +35,8 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
@@ -43,6 +46,7 @@ import com.wakewakeup.R
 import com.wakewakeup.data.RadioBrowser
 import com.wakewakeup.data.RadioStation
 import com.wakewakeup.ui.components.BackHeader
+import com.wakewakeup.ui.components.CrossGlyph
 import com.wakewakeup.ui.components.Lamp
 import com.wakewakeup.ui.components.OrangeKey
 import com.wakewakeup.ui.components.PlateDivider
@@ -80,7 +84,7 @@ private sealed interface RadioResults {
  * key toggles those seconds on and off.
  */
 @Composable
-fun RadioScreen(onBack: () -> Unit, viewModel: EditAlarmViewModel) {
+fun RadioScreen(onBack: () -> Unit, viewModel: EditAlarmViewModel, onDone: () -> Unit = onBack) {
     val draft = viewModel.draft
     val player = rememberSoundPreview()
     val keyboard = LocalSoftwareKeyboardController.current
@@ -89,6 +93,8 @@ fun RadioScreen(onBack: () -> Unit, viewModel: EditAlarmViewModel) {
     val homeCountry = remember { Locale.getDefault().country.ifBlank { "BR" } }
     var query by rememberSaveable { mutableStateOf("") }
     var results by remember { mutableStateOf<RadioResults>(RadioResults.Loading) }
+    // Set once a station is chosen here: it brings up the DONE plate at the foot.
+    var pickedHere by rememberSaveable { mutableStateOf(false) }
     var attempt by remember { mutableStateOf(0) }
     LaunchedEffect(query, attempt) {
         results = RadioResults.Loading
@@ -104,6 +110,7 @@ fun RadioScreen(onBack: () -> Unit, viewModel: EditAlarmViewModel) {
 
     fun select(station: RadioStation) {
         keyboard?.hide()
+        pickedHere = true
         viewModel.setSound(station.streamUrl, station.name)
         player.play(station.streamUrl, STREAM_PREVIEW_MS)
     }
@@ -118,28 +125,40 @@ fun RadioScreen(onBack: () -> Unit, viewModel: EditAlarmViewModel) {
             },
         )
 
-        Box(
+        val clearSearch = stringResource(R.string.cd_clear_search)
+        Row(
             Modifier
                 .padding(start = 16.dp, end = 16.dp, top = 8.dp)
                 .fillMaxWidth()
                 .heightIn(min = 52.dp)
                 .visor(WwuShape.visorSmall, lip = false)
-                .padding(horizontal = 14.dp, vertical = 12.dp),
-            contentAlignment = Alignment.CenterStart,
+                .padding(start = 14.dp, end = if (query.isEmpty()) 14.dp else 0.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            if (query.isEmpty()) {
-                Text(stringResource(R.string.radio_search_hint), style = WwuType.bodyInput, color = InkMuted.copy(alpha = 0.8f), maxLines = 1)
+            Box(Modifier.weight(1f).padding(vertical = 12.dp), contentAlignment = Alignment.CenterStart) {
+                if (query.isEmpty()) {
+                    Text(stringResource(R.string.radio_search_hint), style = WwuType.bodyInput, color = InkMuted.copy(alpha = 0.8f), maxLines = 1)
+                }
+                BasicTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    singleLine = true,
+                    textStyle = WwuType.bodyInput.copy(color = Ink),
+                    cursorBrush = SolidColor(Vfd),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                    keyboardActions = KeyboardActions(onSearch = { keyboard?.hide() }),
+                    modifier = Modifier.fillMaxWidth(),
+                )
             }
-            BasicTextField(
-                value = query,
-                onValueChange = { query = it },
-                singleLine = true,
-                textStyle = WwuType.bodyInput.copy(color = Ink),
-                cursorBrush = SolidColor(Vfd),
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                keyboardActions = KeyboardActions(onSearch = { keyboard?.hide() }),
-                modifier = Modifier.fillMaxWidth(),
-            )
+            if (query.isNotEmpty()) {
+                Box(
+                    Modifier
+                        .size(48.dp)
+                        .clickable(role = Role.Button, onClickLabel = clearSearch) { query = "" }
+                        .semantics { contentDescription = clearSearch },
+                    contentAlignment = Alignment.Center,
+                ) { CrossGlyph(48.dp, InkMuted) }
+            }
         }
         Text(
             stringResource(R.string.radio_note),
@@ -199,6 +218,36 @@ fun RadioScreen(onBack: () -> Unit, viewModel: EditAlarmViewModel) {
                         }
                     }
                 }
+            }
+        }
+
+        // Chosen here: name it and offer the way straight back to the editor.
+        if (pickedHere) {
+            Row(
+                Modifier
+                    .padding(start = 16.dp, end = 16.dp, bottom = 16.dp, top = 8.dp)
+                    .fillMaxWidth()
+                    .faceplate(WwuShape.faceplateSmall, softShadow = false)
+                    .padding(start = 14.dp, end = 8.dp, top = 6.dp, bottom = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Lamp(Vfd)
+                Text(
+                    draft.soundName.orEmpty(),
+                    style = WwuType.bodyXS,
+                    color = Ink,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+                OrangeKey(
+                    stringResource(R.string.ready),
+                    onClick = {
+                        player.stop()
+                        onDone()
+                    },
+                )
             }
         }
     }

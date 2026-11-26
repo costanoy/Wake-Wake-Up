@@ -7,4 +7,5 @@
     <string name="radio_connecting">Connecting…</string>
     <string name="radio_station_failed">Didn\'t play just now. Try another station.</string>
     <string name="sound_failed">Couldn\'t play this sound.</string>
+    <string name="cd_clear_search">Clear search</string>
 </resources>

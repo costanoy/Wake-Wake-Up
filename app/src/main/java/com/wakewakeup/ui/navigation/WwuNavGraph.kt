@@ -121,7 +121,11 @@ fun WwuNavGraph(
             )
         }
         composable(Destinations.RADIO) { entry ->
-            RadioScreen(onBack = { entry.ifResumed { navController.popBackStack() } }, viewModel = editViewModel)
+            RadioScreen(
+                onBack = { entry.ifResumed { navController.popBackStack() } },
+                viewModel = editViewModel,
+                onDone = { entry.ifResumed { navController.popBackStack(Destinations.EDIT, inclusive = false) } },
+            )
         }
         composable(Destinations.STATS) { entry ->
             StatsScreen(onBack = { entry.ifResumed { navController.popBackStack() } })
