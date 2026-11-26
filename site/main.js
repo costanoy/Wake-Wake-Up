@@ -421,7 +421,7 @@
   }
   paintChart(12);
 
-  // ------------------------------------------------------------------ Scroll reveals and their triggers
+  // ------------------------------------------------------------------ Scroll triggers
 
   var triggers = {
     stats: function () {
@@ -440,21 +440,16 @@
     }
   };
 
+  // Only the two blocks with a trigger animate when they scroll into view (the LED chart and the "Bom dia" digits).
   if (!reduceMotion && 'IntersectionObserver' in window) {
-    var targets = Array.prototype.slice.call(document.querySelectorAll('[data-reveal]'));
-    targets.forEach(function (el) {
-      if (el.getBoundingClientRect().top > window.innerHeight * 0.92) el.classList.add('reveal');
-    });
     var observer = new IntersectionObserver(function (entries) {
       entries.forEach(function (entry) {
         if (!entry.isIntersecting) return;
-        var el = entry.target;
-        el.classList.add('is-in');
-        var trigger = el.getAttribute('data-trigger');
+        var trigger = entry.target.getAttribute('data-trigger');
         if (trigger && triggers[trigger]) triggers[trigger]();
-        observer.unobserve(el);
+        observer.unobserve(entry.target);
       });
     }, { threshold: 0.2 });
-    targets.forEach(function (el) { observer.observe(el); });
+    document.querySelectorAll('[data-trigger]').forEach(function (el) { observer.observe(el); });
   }
 })();
