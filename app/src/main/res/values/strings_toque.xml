@@ -2,7 +2,7 @@
 <resources>
     <string name="mission_timed_out">Time ran out. The mission starts over.</string>
     <string name="mission_time_label">Time</string>
-    <string name="mission_time_low">%1$d s left. Then the alarm rings again.</string>
+    <string name="mission_time_low">Under 20 s. Then the alarm rings again.</string>
     <string name="phrase_wrong_here">Doesn\'t match. Fix it from the underlined letter.</string>
     <string name="phrase_wrong_extra">Doesn\'t match. There\'s extra text at the end.</string>
     <string name="gm_first">Your first wake-up on record.</string>
