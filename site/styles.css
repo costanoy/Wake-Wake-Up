@@ -166,6 +166,16 @@ a.download:active { transform: translateY(3px); }
 .download--soon .download__button::before { position: static; width: 10px; height: 10px; border-radius: 50%; background: var(--vfd); box-shadow: 0 0 8px var(--vfd); }
 .download--soon .download__button::after { content: none; }
 
+.download__meta { margin-top: -6px; padding: 4px 10px; border-radius: 5px; background: var(--housing); color: var(--ink-muted); font-size: 12px; font-weight: 600; letter-spacing: .08em; }
+
+/* "How to install": numbered steps in the notes panel */
+.install { margin: 8px 0 0; padding: 0; list-style: none; counter-reset: passo; display: flex; flex-direction: column; gap: 10px; }
+.install li { counter-increment: passo; display: grid; grid-template-columns: 28px 1fr; gap: 8px; font-size: 15px; line-height: 1.5; color: var(--ink); }
+.install li::before { content: counter(passo); font-family: var(--cond); font-weight: 500; font-size: 24px; line-height: 1.1; color: var(--vfd); text-shadow: 0 0 6px rgba(242, 169, 59, .55); }
+.install strong { font-weight: 600; }
+[data-apk-note] { display: flex; flex-direction: column; gap: 10px; }
+.final__notes:focus-visible { outline-offset: 4px; }
+
 /* ------------------------------------------------------------------ Video */
 .phone-wrap { display: flex; justify-content: center; }
 .phone { position: relative; width: min(300px, 78vw); aspect-ratio: 9 / 16; border-radius: 36px; overflow: hidden; background: repeating-linear-gradient(135deg, #1C171C 0 10px, #211B21 10px 20px); box-shadow: 0 0 0 8px var(--housing-deep), 0 0 0 9px #2A2328, 0 30px 70px rgba(0, 0, 0, .6); }

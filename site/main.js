@@ -2,7 +2,7 @@
 (function () {
   'use strict';
 
-  var config = Object.assign({ storeUrl: '', apkUrl: '', contact: '' }, window.WWU_CONFIG || {});
+  var config = Object.assign({ storeUrl: '', apkUrl: '', apkVersion: '', apkSize: '', contact: '' }, window.WWU_CONFIG || {});
   var reduceMotion = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   var $ = function (id) { return document.getElementById(id); };
 
@@ -138,9 +138,21 @@
     return node;
   }
 
+  // Under each button: version and size, from site-config.js (change them together with the APK).
+  var apkMeta = [config.apkVersion && 'v' + config.apkVersion, config.apkSize, 'Android 8+'].filter(Boolean).join(' · ');
+  var installBox = $(EN ? 'install' : 'instalar');
+
   document.querySelectorAll('[data-download]').forEach(function (link) {
     if (mode === 'apk') {
       link.href = siteUrl(config.apkUrl);
+      // The download goes on as usual; a moment later the page shows what to do with the file.
+      link.addEventListener('click', function () {
+        setTimeout(function () {
+          if (!installBox) return;
+          installBox.scrollIntoView({ block: 'start' });
+          installBox.focus({ preventScroll: true });
+        }, 600);
+      });
     } else if (mode === 'store') {
       link.href = config.storeUrl;
       link.removeAttribute('download');
@@ -150,10 +162,18 @@
       link.replaceWith(plate(mode === 'ios' ? T.androidOnly : T.soon));
     }
   });
+  document.querySelectorAll('[data-apk-meta]').forEach(function (meta) {
+    if (mode === 'apk') meta.textContent = apkMeta; else meta.hidden = true;
+  });
   // The install notes only make sense while the download is a loose APK file.
   document.querySelectorAll('[data-apk-note]').forEach(function (note) { note.hidden = mode !== 'apk'; });
   document.querySelectorAll('[data-desktop-note]').forEach(function (note) { note.hidden = mode !== 'apk' || isAndroid; });
   document.querySelectorAll('[data-ios-note]').forEach(function (note) { note.hidden = mode !== 'ios'; });
+
+  // "How to install" has nothing to show once the button is a store link or a plate.
+  if (mode === 'store' || mode === 'soon') {
+    document.querySelectorAll('.hero__test').forEach(function (link) { link.hidden = true; });
+  }
 
   var contactLink = $('contact-link');
   if (contactLink && config.contact) {

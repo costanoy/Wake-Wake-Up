@@ -37,7 +37,7 @@
   if (wanted === here) return;
 
   // Keep the section the visitor was sent to.
-  var PT_TO_EN = { '#baixar': '#download', '#como-funciona': '#how-it-works', '#teste': '#test' };
+  var PT_TO_EN = { '#baixar': '#download', '#como-funciona': '#how-it-works', '#teste': '#test', '#instalar': '#install' };
   var hash = location.hash;
   Object.keys(PT_TO_EN).forEach(function (pt) {
     if (here === 'pt' && hash === pt) hash = PT_TO_EN[pt];
