@@ -56,6 +56,9 @@ private const val FIRST_CHECK_WINDOW_MS = 10 * 60_000L
 private const val SESSION_RETRY_MS = 5 * 60_000L
 private const val HANDLED_KEPT_MS = 24 * 60 * 60_000L
 
+/** The dial's orange, behind the small icon (GUIA-VISUAL). */
+private const val NOTIFICATION_COLOR = 0xFFE8663C.toInt()
+
 private const val PREFS = "pre_alarm"
 private const val KEY_HANDLED = "handled"
 private const val KEY_POSTED = "posted"
@@ -159,6 +162,7 @@ class PreAlarmCheck(
         )
         val notification = NotificationCompat.Builder(context, PRE_ALARM_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification_sun)
+            .setColor(NOTIFICATION_COLOR)
             .setContentTitle(title)
             .setContentText(context.getString(R.string.skip_receipt_text))
             .setSilent(true)
@@ -191,6 +195,7 @@ class PreAlarmCheck(
         )
         val notification = NotificationCompat.Builder(context, PRE_ALARM_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification_sun)
+            .setColor(NOTIFICATION_COLOR)
             .setContentTitle(title)
             .setContentText(text)
             .setStyle(NotificationCompat.BigTextStyle().bigText(text))
