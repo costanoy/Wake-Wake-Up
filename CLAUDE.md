@@ -49,3 +49,23 @@ Permissões, Lista de alarmes, Editar alarme, Tarefa, Som, Rádio, Estatísticas
 - Sem dependências novas de runtime sem razão forte. Orçamento em `.auditoria/orcamento.md`.
 - Áudio: manifesto em `assets/audio/audio_manifest.md` (o app não usa música).
 - Nunca versionar `local.properties`, `keystore.properties`, `*.jks`, `.env`.
+
+## Fluxo de trabalho com agentes
+
+A sessão principal (Sonnet) coordena e delega. Siga estas regras:
+
+- **Recurso novo ou mudança em mais de 2 arquivos:** planejador → executores em paralelo (um por lote, até 6) → revisor.
+- **Mudança pequena e óbvia (1 ou 2 arquivos):** faça direto, sem planejador.
+- **Bug relatado:** explorador roda as ferramentas → confirmador reproduz → executor corrige → revisor confere.
+- **Tela ou modelo 3D criado ou alterado:** explorador tira os prints ou renderiza a prévia → auditor-ux revisa → executor ajusta.
+- **Leitura ampla ou busca no projeto:** sempre o explorador, nunca a sessão principal.
+- **Problema muito difícil em que o Sonnet travou:** use "ultrathink" no pedido antes de chamar um modelo maior.
+- Use /clear entre tarefas diferentes para o contexto não crescer à toa.
+- **Várias frentes ao mesmo tempo:** o Vinicius gosta de ver várias frentes trabalhando simultaneamente e de acompanhar cada uma. Divida todo trabalho independente em frentes paralelas (até 6 com Haiku e Sonnet, até 3 com Fable e Opus), dê um nome claro a cada frente, mantenha a lista de tarefas atualizada e avise em uma linha quando cada frente começar e terminar.
+- Nada pode estourar o orçamento em .auditoria/orcamento.md. O projeto precisa continuar leve.
+- Todo visual segue o GUIA-VISUAL.md, se existir.
+- Skills do projeto ficam em .claude/skills/, com a lista em .auditoria/skills.md. Use as que valem para cada tarefa, principalmente a de design, para nada ficar com cara de IA. Ao procurar skills novas, não se limite às oficiais da Anthropic, mas leia o SKILL.md e todos os scripts antes de instalar.
+- Assets, quando necessários: ElevenLabs gera tudo que não é música, Suno gera tudo que é música, Blender faz tudo que é 3D e Canva faz toda a arte 2D (logo, ícones, banners, arte da loja e divulgação).
+- Não sugerir a estética Graffiti Core.
+- Mantenha o ROADMAP.md atualizado quando um recurso for concluído.
+- **Neste PC (memória apertada):** no máximo 3 builds Gradle ao mesmo tempo, cada um em seu worktree, com `-Dorg.gradle.jvmargs="-Xmx1536m -Dfile.encoding=UTF-8" -Pkotlin.compiler.execution.strategy=in-process`. Worktrees automáticos de workflow partem do `main`: crie os worktrees à mão a partir da branch atual.
