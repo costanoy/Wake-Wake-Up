@@ -122,6 +122,7 @@ class SkipConfirmUiTest {
         compose.onNodeWithText(str(R.string.skip_confirm_keep).uppercase()).performClick()
         compose.waitForDescription(str(R.string.cd_alarm_switch, "%02d:%02d".format(alarm.hour, alarm.minute)))
         assertNull(env.reload(alarm)!!.skipDate)
+        compose.waitFor("rearmed") { env.scheduledFor(alarm)?.triggerAtMs == at }
         assertEquals(at, env.scheduledFor(alarm)!!.triggerAtMs)
     }
 
