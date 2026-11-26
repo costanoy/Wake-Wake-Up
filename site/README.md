@@ -29,6 +29,8 @@ Reconstruída a partir do handoff `design_handoff_wakewakeup_site`. Em portuguê
 | `storeUrl` | vazio | Preenchido, os botões viram "Baixar no Google Play" e o APK deixa de ser oferecido |
 | `apkUrl` | `wake-wake-up.apk` | Enquanto `storeUrl` estiver vazio, os botões baixam este arquivo |
 | `contact` | `cyberhat.tech@gmail.com` | E-mail do rodapé |
+| `testContact` | `vinicostamaga@outlook.com` | E-mail do cartão "Teste no Android". Apague a linha para o cartão usar o `contact` (decisão pendente: um e-mail só) |
+| `apkVersion`, `apkSize` | `1.2`, `4 MB` | Versão e tamanho mostrados sob o botão de baixar. Troque junto com o APK |
 
 Com `storeUrl` e `apkUrl` vazios, os botões mostram "Em breve no Google Play".
 O link do APK também está escrito no HTML das duas páginas iniciais, para funcionar mesmo sem JavaScript.
@@ -44,7 +46,7 @@ Em iPhone e iPad, o botão vira "Só para Android". No computador, aparece uma d
 ## Teste do app
 
 O cartão "Teste no Android" fica na chamada final (`#teste`, em inglês `#test`). O botão "Quero testar" mostra o pedido
-para mandar e-mail para vinicostamaga@outlook.com. Funciona sem JavaScript (é um `<details>`).
+para mandar e-mail para o endereço de `testContact` (ou o `contact`, se `testContact` for apagado). Funciona sem JavaScript (é um `<details>`).
 
 ## Atualizar o APK
 

@@ -11,5 +11,7 @@ window.WWU_CONFIG = {
   apkVersion: "1.2",
   apkSize: "4 MB",
   // E-mail de contato do rodapé. Deixe "" (vazio) para não mostrar contato.
-  contact: "cyberhat.tech@gmail.com"
+  contact: "cyberhat.tech@gmail.com",
+  // E-mail do cartão "Teste no Android". Apague esta linha para o cartão usar o mesmo e-mail do rodapé.
+  testContact: "vinicostamaga@outlook.com"
 };

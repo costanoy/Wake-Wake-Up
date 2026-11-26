@@ -2,7 +2,7 @@
 (function () {
   'use strict';
 
-  var config = Object.assign({ storeUrl: '', apkUrl: '', apkVersion: '', apkSize: '', contact: '' }, window.WWU_CONFIG || {});
+  var config = Object.assign({ storeUrl: '', apkUrl: '', apkVersion: '', apkSize: '', contact: '', testContact: '' }, window.WWU_CONFIG || {});
   var reduceMotion = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   var $ = function (id) { return document.getElementById(id); };
 
@@ -196,6 +196,15 @@
     contactLink.href = 'mailto:' + config.contact;
     contactLink.textContent = config.contact;
     contactLink.hidden = false;
+  }
+
+  // The test card's link: testContact if set, otherwise the footer address (one line in site-config.js).
+  var testAddress = config.testContact || config.contact;
+  if (testAddress) {
+    document.querySelectorAll('[data-contact-link]').forEach(function (link) {
+      link.href = 'mailto:' + testAddress + '?subject=' + encodeURIComponent(link.getAttribute('data-subject') || '');
+      link.textContent = testAddress;
+    });
   }
 
   // ------------------------------------------------------------------ Video (never autoplays)
