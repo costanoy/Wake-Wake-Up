@@ -26,6 +26,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlin.coroutines.resume
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeoutOrNull
+import java.util.UUID
 import kotlinx.coroutines.withContext
 
 const val PRE_ALARM_CHANNEL_ID = "pre_alarm"
@@ -34,6 +35,9 @@ const val ACTION_CONFIRM_SKIP = "com.wakewakeup.action.CONFIRM_SKIP"
 const val ACTION_UNDO_SKIP = "com.wakewakeup.action.UNDO_SKIP"
 const val EXTRA_SKIP_IDS = "extra_skip_ids"
 const val EXTRA_SKIP_ATS = "extra_skip_ats"
+
+/** Proves the confirm intent came from our own notification: MainActivity is exported, anyone can fire one. */
+const val EXTRA_SKIP_TOKEN = "extra_skip_token"
 
 /** Every notification the app posts, in one place so no two ever share an id by accident. */
 object NotificationIds {
@@ -56,6 +60,7 @@ private const val PREFS = "pre_alarm"
 private const val KEY_HANDLED = "handled"
 private const val KEY_POSTED = "posted"
 private const val KEY_APP_SEEN = "app_seen_at"
+private const val KEY_SKIP_TOKEN = "skip_token"
 
 /**
  * "Você quer desativar o próximo alarme?": when the phone is already in use (screen on and
@@ -168,7 +173,7 @@ class PreAlarmCheck(
     fun cancelOffer() {
         if (!UserManagerCompat.isUserUnlocked(context)) return
         NotificationManagerCompat.from(context).cancel(NotificationIds.PRE_ALARM)
-        prefs.edit().remove(KEY_POSTED).apply()
+        prefs.edit().remove(KEY_POSTED).remove(KEY_SKIP_TOKEN).apply()
     }
 
     private fun postOffer(offer: List<Occurrence>, now: Long) {
@@ -315,12 +320,26 @@ class PreAlarmCheck(
     private fun alarmManager() = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
 
     companion object {
-        /** Opens the confirm screen for [occurrences]. */
-        fun confirmSkipIntent(context: Context, occurrences: List<Occurrence>): Intent =
-            Intent(context, MainActivity::class.java)
+        /**
+         * Opens the confirm screen for [occurrences]. Carries a fresh token, also saved here: an
+         * intent from any other app can't know it, and [isSkipTokenValid] turns it away.
+         */
+        fun confirmSkipIntent(context: Context, occurrences: List<Occurrence>): Intent {
+            val token = UUID.randomUUID().toString()
+            context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString(KEY_SKIP_TOKEN, token).apply()
+            return Intent(context, MainActivity::class.java)
                 .setAction(ACTION_CONFIRM_SKIP)
+                .putExtra(EXTRA_SKIP_TOKEN, token)
                 .putExtra(EXTRA_SKIP_IDS, occurrences.map { it.alarmId }.toLongArray())
                 .putExtra(EXTRA_SKIP_ATS, occurrences.map { it.at }.toLongArray())
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        }
+
+        /** True when [token] is the one the last confirm intent was made with. */
+        fun isSkipTokenValid(context: Context, token: String?): Boolean {
+            if (token.isNullOrEmpty()) return false
+            val saved = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(KEY_SKIP_TOKEN, null)
+            return saved != null && saved == token
+        }
     }
 }

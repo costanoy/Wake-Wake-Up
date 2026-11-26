@@ -13,6 +13,8 @@ import com.wakewakeup.session.ACTION_CONFIRM_SKIP
 import com.wakewakeup.session.AlarmSessionState
 import com.wakewakeup.session.EXTRA_SKIP_ATS
 import com.wakewakeup.session.EXTRA_SKIP_IDS
+import com.wakewakeup.session.EXTRA_SKIP_TOKEN
+import com.wakewakeup.session.PreAlarmCheck
 import com.wakewakeup.session.RingActivity
 import com.wakewakeup.session.RingWatchdog
 import com.wakewakeup.session.SessionScreen
@@ -108,6 +110,8 @@ class MainActivity : ComponentActivity() {
 
     private fun skipRequestOf(intent: Intent?): SkipRequest? {
         if (intent?.action != ACTION_CONFIRM_SKIP) return null
+        // MainActivity is exported: only the notification's own intent carries the saved token.
+        if (!PreAlarmCheck.isSkipTokenValid(this, intent.getStringExtra(EXTRA_SKIP_TOKEN))) return null
         val ids = intent.getLongArrayExtra(EXTRA_SKIP_IDS) ?: return null
         val ats = intent.getLongArrayExtra(EXTRA_SKIP_ATS) ?: return null
         if (ids.isEmpty() || ids.size != ats.size) return null
