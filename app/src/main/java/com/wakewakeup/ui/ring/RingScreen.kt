@@ -7,12 +7,14 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -146,64 +148,68 @@ private fun Ringing(session: RingSession, onStartMission: () -> Unit, onHoldOn: 
             modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp),
         )
 
-        Column(
-            Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Spacer(Modifier.height(56.dp))
-            PrintLabel(label, textAlign = TextAlign.Center, modifier = Modifier.padding(horizontal = 24.dp))
-            Spacer(Modifier.height(14.dp))
-            FlipNumber(
-                text = time.replace(":", ""),
-                size = FlipSize.XL,
-                spokenText = time,
-                shadow = CardShadow(10.dp, 4.dp, 0.7f),
-                colon = { ColonDots(8.dp, 14.dp, Vfd, glow = true) },
-                modifier = Modifier.graphicsLayer { alpha = pulseAlpha },
-            )
-            if (session.missionTimedOut) {
-                // The mission ran out of time and the alarm is back: say so, and that it starts over.
-                Text(
-                    stringResource(R.string.mission_timed_out),
-                    style = WwuType.bodyStrong,
-                    color = Ink,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier
-                        .padding(horizontal = 24.dp)
-                        .padding(top = 12.dp)
-                        .semantics { liveRegion = LiveRegionMode.Polite },
-                )
-            } else {
-                PrintLabel(
-                    stringResource(R.string.ring_alarm_at, formatClock(session.alarmHour, session.alarmMinute)),
-                    modifier = Modifier.padding(top = 12.dp),
-                )
-            }
-
+        // The block sits in the middle of what the bar and the key leave; short screens scroll.
+        BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
             Column(
-                Modifier
-                    .padding(start = 24.dp, end = 24.dp, top = 28.dp)
-                    .fillMaxWidth()
-                    .visor(WwuShape.visor, lip = false)
-                    .padding(horizontal = 14.dp, vertical = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).heightIn(min = maxHeight),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                    PrintLabel(stringResource(R.string.volume))
-                    VfdText(
-                        stringResource(if (session.volume < 1f) R.string.volume_rising else R.string.volume_max).uppercase(),
-                        14.sp.nonScaling(),
-                        glowAlpha = 0.5f,
+                Spacer(Modifier.height(24.dp))
+                PrintLabel(label, textAlign = TextAlign.Center, modifier = Modifier.padding(horizontal = 24.dp))
+                Spacer(Modifier.height(14.dp))
+                FlipNumber(
+                    text = time.replace(":", ""),
+                    size = FlipSize.XL,
+                    spokenText = time,
+                    shadow = CardShadow(10.dp, 4.dp, 0.7f),
+                    colon = { ColonDots(8.dp, 14.dp, Vfd, glow = true) },
+                    modifier = Modifier.graphicsLayer { alpha = pulseAlpha },
+                )
+                if (session.missionTimedOut) {
+                    // The mission ran out of time and the alarm is back: say so, and that it starts over.
+                    Text(
+                        stringResource(R.string.mission_timed_out),
+                        style = WwuType.bodyStrong,
+                        color = Ink,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier
+                            .padding(horizontal = 24.dp)
+                            .padding(top = 12.dp)
+                            .semantics { liveRegion = LiveRegionMode.Polite },
+                    )
+                } else {
+                    PrintLabel(
+                        stringResource(R.string.ring_alarm_at, formatClock(session.alarmHour, session.alarmMinute)),
+                        modifier = Modifier.padding(top = 12.dp),
                     )
                 }
-                LedMeter(
-                    count = VOLUME_SEGMENTS,
-                    isLit = { it < litSegments },
-                    isHot = { it >= 13 },
-                    segmentHeight = 14.dp,
-                )
+
+                Column(
+                    Modifier
+                        .padding(start = 24.dp, end = 24.dp, top = 28.dp)
+                        .fillMaxWidth()
+                        .visor(WwuShape.visor, lip = false)
+                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                        PrintLabel(stringResource(R.string.volume))
+                        VfdText(
+                            stringResource(if (session.volume < 1f) R.string.volume_rising else R.string.volume_max).uppercase(),
+                            14.sp.nonScaling(),
+                            glowAlpha = 0.5f,
+                        )
+                    }
+                    LedMeter(
+                        count = VOLUME_SEGMENTS,
+                        isLit = { it < litSegments },
+                        isHot = { it >= 13 },
+                        segmentHeight = 14.dp,
+                    )
+                }
+                Spacer(Modifier.height(24.dp))
             }
-            Spacer(Modifier.height(24.dp))
         }
 
         StartMissionButton(stringResource(R.string.start_mission), onStartMission)
@@ -247,42 +253,46 @@ private fun EspereActive(session: RingSession, holdUntilMillis: Long, onStartMis
             modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp),
         )
 
-        Column(
-            Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Spacer(Modifier.height(72.dp))
-            Text(stringResource(R.string.espere_returns_in), style = WwuType.bodyS, color = Ink)
-            Spacer(Modifier.height(16.dp))
-            FlipNumber(
-                text = mmss,
-                size = FlipSize.L,
-                spokenText = spoken,
-                colon = { ColonDots(8.dp, 14.dp, InkMuted) },
-            )
-            // MIN and SEG under the card pairs, as HORA and MIN sit under the edit drums, so the
-            // countdown doesn't read as a time of day. 28 dp is the colon with a gap either side.
-            // TalkBack already hears the whole duration from the cards.
-            val pair = FlipSize.L.width * 2 + FlipSize.L.gap
-            Row(
-                Modifier.padding(top = 10.dp).clearAndSetSemantics {},
-                horizontalArrangement = Arrangement.spacedBy(28.dp),
+        // The block sits in the middle of what the bar and the key leave; short screens scroll.
+        BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
+            Column(
+                Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).heightIn(min = maxHeight),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Box(Modifier.width(pair), contentAlignment = Alignment.Center) { PrintLabel(stringResource(R.string.minute)) }
-                Box(Modifier.width(pair), contentAlignment = Alignment.Center) { PrintLabel(stringResource(R.string.second_short)) }
+                Spacer(Modifier.height(24.dp))
+                Text(stringResource(R.string.espere_returns_in), style = WwuType.bodyS, color = Ink)
+                Spacer(Modifier.height(16.dp))
+                FlipNumber(
+                    text = mmss,
+                    size = FlipSize.L,
+                    spokenText = spoken,
+                    colon = { ColonDots(8.dp, 14.dp, InkMuted) },
+                )
+                // MIN and SEG under the card pairs, as HORA and MIN sit under the edit drums, so the
+                // countdown doesn't read as a time of day. 28 dp is the colon with a gap either side.
+                // TalkBack already hears the whole duration from the cards.
+                val pair = FlipSize.L.width * 2 + FlipSize.L.gap
+                Row(
+                    Modifier.padding(top = 10.dp).clearAndSetSemantics {},
+                    horizontalArrangement = Arrangement.spacedBy(28.dp),
+                ) {
+                    Box(Modifier.width(pair), contentAlignment = Alignment.Center) { PrintLabel(stringResource(R.string.minute)) }
+                    Box(Modifier.width(pair), contentAlignment = Alignment.Center) { PrintLabel(stringResource(R.string.second_short)) }
+                }
+                Spacer(Modifier.height(24.dp))
+                Row(
+                    Modifier
+                        .visor(WwuShape.visorSmall, lip = false)
+                        .padding(horizontal = 18.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    PrintLabel(stringResource(R.string.espere_used))
+                    VfdText(stringResource(R.string.times, session.waits), 24.sp.nonScaling())
+                }
+                Spacer(Modifier.height(24.dp))
             }
-            Spacer(Modifier.height(24.dp))
-            Row(
-                Modifier
-                    .visor(WwuShape.visorSmall, lip = false)
-                    .padding(horizontal = 18.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                PrintLabel(stringResource(R.string.espere_used))
-                VfdText(stringResource(R.string.times, session.waits), 24.sp.nonScaling())
-            }
-            Spacer(Modifier.height(24.dp))
         }
 
         StartMissionButton(stringResource(R.string.awake_start_mission), onStartMission)
