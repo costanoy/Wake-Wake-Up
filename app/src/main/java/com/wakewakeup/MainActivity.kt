@@ -89,8 +89,10 @@ class MainActivity : ComponentActivity() {
         app.container.appScope.launch { app.container.alarmRepository.rescheduleAll(sparingDue = true) }
         // An alarm spared above (its ring may have been in flight) is armed once that is surely over.
         // A Handler, not a delay() in the app scope: the scope's children would hold up every test.
+        // The container is read first: the lambda must not capture this activity (it outlives it by 2 min).
+        val container = app.container
         Handler(Looper.getMainLooper()).postDelayed(
-            { app.container.appScope.launch { app.container.alarmRepository.rescheduleAll() } },
+            { container.appScope.launch { container.alarmRepository.rescheduleAll() } },
             SECOND_PASS_MS,
         )
     }
