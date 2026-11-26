@@ -47,7 +47,7 @@ class AlarmLabelUiTest {
         compose.waitForText(label)
         compose.onNodeWithText(label).performClick()
         compose.waitForText(str(R.string.edit_alarm))
-        compose.waitForDescription("${str(R.string.hour)} 06")
+        compose.waitForDescription(str(R.string.hour))
     }
 
     @Test

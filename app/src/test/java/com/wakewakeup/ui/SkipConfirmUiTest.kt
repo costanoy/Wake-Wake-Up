@@ -104,7 +104,10 @@ class SkipConfirmUiTest {
 
         compose.onNodeWithText(str(R.string.undo).uppercase()).performClick()
         compose.waitFor("undone") { env.reload(alarm)!!.skipDate == null }
+        // Undo runs in the background: the rescheduling and the cancelled receipt land a moment after the database.
+        compose.waitFor("rescheduled") { env.scheduledFor(alarm)?.triggerAtMs == at }
         assertEquals(at, env.scheduledFor(alarm)!!.triggerAtMs)
+        compose.waitFor("receipt cancelled") { notifications.getNotification(NotificationIds.SKIP_RECEIPT) == null }
         assertNull(notifications.getNotification(NotificationIds.SKIP_RECEIPT))
         // Back on the list, where the alarm is on as usual.
         compose.waitForDescription(str(R.string.cd_alarm_switch, "%02d:%02d".format(alarm.hour, alarm.minute)))

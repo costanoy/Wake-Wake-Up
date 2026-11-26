@@ -7,9 +7,11 @@ import android.graphics.Canvas
 import android.media.AudioManager
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
+import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -159,6 +161,8 @@ open class ScreenshotTour {
         for (day in 0..4) compose.onNodeWithContentDescription(context.resources.getStringArray(R.array.day_full)[day]).performClick()
         // A new alarm has no delete key: save it, then open it again.
         compose.onNodeWithContentDescription(str(R.string.save)).performClick()
+        // The name is also typed in the editor, so wait for the list itself before tapping the row.
+        compose.waitFor("editor closed") { compose.onAllNodesWithContentDescription(str(R.string.save)).fetchSemanticsNodes().isEmpty() }
         compose.waitForText("Trabalho")
         compose.onNodeWithText("Trabalho").performClick()
         compose.waitForText(str(R.string.edit_alarm))
@@ -166,7 +170,7 @@ open class ScreenshotTour {
         compose.waitForDescription(str(R.string.delete_confirm))
         shot("08-editando-excluir-armado", ::mainActivity)
 
-        compose.onNodeWithText(context.resources.getQuantityString(R.plurals.task_summary_math, 3, 3)).performClick()
+        compose.onNodeWithText(context.resources.getQuantityString(R.plurals.task_summary_math, 3, 3)).performScrollTo().performClick()
         compose.waitForText(str(R.string.task_setup_title))
         shot("09-tarefa-matematica", ::mainActivity)
         compose.onNodeWithContentDescription(str(R.string.mode_phrase)).performClick()
@@ -175,11 +179,11 @@ open class ScreenshotTour {
         compose.onNodeWithContentDescription(str(R.string.cd_back)).performClick()
 
         compose.waitForText(str(R.string.sound_default))
-        compose.onNodeWithText(str(R.string.sound_default)).performClick()
+        compose.onNodeWithText(str(R.string.sound_default)).performScrollTo().performClick()
         compose.waitForText(str(R.string.sound_bell_name))
         shot("11-som", ::mainActivity)
 
-        compose.onNodeWithText(str(R.string.radio_row_desc)).performClick()
+        compose.onNodeWithText(str(R.string.radio_row_desc)).performScrollTo().performClick()
         compose.waitForText("Radio Um")
         shot("12-radio", ::mainActivity)
     }
