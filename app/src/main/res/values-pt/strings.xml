@@ -156,7 +156,7 @@
     <string name="stats_row_spoken">%1$s: alarme das %2$s, acordou às %3$s, %4$s depois</string>
     <string name="privacy">Privacidade</string>
     <string name="privacy_url">https://wakewakeup.cyberhat.com.br/privacidade.html</string>
-    <string name="stats_empty">Ainda sem despertares. Conclua uma missão e ele aparece aqui.</string>
+    <string name="stats_empty">Ainda sem despertares. Conclua a missão de um alarme e o tempo que você levou aparece aqui.</string>
 
     <!-- Permissões -->
     <string name="perm_eyebrow">Antes de começar</string>
