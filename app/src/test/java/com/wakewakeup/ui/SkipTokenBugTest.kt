@@ -15,7 +15,6 @@ import com.wakewakeup.testing.AppEnv
 import com.wakewakeup.ui.permissions.AlarmPermissions
 import org.junit.After
 import org.junit.Assert.assertTrue
-import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -23,7 +22,6 @@ import org.robolectric.annotation.Config
 import java.time.LocalTime
 
 /** TEC-10: a MainActivity exportada aceita CONFIRM_SKIP de qualquer app. */
-@Ignore("TEC-10: intent CONFIRM_SKIP sem token abre a tela de confirmação")
 @RunWith(AndroidJUnit4::class)
 @Config(qualifiers = PHONE)
 class SkipTokenBugTest {

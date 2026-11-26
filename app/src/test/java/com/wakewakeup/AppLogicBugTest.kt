@@ -21,7 +21,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
-import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -38,7 +37,6 @@ class AppLogicBugTest {
 
     private val everyDay = (0..6).toSet()
 
-    @Ignore("LOG-01: componentes do alarme nao sao directBootAware")
     @Test
     fun theRingComponentsAreDirectBootAware() {
         val pm = env.app.packageManager
@@ -49,14 +47,12 @@ class AppLogicBugTest {
         assertTrue("RingActivity", pm.getActivityInfo(name(RingActivity::class.java), 0).directBootAware)
     }
 
-    @Ignore("LOG-01: BootReceiver nao escuta LOCKED_BOOT_COMPLETED")
     @Test
     fun theBootReceiverListensToLockedBootCompleted() {
         val receivers = env.app.packageManager.queryBroadcastReceivers(Intent(Intent.ACTION_LOCKED_BOOT_COMPLETED), PackageManager.MATCH_DIRECT_BOOT_AWARE or PackageManager.MATCH_DIRECT_BOOT_UNAWARE)
         assertTrue(receivers.any { it.activityInfo.name == BootReceiver::class.java.name })
     }
 
-    @Ignore("LOG-05: abrir o app nao retoma um toque interrompido salvo no vigia")
     @Test
     fun openingTheAppBringsBackAnInterruptedRing() {
         val alarm = env.save(Alarm(hour = 7, minute = 0, label = "", days = everyDay))
@@ -65,13 +61,14 @@ class AppLogicBugTest {
         AlarmSessionState.clear() // the process died: memory is empty, the saved session is not
         shadowOf(env.app).clearStartedServices()
         ActivityScenario.launch(MainActivity::class.java).use {
+            // The resume runs in the app scope, off the main thread.
+            awaitUntil(message = "ring service started") { shadowOf(env.app).peekNextStartedService() != null }
             val started = shadowOf(env.app).peekNextStartedService()
             assertNotNull("no service started for the saved session", started)
             assertTrue(started.getBooleanExtra(EXTRA_RESUMED_SESSION, false))
         }
     }
 
-    @Ignore("LOG-09: editar a hora de um alarme que esta pulando hoje mantem o pulo")
     @Test
     fun editingTheTimeOfASkippingAlarmDropsTheSkip() {
         val alarm = env.save(Alarm(hour = 7, minute = 0, label = "", days = everyDay))
@@ -86,7 +83,19 @@ class AppLogicBugTest {
         assertNull("the skip survived a new time", env.reload(alarm)!!.skipDate)
     }
 
-    @Ignore("LOG-11: desfazer o pulo a menos de 1 min do toque e recusado em silencio")
+    @Test
+    fun editingOnlyTheNameOfASkippingAlarmKeepsTheSkip() {
+        val alarm = env.save(Alarm(hour = 7, minute = 0, label = "", days = everyDay))
+        val skipped = runBlocking { env.repository.skipNext(alarm) }
+        val vm = EditAlarmViewModel(env.app)
+        vm.startEdit(env.reload(alarm)!!)
+        vm.setLabel("Trabalho")
+        var saved = false
+        vm.save { saved = true }
+        awaitUntil(message = "saved") { saved }
+        assertEquals(skipped, env.reload(alarm)!!.skipDate)
+    }
+
     @Test
     fun undoingASkipJustBeforeTheRingIsAccepted() = runBlocking {
         val alarm = env.save(Alarm(hour = 7, minute = 0, label = "", days = everyDay))
@@ -95,5 +104,25 @@ class AppLogicBugTest {
         assertTrue(env.repository.undoSkipOccurrence(alarm.id, at, now = at - 30_000))
         assertNull(env.reload(alarm)!!.skipDate)
         assertEquals(at, env.scheduledFor(alarm)!!.triggerAtMs)
+    }
+
+    @Test
+    fun anAlarmSparedOnOpeningIsArmedByTheSecondPass() {
+        val due = java.time.LocalDateTime.now().minusSeconds(30)
+        val alarm = env.save(Alarm(hour = due.hour, minute = due.minute, label = "", days = everyDay))
+        env.app.getSystemService(android.app.AlarmManager::class.java).cancelAll()
+        ActivityScenario.launch(MainActivity::class.java).use {
+            joinAppScope()
+            assertNull("its ring may be in flight: spared on opening", env.scheduledFor(alarm))
+            shadowOf(android.os.Looper.getMainLooper()).idleFor(java.time.Duration.ofSeconds(130))
+            joinAppScope()
+            val armed = env.scheduledFor(alarm)
+            assertNotNull("the second pass never armed it", armed)
+            assertTrue("armed for the next occurrence", armed!!.triggerAtMs > System.currentTimeMillis() + 60 * 60_000L)
+        }
+    }
+
+    private fun joinAppScope() = runBlocking {
+        env.app.container.appScope.coroutineContext[kotlinx.coroutines.Job]?.children?.forEach { it.join() }
     }
 }

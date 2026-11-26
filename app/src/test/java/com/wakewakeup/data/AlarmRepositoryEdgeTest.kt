@@ -4,6 +4,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.wakewakeup.session.nextRingMillis
 import com.wakewakeup.session.nextTriggerMillis
 import com.wakewakeup.testing.AppEnv
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -74,12 +75,33 @@ class AlarmRepositoryEdgeTest {
     }
 
     @Test
-    fun undoingASkipTooCloseToTheRingIsRefused() = runBlocking {
+    fun undoingASkipIsAcceptedUntilTheRingInstantAndRefusedAfterIt() = runBlocking {
         val alarm = daily()
         val at = nextRingMillis(alarm)
         assertTrue(env.repository.skipOccurrence(alarm.id, at, now = at - 600 * minute))
-        assertFalse(env.repository.undoSkipOccurrence(alarm.id, at, now = at - 30_000))
+        // The ring has already come: too late to bring it back.
+        assertFalse(env.repository.undoSkipOccurrence(alarm.id, at, now = at + 1_000))
         assertNotNull(env.reload(alarm)!!.skipDate)
+        // Thirty seconds before it, the undo still works and arms the ring again.
+        assertTrue(env.repository.undoSkipOccurrence(alarm.id, at, now = at - 30_000))
+        assertNull(env.reload(alarm)!!.skipDate)
+        assertEquals(at, env.scheduledFor(alarm)!!.triggerAtMs)
+    }
+
+    @Test
+    fun cancellingRightAfterClearSkipNeverLeavesTheDatabaseAndAlarmManagerDisagreeing() = runBlocking {
+        val alarm = daily()
+        repeat(15) { round ->
+            val skipped = env.reload(alarm)!!.let { env.repository.skipNext(it); env.reload(alarm)!! }
+            val job = launch(start = kotlinx.coroutines.CoroutineStart.UNDISPATCHED) { env.repository.clearSkip(skipped) }
+            if (round % 3 != 0) kotlinx.coroutines.delay(round % 3L)
+            job.cancel()
+            job.join()
+            val now = env.reload(alarm)!!
+            val armedAt = env.scheduledFor(alarm)!!.triggerAtMs
+            // Either the skip is still there and the ring was not moved, or it is gone and the ring is the next day's.
+            assertEquals("round $round", nextRingMillis(now), armedAt)
+        }
     }
 
     @Test

@@ -21,8 +21,10 @@ class PreAlarmReceiver : BroadcastReceiver() {
                     ACTION_UNDO_SKIP -> {
                         val ids = intent.getLongArrayExtra(EXTRA_SKIP_IDS) ?: LongArray(0)
                         val ats = intent.getLongArrayExtra(EXTRA_SKIP_ATS) ?: LongArray(0)
-                        ids.zip(ats).forEach { (id, at) -> app.container.alarmRepository.undoSkipOccurrence(id, at) }
-                        NotificationManagerCompat.from(context).cancel(NotificationIds.SKIP_RECEIPT)
+                        // Every undo is tried; the receipt stays only if one was refused, so the
+                        // user doesn't think it worked.
+                        val results = ids.zip(ats).map { (id, at) -> app.container.alarmRepository.undoSkipOccurrence(id, at) }
+                        if (results.all { it }) NotificationManagerCompat.from(context).cancel(NotificationIds.SKIP_RECEIPT)
                     }
                 }
             } finally {
