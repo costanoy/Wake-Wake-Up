@@ -317,6 +317,21 @@ class RingFlowUiTest {
     }
 
     @Test
+    fun withTheDeviceStillLockedBomDiaWorksWithoutTheDatabase() {
+        // LOG-01: before the first unlock after boot the database can't be opened.
+        val manager = env.app.getSystemService(android.os.UserManager::class.java)
+        shadowOf(manager).setUserUnlocked(false)
+        // A backup due within the hour, which would be offered if the list could be read.
+        val soon = java.time.LocalDateTime.now().plusMinutes(30)
+        env.save(Alarm(hour = soon.hour, minute = soon.minute, label = "", days = emptySet()))
+        ring()
+        solveTheMission()
+        assertTrue(compose.onAllNodesWithText(str(R.string.gm_skip_also, formatClock(soon.hour, soon.minute))).fetchSemanticsNodes().isEmpty())
+        compose.onNodeWithContentDescription(str(R.string.done)).performClick()
+        waitFor("session over") { session == null }
+    }
+
+    @Test
     fun backDoesntDismissTheAlarm() {
         ring()
         screen!!.onActivity { it.onBackPressedDispatcher.onBackPressed() }

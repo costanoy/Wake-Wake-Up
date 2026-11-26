@@ -5,6 +5,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.os.UserManagerCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.wakewakeup.WakeWakeUpApplication
@@ -14,6 +15,7 @@ import com.wakewakeup.session.NotificationIds
 import com.wakewakeup.session.Occurrence
 import com.wakewakeup.session.PreAlarmPlanner
 import com.wakewakeup.session.RingSession
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
@@ -40,33 +42,57 @@ class RingSessionViewModel(application: Application) : AndroidViewModel(applicat
 
     /** Looks once per session (keyed by when it started) for alarms worth skipping along. */
     fun loadCompanions(session: RingSession) {
+        // Before the first unlock after boot the database can't be opened: no backups to offer.
+        if (!isUnlocked()) return
         if (companionsFor == session.startedAtMillis) return
         companionsFor = session.startedAtMillis
         companionsSkipped = emptyList()
         viewModelScope.launch {
-            companions = PreAlarmPlanner.companions(container.alarmRepository.getAll(), System.currentTimeMillis())
+            try {
+                companions = PreAlarmPlanner.companions(container.alarmRepository.getAll(), System.currentTimeMillis())
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                companions = emptyList()
+            }
         }
     }
 
     /** No sum to solve here: the mission that was just done proved the user is up. */
     fun skipCompanions() {
+        if (!isUnlocked()) return
         val offered = companions
         viewModelScope.launch {
-            val now = System.currentTimeMillis()
-            val skipped = offered.filter { container.alarmRepository.skipOccurrence(it.alarmId, it.at, now) }
-            companionsSkipped = skipped
-            container.preAlarm.postReceipt(skipped, now)
+            try {
+                val now = System.currentTimeMillis()
+                val skipped = offered.filter { container.alarmRepository.skipOccurrence(it.alarmId, it.at, now) }
+                companionsSkipped = skipped
+                container.preAlarm.postReceipt(skipped, now)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // The database is out of reach: nothing was skipped, and the offer stays.
+            }
         }
     }
 
     fun undoCompanions() {
+        if (!isUnlocked()) return
         val skipped = companionsSkipped
         viewModelScope.launch {
-            skipped.forEach { container.alarmRepository.undoSkipOccurrence(it.alarmId, it.at) }
-            companionsSkipped = emptyList()
-            NotificationManagerCompat.from(getApplication()).cancel(NotificationIds.SKIP_RECEIPT)
+            try {
+                skipped.forEach { container.alarmRepository.undoSkipOccurrence(it.alarmId, it.at) }
+                companionsSkipped = emptyList()
+                NotificationManagerCompat.from(getApplication()).cancel(NotificationIds.SKIP_RECEIPT)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // Same as skipping: with the database out of reach the skip stays as it was.
+            }
         }
     }
+
+    private fun isUnlocked() = UserManagerCompat.isUserUnlocked(getApplication<Application>())
 
     private fun send(action: String, key: String? = null) {
         AlarmRingService.sendAction(getApplication(), action, key)

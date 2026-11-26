@@ -69,7 +69,8 @@ class RingActivity : ComponentActivity() {
                     val intent = Intent(this@RingActivity, MainActivity::class.java)
                         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
                     if (wantsStats) intent.putExtra(MainActivity.EXTRA_OPEN_STATS, true)
-                    startActivity(intent)
+                    // Before the first unlock the app can't start (its database is sealed): just close.
+                    runCatching { startActivity(intent) }
                     finish()
                 }
 
