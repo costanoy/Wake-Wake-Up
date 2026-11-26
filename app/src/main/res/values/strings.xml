@@ -157,7 +157,7 @@
     <!-- Permissions -->
     <string name="perm_eyebrow">Before you start</string>
     <string name="perm_title">So the alarm really rings</string>
-    <string name="perm_body">To save battery, Android can delay or silence alarms. Allow the first three items so the alarm rings even with the phone locked. The last one is recommended.</string>
+    <string name="perm_body">Android can delay or silence alarms to save battery. Allow the items below so the alarm rings even with the phone locked.</string>
     <string name="perm_granted_label">Allowed</string>
     <string name="perm_count">%1$d of %2$d</string>
     <string name="perm_notifications_title">Notifications</string>

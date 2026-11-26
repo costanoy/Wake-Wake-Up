@@ -161,7 +161,7 @@
     <!-- Permissões -->
     <string name="perm_eyebrow">Antes de começar</string>
     <string name="perm_title">Para o alarme tocar de verdade</string>
-    <string name="perm_body">Para economizar bateria, o Android pode atrasar ou silenciar alarmes. Libere os três primeiros itens para o alarme tocar mesmo com o celular bloqueado. O último é recomendado.</string>
+    <string name="perm_body">O Android pode atrasar ou silenciar alarmes para economizar bateria. Libere os itens abaixo para o alarme tocar mesmo com o celular bloqueado.</string>
     <string name="perm_granted_label">Liberadas</string>
     <string name="perm_count">%1$d de %2$d</string>
     <string name="perm_notifications_title">Notificações</string>
