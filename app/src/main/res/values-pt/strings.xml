@@ -146,7 +146,7 @@
     <string name="today">Hoje</string>
     <string name="avg_7">Média de 7 dias</string>
     <string name="woke_at_time">acordou às %1$s</string>
-    <string name="waits_per_wake">%1$s Espere por alarme</string>
+    <string name="waits_per_wake">Espere: %1$s por alarme</string>
     <string name="minutes_to_wake">Minutos até acordar</string>
     <string name="seven_days">7 dias</string>
     <string name="col_alarm">Alarme</string>
@@ -221,23 +221,23 @@
 
     <!-- Aviso antes do alarme -->
     <string name="pre_alarm_channel_name">Aviso antes do alarme</string>
-    <string name="pre_alarm_channel_desc">Se você já está usando o celular até 1 hora antes de um alarme da manhã, pergunta se quer desativá-lo só desta vez.</string>
-    <string name="pre_alarm_title_one">Você quer desativar o próximo alarme?</string>
-    <string name="pre_alarm_title_many">Você quer desativar os próximos alarmes?</string>
-    <string name="pre_alarm_text_one">%1$s toca às %2$s. Já acordou? Dá para desativar só desta vez.</string>
-    <string name="pre_alarm_text_many">%1$s. Já acordou? Dá para desativar todos só desta vez.</string>
-    <string name="pre_alarm_action">Desativar</string>
-    <string name="skip_confirm_title">Desativar só desta vez?</string>
+    <string name="pre_alarm_channel_desc">Se você já está usando o celular até 1 hora antes de um alarme da manhã, pergunta se quer pulá-lo só desta vez.</string>
+    <string name="pre_alarm_title_one">Já acordou?</string>
+    <string name="pre_alarm_title_many">Já acordou?</string>
+    <string name="pre_alarm_text_one">%1$s toca às %2$s. Quer pular só desta vez?</string>
+    <string name="pre_alarm_text_many">%1$s. Quer pular todos só desta vez?</string>
+    <string name="pre_alarm_action">Pular</string>
+    <string name="skip_confirm_title">Pular só desta vez?</string>
     <string name="skip_confirm_back_on">Volta a tocar %1$s</string>
     <string name="skip_confirm_one_off">Fica desligado na lista</string>
     <string name="skip_confirm_gate">Para confirmar, resolva</string>
     <string name="skip_confirm_keep">Manter</string>
-    <string name="skip_confirm_turn_off">Desativar</string>
-    <string name="skip_confirm_done">Pronto, desativado só desta vez.</string>
+    <string name="skip_confirm_turn_off">Pular</string>
+    <string name="skip_confirm_done">Pronto, pulado só desta vez.</string>
     <string name="skip_confirm_stale">Esse alarme já mudou ou já tocou.</string>
     <string name="skip_receipt_title_one">%1$s não toca às %2$s</string>
     <string name="skip_receipt_title_many">Não tocam: %1$s</string>
-    <string name="skip_receipt_text">Desativado só desta vez.</string>
+    <string name="skip_receipt_text">Pulado só desta vez.</string>
     <string name="gm_skip_also">Pular também %1$s?</string>
     <string name="gm_skipped">Pronto, só desta vez.</string>
 
