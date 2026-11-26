@@ -6,6 +6,7 @@ import android.os.UserManager
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.wakewakeup.data.Alarm
 import com.wakewakeup.testing.AppEnv
+import com.wakewakeup.testing.awaitUntil
 import com.wakewakeup.testing.resetDatabase
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -80,5 +81,42 @@ class BootRearmTest {
         prefs.edit().putString("a_5", "{not json").putString("a_x", "{}").commit()
         assertTrue(ArmedRings.all(env.app).isEmpty())
         assertNotNull(prefs)
+    }
+
+    @Test
+    fun aOneTimeAlarmLostWhileThePhoneWasOffIsSwitchedOffAtBoot() {
+        val once = env.save(Alarm(hour = 8, minute = 0, label = "", days = emptySet()))
+        ArmedRings.put(env.app, once, System.currentTimeMillis() - 2 * 60 * 60_000L)
+        env.app.getSystemService(AlarmManager::class.java).cancelAll()
+
+        env.deliverBroadcast(Intent(Intent.ACTION_BOOT_COMPLETED))
+
+        awaitUntil(message = "the lost alarm off") { !env.reload(once)!!.enabled }
+        assertNull(env.scheduledFor(once))
+    }
+
+    @Test
+    fun aOneTimeAlarmStillAheadIsArmedAtBootAsBefore() {
+        val once = env.save(Alarm(hour = 8, minute = 0, label = "", days = emptySet()))
+        env.app.getSystemService(AlarmManager::class.java).cancelAll()
+
+        env.deliverBroadcast(Intent(Intent.ACTION_BOOT_COMPLETED))
+
+        awaitUntil(message = "armed again") { env.scheduledFor(once) != null }
+        assertTrue(env.reload(once)!!.enabled)
+    }
+
+    @Test
+    fun aRingTheWatchdogStillHoldsIsNotSwitchedOffAtBoot() {
+        val once = env.save(Alarm(hour = 8, minute = 0, label = "", days = emptySet()))
+        ArmedRings.put(env.app, once, System.currentTimeMillis() - 10 * 60_000L)
+        AlarmSessionState.start(once, startedAtMillis = System.currentTimeMillis() - 9 * 60_000L, waits = 0)
+        RingWatchdog.save(env.app, AlarmSessionState.session.value!!)
+        AlarmSessionState.clear()
+        env.app.getSystemService(AlarmManager::class.java).cancelAll()
+
+        env.deliverBroadcast(Intent(Intent.ACTION_BOOT_COMPLETED))
+
+        assertTrue(env.reload(once)!!.enabled)
     }
 }
