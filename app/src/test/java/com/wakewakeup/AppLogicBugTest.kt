@@ -54,7 +54,6 @@ class AppLogicBugTest {
         assertTrue(receivers.any { it.activityInfo.name == BootReceiver::class.java.name })
     }
 
-    @Ignore("LOG-05: abrir o app nao retoma um toque interrompido salvo no vigia")
     @Test
     fun openingTheAppBringsBackAnInterruptedRing() {
         val alarm = env.save(Alarm(hour = 7, minute = 0, label = "", days = everyDay))
@@ -63,6 +62,8 @@ class AppLogicBugTest {
         AlarmSessionState.clear() // the process died: memory is empty, the saved session is not
         shadowOf(env.app).clearStartedServices()
         ActivityScenario.launch(MainActivity::class.java).use {
+            // The resume runs in the app scope, off the main thread.
+            awaitUntil(message = "ring service started") { shadowOf(env.app).peekNextStartedService() != null }
             val started = shadowOf(env.app).peekNextStartedService()
             assertNotNull("no service started for the saved session", started)
             assertTrue(started.getBooleanExtra(EXTRA_RESUMED_SESSION, false))

@@ -13,6 +13,7 @@ import com.wakewakeup.session.AlarmSessionState
 import com.wakewakeup.session.EXTRA_SKIP_ATS
 import com.wakewakeup.session.EXTRA_SKIP_IDS
 import com.wakewakeup.session.RingActivity
+import com.wakewakeup.session.RingWatchdog
 import com.wakewakeup.session.SessionScreen
 import com.wakewakeup.ui.navigation.SkipRequest
 import com.wakewakeup.ui.navigation.WwuNavGraph
@@ -33,6 +34,7 @@ class MainActivity : ComponentActivity() {
             navigationBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
         )
         rearmAlarmsOnce()
+        resumeInterruptedRing()
         // What the launching intent asks for is acted on once: a recreated activity (rotation,
         // process death) gets its screens back from the saved navigation state instead.
         val fresh = savedInstanceState == null
@@ -78,6 +80,19 @@ class MainActivity : ComponentActivity() {
         if (app.rearmedThisProcess) return
         app.rearmedThisProcess = true
         lifecycleScope.launch { app.container.alarmRepository.rescheduleAll(sparingDue = true) }
+    }
+
+    /**
+     * A ring the process lost (killed, crashed) comes back when the app is opened, even if the
+     * watchdog's wake has not come yet. Off the main thread: the saved session is a preferences read.
+     */
+    private fun resumeInterruptedRing() {
+        val context = applicationContext
+        app.container.appScope.launch {
+            if (AlarmSessionState.session.value == null && RingWatchdog.saved(context) != null) {
+                RingWatchdog.resumeIfInterrupted(context)
+            }
+        }
     }
 
     private fun skipRequestOf(intent: Intent?): SkipRequest? {
