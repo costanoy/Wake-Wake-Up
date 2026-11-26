@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="skip_confirm_hint">Enter the result and tap OK</string>
+    <string name="sounds_app">App sounds</string>
+    <string name="sounds_phone">Phone sounds</string>
+    <string name="cd_stop_preview">Stop %1$s</string>
+    <string name="radio_connecting">Connecting…</string>
+    <string name="radio_station_failed">Didn\'t play just now. Try another station.</string>
+    <string name="sound_failed">Couldn\'t play this sound.</string>
+    <string name="cd_clear_search">Clear search</string>
+</resources>

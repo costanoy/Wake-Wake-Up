@@ -126,6 +126,23 @@ class SoundAndTaskUiTest {
     }
 
     @Test
+    fun theSoundPreviewKeyTurnsIntoStopWhileItPlays() {
+        openEditor()
+        compose.onNodeWithText(str(R.string.sound_default)).performClick()
+        compose.waitForText(str(R.string.sound_bell_name))
+        val name = str(R.string.sound_phone_name)
+        // Choosing a sound plays it for a moment.
+        compose.onNodeWithText(name).performClick()
+        // Playing: the key says stop, and the display says preview.
+        compose.waitForDescription(str(R.string.cd_stop_preview, name))
+        compose.onNodeWithText(str(R.string.preview_label).uppercase()).assertIsDisplayed()
+
+        compose.onNodeWithContentDescription(str(R.string.cd_stop_preview, name)).performClick()
+        compose.waitForDescription(str(R.string.cd_play_preview, name))
+        compose.waitForNoText(str(R.string.preview_label).uppercase())
+    }
+
+    @Test
     fun pickingASongFromThePhone() {
         val alarm = openEditor()
         compose.onNodeWithText(str(R.string.sound_default)).performClick()
@@ -223,6 +240,46 @@ class SoundAndTaskUiTest {
         compose.onNode(hasSetTextAction()).performTextInput("x")
         compose.mainClock.advanceTimeBy(600)
         compose.waitForText(str(R.string.radio_empty).uppercase())
+    }
+
+    @Test
+    fun doneAfterPickingAStationGoesStraightBackToTheEditor() {
+        val alarm = openEditor()
+        compose.onNodeWithText(str(R.string.sound_default)).performClick()
+        compose.waitForText(str(R.string.radio_row_desc))
+        compose.onNodeWithText(str(R.string.radio_row_desc)).performClick()
+        compose.waitForText("Radio Um")
+        // Nothing chosen yet: no DONE plate.
+        assertTrue(compose.onAllNodesWithTextCount(str(R.string.ready).uppercase()) == 0)
+
+        compose.onNodeWithText("Radio Um").performClick()
+        compose.waitForText(str(R.string.ready).uppercase())
+        compose.onNodeWithText(str(R.string.ready).uppercase()).performClick()
+
+        // Past the sound screen too: the editor's sound row names the station.
+        compose.waitFor("editor") {
+            compose.onAllNodes(hasContentDescription(str(R.string.hour)) and hasStateDescription("%02d".format(alarm.hour)))
+                .fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithText("Radio Um").assertExists()
+        saveAndWait(alarm) { it.soundUri == "https://um.example/stream" }
+    }
+
+    @Test
+    fun theSearchFieldHasAKeyToClearIt() {
+        openEditor()
+        compose.onNodeWithText(str(R.string.sound_default)).performClick()
+        compose.waitForText(str(R.string.radio_row_desc))
+        compose.onNodeWithText(str(R.string.radio_row_desc)).performClick()
+        compose.waitForText(str(R.string.radio_popular).uppercase())
+        assertTrue(compose.onAllNodes(hasContentDescription(str(R.string.cd_clear_search))).fetchSemanticsNodes().isEmpty())
+
+        compose.onNode(hasSetTextAction()).performTextInput("jazz")
+        compose.mainClock.advanceTimeBy(600)
+        compose.waitForText(str(R.string.radio_results).uppercase())
+        compose.onNodeWithContentDescription(str(R.string.cd_clear_search)).performClick()
+        compose.waitForText(str(R.string.radio_popular).uppercase())
+        assertTrue(compose.onAllNodes(hasContentDescription(str(R.string.cd_clear_search))).fetchSemanticsNodes().isEmpty())
     }
 
     @Test
