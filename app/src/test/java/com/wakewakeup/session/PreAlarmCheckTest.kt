@@ -176,6 +176,30 @@ class PreAlarmCheckTest {
     }
 
     @Test
+    fun twoBroadcastsInARowWhileTheCheckWaitsDoNotResumeItTwice() {
+        // REV-03: the wait used to resume its continuation once per broadcast and crashed on the second.
+        val (_, at) = morningAlarm()
+        usingPhone(screenOn = true, unlocked = false)
+        check.unlockWaitMs = 10_000
+        val failure = java.util.concurrent.atomic.AtomicReference<Throwable?>(null)
+        val finished = java.util.concurrent.atomic.AtomicBoolean(false)
+        Thread {
+            try { checkAt(at - 40 * minute) } catch (t: Throwable) { failure.set(t) }
+            finished.set(true)
+        }.start()
+        awaitUntil(message = "the check waiting for the unlock") {
+            shadowOf(env.app).registeredReceivers.any { it.intentFilter.hasAction(Intent.ACTION_USER_PRESENT) }
+        }
+
+        usingPhone(screenOn = true, unlocked = true)
+        env.app.sendBroadcast(Intent(Intent.ACTION_USER_PRESENT))
+        env.app.sendBroadcast(Intent(Intent.ACTION_SCREEN_OFF))
+        awaitUntil(message = "the check done") { finished.get() }
+
+        assertNull(failure.get())
+    }
+
+    @Test
     fun anEveningAlarmIsNeverQuestioned() {
         val evening = env.save(Alarm(hour = 22, minute = 0, label = "Remédio", days = everyDay))
         checkAt(nextRingMillis(evening) - 40 * minute)

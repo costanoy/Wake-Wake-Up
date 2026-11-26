@@ -21,10 +21,9 @@ import com.wakewakeup.data.Alarm
 import com.wakewakeup.data.AlarmDao
 import com.wakewakeup.data.toDomain
 import com.wakewakeup.ui.components.formatClock
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
-import kotlin.coroutines.resume
-import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.UUID
 import kotlinx.coroutines.withContext
@@ -236,30 +235,28 @@ class PreAlarmCheck(
         if (inUse()) return true
         if (unlockWaitMs <= 0L) return false
         val appContext = context.applicationContext
-        var receiver: BroadcastReceiver? = null
-        try {
-            withTimeoutOrNull(unlockWaitMs) {
-                suspendCancellableCoroutine { continuation ->
-                    val registered = object : BroadcastReceiver() {
-                        override fun onReceive(context: Context, intent: Intent) {
-                            if (continuation.isActive) continuation.resume(Unit)
-                        }
-                    }
-                    receiver = registered
-                    ContextCompat.registerReceiver(
-                        appContext, registered,
-                        IntentFilter().apply {
-                            addAction(Intent.ACTION_USER_PRESENT)
-                            addAction(Intent.ACTION_SCREEN_OFF)
-                        },
-                        ContextCompat.RECEIVER_NOT_EXPORTED,
-                    )
-                    // It may have been unlocked (or turned off) between the check above and the registration.
-                    if (!power.isInteractive || !keyguard.isKeyguardLocked) continuation.resume(Unit)
-                }
+        // complete() may be called any number of times: the receiver (main thread) and the check
+        // after the registration (IO) can both get there, and neither may fail the other.
+        val done = CompletableDeferred<Unit>()
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                done.complete(Unit)
             }
+        }
+        try {
+            ContextCompat.registerReceiver(
+                appContext, receiver,
+                IntentFilter().apply {
+                    addAction(Intent.ACTION_USER_PRESENT)
+                    addAction(Intent.ACTION_SCREEN_OFF)
+                },
+                ContextCompat.RECEIVER_NOT_EXPORTED,
+            )
+            // It may have been unlocked (or turned off) between the check above and the registration.
+            if (!power.isInteractive || !keyguard.isKeyguardLocked) done.complete(Unit)
+            withTimeoutOrNull(unlockWaitMs) { done.await() }
         } finally {
-            receiver?.let { runCatching { appContext.unregisterReceiver(it) } }
+            runCatching { appContext.unregisterReceiver(receiver) }
         }
         return inUse()
     }
