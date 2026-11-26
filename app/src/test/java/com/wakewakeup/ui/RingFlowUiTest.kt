@@ -272,10 +272,21 @@ class RingFlowUiTest {
     fun aRingScreenOpenedAfterTheAlarmEndedGoesBackToTheApp() {
         // E.g. the notification tapped late: there's nothing ringing anymore.
         screen = ActivityScenario.launch(RingActivity::class.java)
+        compose.mainClock.advanceTimeBy(3_100)
         compose.waitFor("app opened") { MainActivity::class.java.name in openedActivities() }
         var finishing = false
         screen!!.onActivity { finishing = it.isFinishing }
         assertTrue("the ring screen should close itself", finishing)
+    }
+
+    @Test
+    fun withoutASessionForThreeSecondsTheRingScreenOpensTheApp() {
+        // TEC-05: it waits for a session that may still be on its way, and only then gives up.
+        screen = ActivityScenario.launch(RingActivity::class.java)
+        compose.mainClock.advanceTimeBy(2_500)
+        assertFalse("it gave up before the 3 s were over", MainActivity::class.java.name in openedActivities())
+        compose.mainClock.advanceTimeBy(700)
+        compose.waitFor("app opened") { MainActivity::class.java.name in openedActivities() }
     }
 
     @Test

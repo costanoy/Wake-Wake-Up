@@ -13,7 +13,6 @@ import com.wakewakeup.testing.advance
 import org.junit.After
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
-import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -22,7 +21,6 @@ import org.robolectric.annotation.Config
 import java.time.Duration
 
 /** TEC-05: a tela de toque aberta antes de a sessão existir se fecha sozinha. */
-@Ignore("TEC-05: RingActivity sem sessão abre a MainActivity e fecha na hora, sem esperar o serviço criar a sessão")
 @RunWith(AndroidJUnit4::class)
 @Config(qualifiers = PHONE)
 class RingActivityRaceBugTest {
