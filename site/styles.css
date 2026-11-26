@@ -4,7 +4,6 @@
 @font-face { font-family: 'Barlow Condensed'; font-weight: 500; font-style: normal; font-display: swap; src: url('assets/fonts/barlow-condensed-500.woff2') format('woff2'); }
 @font-face { font-family: 'Barlow Condensed'; font-weight: 600; font-style: normal; font-display: swap; src: url('assets/fonts/barlow-condensed-600.woff2') format('woff2'); }
 @font-face { font-family: 'Instrument Sans'; font-weight: 400; font-style: normal; font-display: swap; src: url('assets/fonts/instrument-sans-400.woff2') format('woff2'); }
-@font-face { font-family: 'Instrument Sans'; font-weight: 500; font-style: normal; font-display: swap; src: url('assets/fonts/instrument-sans-500.woff2') format('woff2'); }
 @font-face { font-family: 'Instrument Sans'; font-weight: 600; font-style: normal; font-display: swap; src: url('assets/fonts/instrument-sans-600.woff2') format('woff2'); }
 
 :root {
@@ -246,7 +245,7 @@ a.download:active { transform: translateY(3px); }
 .bomdia { border-radius: 14px; background: linear-gradient(180deg, #3A1622 0%, #8A2E34 38%, #E8663C 78%, #F7D46B 100%); padding: 22px 20px; display: flex; flex-direction: column; gap: 12px; box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08); font-size: 14px; }
 .bomdia__digits { --w: 62px; display: flex; align-items: flex-end; gap: 5px; }
 .bomdia__digits b { font-size: 17px; font-weight: 600; letter-spacing: .12em; padding: 0 0 10px 8px; color: var(--on-action); }
-.bomdia__end { color: var(--on-action); font-weight: 500; }
+.bomdia__end { color: var(--on-action); font-weight: 400; }
 
 /* ------------------------------------------------------------------ Sons e rádio */
 .split__text--wide { gap: 20px; }
@@ -300,7 +299,7 @@ a.download:active { transform: translateY(3px); }
 .final__text { display: flex; flex-direction: column; gap: 16px; align-items: center; max-width: 720px; }
 .final__download { display: flex; flex-direction: column; align-items: center; gap: 20px; }
 .final__download .download { margin-bottom: -4px; }
-.apk-note { max-width: 440px; font-size: 14px; line-height: 1.5; font-weight: 500; color: var(--on-action); text-wrap: balance; }
+.apk-note { max-width: 440px; font-size: 14px; line-height: 1.5; font-weight: 400; color: var(--on-action); text-wrap: balance; }
 .final h2 { font-size: clamp(40px, 6vw, 80px); font-weight: 600; letter-spacing: -.02em; line-height: 1; }
 
 /* Test signup: a faceplate on the sunrise; the key reveals how to ask for access (no script needed). */
