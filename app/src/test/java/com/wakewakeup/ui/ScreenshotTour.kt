@@ -5,7 +5,13 @@ import android.app.Activity
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.media.AudioManager
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.isDialog
 import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -93,6 +99,20 @@ open class ScreenshotTour {
         File(dir, "$prefix-$name.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
     }
 
+    /** A dialog is a window of its own, so it is drawn from the last window root the system holds. */
+    private fun shotOfTheTopWindow(name: String) {
+        val global = Class.forName("android.view.WindowManagerGlobal")
+        val manager = global.getMethod("getInstance").invoke(null)
+        val names = global.getMethod("getViewRootNames").invoke(manager) as Array<*>
+        val view = global.getMethod("getRootView", String::class.java).invoke(manager, names.last()) as android.view.View
+        val bitmap = Bitmap.createBitmap(view.width, view.height, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+        canvas.drawColor(com.wakewakeup.ui.theme.Housing.toArgb())
+        view.draw(canvas)
+        val dir = File("build/screenshots").apply { mkdirs() }
+        File(dir, "$prefix-$name.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+    }
+
     private fun mainActivity(): Activity {
         var activity: Activity? = null
         main!!.onActivity { activity = it }
@@ -163,6 +183,17 @@ open class ScreenshotTour {
         compose.onNodeWithContentDescription(str(R.string.create_alarm)).performClick()
         compose.waitForText(str(R.string.new_alarm))
         shot("07-novo-alarme", ::mainActivity)
+
+        // Tapping a drum opens the four-digit entry (a dialog window of its own).
+        compose.onNode(hasContentDescription(str(R.string.hour)) and SemanticsMatcher.keyIsDefined(SemanticsActions.SetProgress)).performClick()
+        compose.waitForText(str(R.string.type_time_title))
+        compose.onNode(hasSetTextAction() and hasAnyAncestor(isDialog())).performTextInput("06")
+        compose.waitForIdle()
+        compose.mainClock.advanceTimeBy(1_000)
+        compose.waitForIdle()
+        shotOfTheTopWindow("07b-digitar-hora")
+        compose.onNodeWithText(str(R.string.cancel).uppercase()).performClick()
+        compose.waitForNoText(str(R.string.type_time_title))
 
         compose.onNode(hasSetTextAction()).performTextInput("Trabalho")
         for (day in 0..4) compose.onNodeWithContentDescription(context.resources.getStringArray(R.array.day_full)[day]).performClick()
