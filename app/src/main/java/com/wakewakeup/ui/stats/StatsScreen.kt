@@ -85,6 +85,15 @@ fun StatsScreen(onBack: () -> Unit, viewModel: StatsViewModel = viewModel()) {
         BackHeader(title = stringResource(R.string.stats), backDescription = stringResource(R.string.cd_back), onBack = onBack)
 
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
+            // With nothing recorded yet, say what to do before showing the empty week.
+            if (state.loaded && !state.hasData) {
+                Text(
+                    stringResource(R.string.stats_empty),
+                    style = WwuType.body,
+                    color = Ink,
+                    modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 12.dp),
+                )
+            }
             Row(
                 Modifier.padding(start = 16.dp, end = 16.dp, top = 10.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -93,12 +102,14 @@ fun StatsScreen(onBack: () -> Unit, viewModel: StatsViewModel = viewModel()) {
                     label = stringResource(R.string.today),
                     value = state.todayMinutes?.toString() ?: dash,
                     bright = true,
+                    showUnit = state.todayMinutes != null,
                     caption = state.todayWoke?.let { stringResource(R.string.woke_at_time, it) } ?: "",
                 )
                 SummaryPlate(
                     label = stringResource(R.string.avg_7),
                     value = state.avgMinutes?.toString() ?: dash,
                     bright = false,
+                    showUnit = state.avgMinutes != null,
                     caption = state.avgWaits?.let { stringResource(R.string.waits_per_wake, oneDecimal(it)) } ?: "",
                 )
             }
@@ -125,9 +136,6 @@ fun StatsScreen(onBack: () -> Unit, viewModel: StatsViewModel = viewModel()) {
                     state.days.forEach { day ->
                         ChartColumn(day, dayLabel(day.dayIndex, day.isToday), daySpoken(day.dayIndex, day.isToday), dash)
                     }
-                }
-                if (state.loaded && !state.hasData) {
-                    Text(stringResource(R.string.stats_empty), style = WwuType.bodyXS, color = InkMuted)
                 }
             }
 
@@ -203,7 +211,7 @@ private fun openPage(context: Context, url: String) {
 }
 
 @Composable
-private fun RowScope.SummaryPlate(label: String, value: String, bright: Boolean, caption: String) {
+private fun RowScope.SummaryPlate(label: String, value: String, bright: Boolean, showUnit: Boolean, caption: String) {
     Column(
         Modifier
             .weight(1f)
@@ -221,7 +229,7 @@ private fun RowScope.SummaryPlate(label: String, value: String, bright: Boolean,
                 glowRadius = 8.dp,
                 style = WwuType.vfd(40.sp.nonScaling()).copy(lineHeight = 40.sp.nonScaling()),
             )
-            Text(stringResource(R.string.min_unit), style = WwuType.caption, color = InkMuted, modifier = Modifier.padding(bottom = 4.dp))
+            if (showUnit) Text(stringResource(R.string.min_unit), style = WwuType.caption, color = InkMuted, modifier = Modifier.padding(bottom = 4.dp))
         }
         Text(caption, style = WwuType.caption, color = InkMuted)
     }
