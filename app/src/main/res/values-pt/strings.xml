@@ -95,7 +95,7 @@
 
     <!-- Alarme tocando / Espere -->
     <string name="espere_title">Espere 5 min</string>
-    <string name="espere_sub">Sem limite</string>
+    <string name="espere_sub">Toque para adiar</string>
     <string name="espere_active">Espere ativo</string>
     <string name="volume">Volume</string>
     <string name="volume_rising">Subindo</string>

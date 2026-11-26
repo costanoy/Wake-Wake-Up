@@ -92,7 +92,7 @@
 
     <!-- Ringing / Snooze -->
     <string name="espere_title">Snooze 5 min</string>
-    <string name="espere_sub">No limit</string>
+    <string name="espere_sub">Tap to snooze</string>
     <string name="espere_active">Snooze on</string>
     <string name="volume">Volume</string>
     <string name="volume_rising">Rising</string>
