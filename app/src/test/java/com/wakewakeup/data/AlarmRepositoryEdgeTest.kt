@@ -74,12 +74,17 @@ class AlarmRepositoryEdgeTest {
     }
 
     @Test
-    fun undoingASkipTooCloseToTheRingIsRefused() = runBlocking {
+    fun undoingASkipIsAcceptedUntilTheRingInstantAndRefusedAfterIt() = runBlocking {
         val alarm = daily()
         val at = nextRingMillis(alarm)
         assertTrue(env.repository.skipOccurrence(alarm.id, at, now = at - 600 * minute))
-        assertFalse(env.repository.undoSkipOccurrence(alarm.id, at, now = at - 30_000))
+        // The ring has already come: too late to bring it back.
+        assertFalse(env.repository.undoSkipOccurrence(alarm.id, at, now = at + 1_000))
         assertNotNull(env.reload(alarm)!!.skipDate)
+        // Thirty seconds before it, the undo still works and arms the ring again.
+        assertTrue(env.repository.undoSkipOccurrence(alarm.id, at, now = at - 30_000))
+        assertNull(env.reload(alarm)!!.skipDate)
+        assertEquals(at, env.scheduledFor(alarm)!!.triggerAtMs)
     }
 
     @Test

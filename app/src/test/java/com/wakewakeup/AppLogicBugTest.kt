@@ -21,7 +21,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
-import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -70,7 +69,6 @@ class AppLogicBugTest {
         }
     }
 
-    @Ignore("LOG-09: editar a hora de um alarme que esta pulando hoje mantem o pulo")
     @Test
     fun editingTheTimeOfASkippingAlarmDropsTheSkip() {
         val alarm = env.save(Alarm(hour = 7, minute = 0, label = "", days = everyDay))
@@ -85,7 +83,19 @@ class AppLogicBugTest {
         assertNull("the skip survived a new time", env.reload(alarm)!!.skipDate)
     }
 
-    @Ignore("LOG-11: desfazer o pulo a menos de 1 min do toque e recusado em silencio")
+    @Test
+    fun editingOnlyTheNameOfASkippingAlarmKeepsTheSkip() {
+        val alarm = env.save(Alarm(hour = 7, minute = 0, label = "", days = everyDay))
+        val skipped = runBlocking { env.repository.skipNext(alarm) }
+        val vm = EditAlarmViewModel(env.app)
+        vm.startEdit(env.reload(alarm)!!)
+        vm.setLabel("Trabalho")
+        var saved = false
+        vm.save { saved = true }
+        awaitUntil(message = "saved") { saved }
+        assertEquals(skipped, env.reload(alarm)!!.skipDate)
+    }
+
     @Test
     fun undoingASkipJustBeforeTheRingIsAccepted() = runBlocking {
         val alarm = env.save(Alarm(hour = 7, minute = 0, label = "", days = everyDay))

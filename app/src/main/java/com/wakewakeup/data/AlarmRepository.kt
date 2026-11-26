@@ -99,10 +99,10 @@ class AlarmRepository(
         return true
     }
 
-    /** Undoes [skipOccurrence] for the ring at [at], if that ring is still more than a minute away. */
+    /** Undoes [skipOccurrence] for the ring at [at], for as long as that ring has not come yet. */
     suspend fun undoSkipOccurrence(id: Long, at: Long, now: Long = System.currentTimeMillis()): Boolean {
         val alarm = getById(id) ?: return false
-        if (at - now < ACTION_MARGIN_MS) return false
+        if (at <= now) return false
         return if (alarm.days.isEmpty()) {
             if (alarm.enabled || nextTriggerMillis(alarm, localNow(now)) != at) return false
             setEnabled(alarm, true)
