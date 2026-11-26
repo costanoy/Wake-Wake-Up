@@ -46,7 +46,7 @@ if [ "$VERSAO_APK" != "$VERSAO_GRADLE" ]; then
 fi
 
 # 3b. Versao anunciada no site (site-config.js) igual a do APK
-VERSAO_SITE="$(sed -n 's/.*apkVersion *: *"\([^"]*\)".*//p' "$RAIZ/site/site-config.js" | head -n 1)"
+VERSAO_SITE="$(sed -n 's/.*apkVersion *: *"\([^"]*\)".*/\1/p' "$RAIZ/site/site-config.js" | head -n 1)"
 if [ "$VERSAO_APK" != "$VERSAO_SITE" ]; then
   falha "o site anuncia a versao '$VERSAO_SITE' (apkVersion em site/site-config.js), mas o APK e '$VERSAO_APK'"
 fi
