@@ -27,10 +27,6 @@
     <string name="cd_alarm_switch">%1$s alarm</string>
     <string name="untitled_alarm">Alarm</string>
     <string name="once_on_day">Once · %1$s</string>
-    <plurals name="perm_missing">
-        <item quantity="one">Your alarm may not ring · %d permission missing</item>
-        <item quantity="other">Your alarm may not ring · %d permissions missing</item>
-    </plurals>
     <string name="alarm_volume_low">Alarm volume is low (%1$d of %2$d)</string>
     <string name="alarm_volume_up">Turn up</string>
 
@@ -52,7 +48,6 @@
     <string name="cd_minute_up">Next minute</string>
     <string name="cd_minutes_plus_10">Plus 10 minutes</string>
     <string name="cd_minutes_minus_10">Minus 10 minutes</string>
-    <string name="days_none_hint">No days picked: rings once.</string>
     <string name="days_every_day">every day</string>
     <string name="days_weekdays">Monday to Friday</string>
     <string name="days_weekend">Saturday and Sunday</string>
@@ -108,7 +103,6 @@
 
     <!-- Mission -->
     <string name="mission">Mission</string>
-    <string name="mission_seconds">Mission · %1$d s</string>
     <string name="problem_of">Problem %1$d of %2$d</string>
     <string name="type_phrase_short">Type the phrase</string>
     <string name="enter_result">Enter the result</string>
@@ -120,7 +114,6 @@
     <string name="confirm">Confirm</string>
     <string name="cd_key_clear">Clear</string>
     <string name="cd_key_backspace">Delete</string>
-    <string name="cd_key_sign">Minus sign</string>
 
     <!-- Good morning -->
     <string name="good_morning">Good morning.</string>
@@ -155,7 +148,6 @@
     <string name="stats_empty">No wake-ups yet. Finish an alarm\'s mission and the time it took shows up here.</string>
 
     <!-- Permissions -->
-    <string name="perm_eyebrow">Before you start</string>
     <string name="perm_title">So the alarm really rings</string>
     <string name="perm_body">Android can delay or silence alarms to save battery. Allow the items below so the alarm rings even with the phone locked.</string>
     <string name="perm_granted_label">Allowed</string>
@@ -226,9 +218,7 @@
     <string name="skip_confirm_title">Skip just this once?</string>
     <string name="skip_confirm_back_on">Rings again %1$s</string>
     <string name="skip_confirm_one_off">Stays off in your list</string>
-    <string name="skip_confirm_gate">To confirm, solve</string>
     <string name="skip_confirm_keep">Keep</string>
-    <string name="skip_confirm_turn_off">Skip</string>
     <string name="skip_confirm_done">Done, skipped just this once.</string>
     <string name="skip_confirm_stale">That alarm changed or already rang.</string>
     <string name="skip_receipt_title_one">%1$s won\'t ring at %2$s</string>

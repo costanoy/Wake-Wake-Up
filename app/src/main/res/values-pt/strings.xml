@@ -27,11 +27,6 @@
     <string name="cd_alarm_switch">Alarme das %1$s</string>
     <string name="untitled_alarm">Alarme</string>
     <string name="once_on_day">Uma vez · %1$s</string>
-    <plurals name="perm_missing">
-        <item quantity="one">O alarme pode não tocar · falta %d permissão</item>
-        <item quantity="many">O alarme pode não tocar · faltam %d permissões</item>
-        <item quantity="other">O alarme pode não tocar · faltam %d permissões</item>
-    </plurals>
     <string name="alarm_volume_low">Volume do alarme baixo (%1$d de %2$d)</string>
     <string name="alarm_volume_up">Aumentar</string>
 
@@ -53,7 +48,6 @@
     <string name="cd_minute_up">Próximo minuto</string>
     <string name="cd_minutes_plus_10">Mais 10 minutos</string>
     <string name="cd_minutes_minus_10">Menos 10 minutos</string>
-    <string name="days_none_hint">Nenhum dia marcado: toca uma vez.</string>
     <string name="days_every_day">todos os dias</string>
     <string name="days_weekdays">segunda a sexta</string>
     <string name="days_weekend">sábado e domingo</string>
@@ -111,7 +105,6 @@
 
     <!-- Missão -->
     <string name="mission">Missão</string>
-    <string name="mission_seconds">Missão · %1$d s</string>
     <string name="problem_of">Conta %1$d de %2$d</string>
     <string name="type_phrase_short">Digite a frase</string>
     <string name="enter_result">Digite o resultado</string>
@@ -123,7 +116,6 @@
     <string name="confirm">Confirmar</string>
     <string name="cd_key_clear">Limpar</string>
     <string name="cd_key_backspace">Apagar</string>
-    <string name="cd_key_sign">Sinal de menos</string>
 
     <!-- Bom dia -->
     <string name="good_morning">Bom dia.</string>
@@ -159,7 +151,6 @@
     <string name="stats_empty">Ainda sem despertares. Conclua a missão de um alarme e o tempo que você levou aparece aqui.</string>
 
     <!-- Permissões -->
-    <string name="perm_eyebrow">Antes de começar</string>
     <string name="perm_title">Para o alarme tocar de verdade</string>
     <string name="perm_body">O Android pode atrasar ou silenciar alarmes para economizar bateria. Libere os itens abaixo para o alarme tocar mesmo com o celular bloqueado.</string>
     <string name="perm_granted_label">Liberadas</string>
@@ -230,9 +221,7 @@
     <string name="skip_confirm_title">Pular só desta vez?</string>
     <string name="skip_confirm_back_on">Volta a tocar %1$s</string>
     <string name="skip_confirm_one_off">Fica desligado na lista</string>
-    <string name="skip_confirm_gate">Para confirmar, resolva</string>
     <string name="skip_confirm_keep">Manter</string>
-    <string name="skip_confirm_turn_off">Pular</string>
     <string name="skip_confirm_done">Pronto, pulado só desta vez.</string>
     <string name="skip_confirm_stale">Esse alarme já mudou ou já tocou.</string>
     <string name="skip_receipt_title_one">%1$s não toca às %2$s</string>
