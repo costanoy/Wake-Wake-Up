@@ -38,6 +38,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -115,7 +116,10 @@ import com.wakewakeup.ui.theme.InkOff
 import com.wakewakeup.ui.theme.Vfd
 import com.wakewakeup.ui.theme.WwuShape
 import com.wakewakeup.ui.theme.WwuType
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -153,11 +157,16 @@ fun AlarmListScreen(
     // Both change outside the app (in Settings, with the volume keys), so they're read again
     // every time the list comes back.
     val context = LocalContext.current
-    var missing by remember { mutableIntStateOf(AlarmPermissions.missingRequired(context).size) }
+    // The permission check talks to system services (IPC), so it runs off the main thread.
+    val scope = rememberCoroutineScope()
+    var missing by remember { mutableIntStateOf(0) }
     var volume by remember { mutableStateOf(viewModel.alarmVolume()) }
+    LaunchedEffect(Unit) {
+        missing = withContext(Dispatchers.Default) { AlarmPermissions.missingRequired(context).size }
+    }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
-        missing = AlarmPermissions.missingRequired(context).size
         volume = viewModel.alarmVolume()
+        scope.launch { missing = withContext(Dispatchers.Default) { AlarmPermissions.missingRequired(context).size } }
     }
     // A quiet phone only matters while some alarm is on (one skipping a day is on too).
     val quietVolume = volume?.takeIf { it.isLow && alarms.any { alarm -> alarm.enabled } }
