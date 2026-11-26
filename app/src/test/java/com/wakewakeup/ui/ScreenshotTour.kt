@@ -150,8 +150,8 @@ open class ScreenshotTour {
         // Later: the same screen opened from the list's warning, with its ‹.
         launchMain()
         compose.waitForText(str(R.string.empty_title))
-        compose.waitForText(context.resources.getQuantityString(R.plurals.perm_missing, 1, 1), substring = true)
-        compose.onNodeWithText(context.resources.getQuantityString(R.plurals.perm_missing, 1, 1), substring = true).performClick()
+        compose.waitForText(str(R.string.perm_missing_title))
+        compose.onNodeWithText(str(R.string.perm_missing_title)).performClick()
         compose.waitForText(str(R.string.perm_short_title))
         shot("06-permissoes-aviso", ::mainActivity)
     }

@@ -58,7 +58,8 @@ class ListWarningsUiTest {
         scenario!!.moveToState(Lifecycle.State.RESUMED)
     }
 
-    private fun missing(count: Int) = context.resources.getQuantityString(R.plurals.perm_missing, count, count)
+    /** The detail line of the permission warning (its title is the same for any count). */
+    private fun missing(count: Int) = context.resources.getQuantityString(R.plurals.perm_missing_detail, count, count)
 
     /** The app reads the volume through the application's AudioManager, the same one as here. */
     private val audio: AudioManager get() = context.getSystemService(AudioManager::class.java)!!
@@ -76,6 +77,8 @@ class ListWarningsUiTest {
         launch()
         compose.waitForText(str(R.string.empty_title))
         compose.waitForText(missing(2))
+        // Two lines: what is wrong, then what to do.
+        compose.onNodeWithText(str(R.string.perm_missing_title)).assertIsDisplayed()
 
         // Allowed in Settings meanwhile: the count follows when the list comes back.
         shadowOf(context).grantPermissions(Manifest.permission.POST_NOTIFICATIONS)

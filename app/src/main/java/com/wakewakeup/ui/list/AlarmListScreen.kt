@@ -333,7 +333,8 @@ private fun Warnings(
             exit = shrinkVertically(shrinkTowards = Alignment.Top) + fadeOut(),
         ) {
             WarningRow(
-                text = pluralStringResource(R.plurals.perm_missing, shownMissing, shownMissing),
+                text = stringResource(R.string.perm_missing_title),
+                detail = pluralStringResource(R.plurals.perm_missing_detail, shownMissing, shownMissing),
                 onClick = onOpenPermissions,
                 modifier = rowSpacing,
             ) { Chevron(color = InkMuted) }
@@ -353,10 +354,11 @@ private fun Warnings(
     }
 }
 
-/** One warning: a coral lamp, what's wrong, and on the right what fixes it. */
+/** One warning: a lamp, what's wrong (with an optional [detail] line), and on the right what fixes it. */
 @Composable
 private fun WarningRow(
     text: String,
+    detail: String? = null,
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
     fix: @Composable RowScope.() -> Unit,
@@ -375,7 +377,11 @@ private fun WarningRow(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Lamp(Action, glowAlpha = 0.5f)
-        Text(text, style = WwuType.bodyXS, color = Ink, modifier = Modifier.weight(1f))
+        // What is wrong in the strong style, and (when there is one) what to do about it, muted.
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(text, style = WwuType.bodyStrong, color = Ink)
+            if (detail != null) Text(detail, style = WwuType.bodyXS, color = InkMuted)
+        }
         fix()
     }
 }

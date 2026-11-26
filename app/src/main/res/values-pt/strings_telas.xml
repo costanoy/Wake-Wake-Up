@@ -10,4 +10,12 @@
     <!-- Permissões -->
     <string name="perm_short_title">Permissões</string>
     <string name="back_to_list">Voltar para a lista</string>
+
+    <!-- Aviso da lista -->
+    <string name="perm_missing_title">O alarme pode não tocar</string>
+    <plurals name="perm_missing_detail">
+        <item quantity="one">Falta %d permissão. Toque para liberar.</item>
+        <item quantity="many">Faltam %d permissões. Toque para liberar.</item>
+        <item quantity="other">Faltam %d permissões. Toque para liberar.</item>
+    </plurals>
 </resources>
