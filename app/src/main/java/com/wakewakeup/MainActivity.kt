@@ -9,7 +9,6 @@ import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.lifecycle.lifecycleScope
 import com.wakewakeup.session.ACTION_CONFIRM_SKIP
 import com.wakewakeup.session.AlarmSessionState
 import com.wakewakeup.session.EXTRA_SKIP_ATS
@@ -42,7 +41,7 @@ class MainActivity : ComponentActivity() {
         val fresh = savedInstanceState == null
         val openStats = fresh && intent?.getBooleanExtra(EXTRA_OPEN_STATS, false) == true
         val skipRequest = if (fresh) skipRequestOf(intent) else null
-        if (skipRequest != null) app.container.preAlarm.cancelOffer()
+        if (skipRequest != null) app.container.appScope.launch { app.container.preAlarm.cancelOffer() }
         // First launch: walk through the permissions an alarm needs (notifications are asked
         // from there too) unless they're all already allowed.
         val showPermissions = !openStats && skipRequest == null && AlarmPermissions.shouldShowOnboarding(this)
@@ -55,9 +54,12 @@ class MainActivity : ComponentActivity() {
 
     override fun onStart() {
         super.onStart()
-        app.container.preAlarm.appSeen()
-        // Picks up a notification permission or channel the user just changed in Settings.
-        lifecycleScope.launch { app.container.preAlarm.reschedule() }
+        // Preferences, database and AlarmManager: off the main thread, in a scope the screen can't cancel.
+        app.container.appScope.launch {
+            app.container.preAlarm.appSeen()
+            // Picks up a notification permission or channel the user just changed in Settings.
+            app.container.preAlarm.reschedule()
+        }
     }
 
     override fun onResume() {
@@ -70,7 +72,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onStop() {
-        app.container.preAlarm.appSeen()
+        app.container.appScope.launch { app.container.preAlarm.appSeen() }
         super.onStop()
     }
 

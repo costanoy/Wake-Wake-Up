@@ -6,8 +6,11 @@ import com.wakewakeup.session.isoDayIndexOf
 import com.wakewakeup.session.nextRingMillis
 import com.wakewakeup.session.nextTriggerEpochDay
 import com.wakewakeup.session.nextTriggerMillis
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withContext
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -24,15 +27,17 @@ class AlarmRepository(
     private val scheduler: AlarmScheduler,
     /** Runs after every change, so whatever depends on the alarms (the pre-alarm check) follows. */
     private val onChanged: suspend () -> Unit = {},
+    /** Where the database and AlarmManager work runs: never the caller's (often the main) thread. */
+    private val io: CoroutineDispatcher = Dispatchers.IO,
 ) {
     fun observeAll(): Flow<List<Alarm>> =
         dao.observeAll().map { list -> list.map { it.toDomain() } }
 
-    suspend fun getAll(): List<Alarm> = dao.getAll().map { it.toDomain() }
+    suspend fun getAll(): List<Alarm> = withContext(io) { dao.getAll().map { it.toDomain() } }
 
-    suspend fun getById(id: Long): Alarm? = dao.getById(id)?.toDomain()
+    suspend fun getById(id: Long): Alarm? = withContext(io) { dao.getById(id)?.toDomain() }
 
-    suspend fun save(alarm: Alarm): Long {
+    suspend fun save(alarm: Alarm): Long = withContext(io) {
         // A skip survives an edit only while it still names one of this alarm's upcoming days.
         val clean = alarm.copy(skipDate = alarm.skipDate?.takeIf { alarm.enabled && isValidSkip(alarm, it) })
         val id = if (clean.id == 0L) dao.insert(clean.toEntity()) else {
@@ -41,17 +46,17 @@ class AlarmRepository(
         }
         scheduler.schedule(clean.copy(id = id))
         onChanged()
-        return id
+        id
     }
 
-    suspend fun delete(alarm: Alarm) {
+    suspend fun delete(alarm: Alarm): Unit = withContext(io) {
         dao.delete(alarm.toEntity())
         scheduler.cancel(alarm)
         onChanged()
     }
 
     /** Switching an alarm on or off by hand also drops any day it was skipping. */
-    suspend fun setEnabled(alarm: Alarm, enabled: Boolean) {
+    suspend fun setEnabled(alarm: Alarm, enabled: Boolean): Unit = withContext(io) {
         dao.setEnabled(alarm.id, enabled)
         scheduler.schedule(alarm.copy(enabled = enabled, skipDate = null))
         onChanged()
@@ -62,20 +67,20 @@ class AlarmRepository(
      * A one-time alarm has nothing after its next ring, so it is switched off instead.
      * Returns the skipped day, or null for a one-time alarm.
      */
-    suspend fun skipNext(alarm: Alarm): Long? {
+    suspend fun skipNext(alarm: Alarm): Long? = withContext(io) {
         if (alarm.days.isEmpty()) {
             setEnabled(alarm, false)
-            return null
+            return@withContext null
         }
         val day = nextTriggerEpochDay(alarm)
         dao.setSkipping(alarm.id, day)
         scheduler.schedule(alarm.copy(enabled = true, skipDate = day))
         onChanged()
-        return day
+        day
     }
 
     /** Rings on the skipped day after all. */
-    suspend fun clearSkip(alarm: Alarm) {
+    suspend fun clearSkip(alarm: Alarm): Unit = withContext(io) {
         dao.setSkipDate(alarm.id, null)
         scheduler.schedule(alarm.copy(skipDate = null))
         onChanged()
@@ -85,9 +90,9 @@ class AlarmRepository(
      * Skips the ring at exactly [at] (epoch millis), if that is still the alarm's next ring and
      * more than a minute away. Recurring alarms skip that one day; one-time alarms switch off.
      */
-    suspend fun skipOccurrence(id: Long, at: Long, now: Long = System.currentTimeMillis()): Boolean {
-        val alarm = getById(id) ?: return false
-        if (!alarm.enabled || at - now < ACTION_MARGIN_MS || nextRingMillis(alarm, localNow(now)) != at) return false
+    suspend fun skipOccurrence(id: Long, at: Long, now: Long = System.currentTimeMillis()): Boolean = withContext(io) {
+        val alarm = getById(id) ?: return@withContext false
+        if (!alarm.enabled || at - now < ACTION_MARGIN_MS || nextRingMillis(alarm, localNow(now)) != at) return@withContext false
         if (alarm.days.isEmpty()) {
             setEnabled(alarm, false)
         } else {
@@ -96,19 +101,19 @@ class AlarmRepository(
             scheduler.schedule(alarm.copy(skipDate = day))
             onChanged()
         }
-        return true
+        true
     }
 
     /** Undoes [skipOccurrence] for the ring at [at], for as long as that ring has not come yet. */
-    suspend fun undoSkipOccurrence(id: Long, at: Long, now: Long = System.currentTimeMillis()): Boolean {
-        val alarm = getById(id) ?: return false
-        if (at <= now) return false
-        return if (alarm.days.isEmpty()) {
-            if (alarm.enabled || nextTriggerMillis(alarm, localNow(now)) != at) return false
+    suspend fun undoSkipOccurrence(id: Long, at: Long, now: Long = System.currentTimeMillis()): Boolean = withContext(io) {
+        val alarm = getById(id) ?: return@withContext false
+        if (at <= now) return@withContext false
+        if (alarm.days.isEmpty()) {
+            if (alarm.enabled || nextTriggerMillis(alarm, localNow(now)) != at) return@withContext false
             setEnabled(alarm, true)
             true
         } else {
-            if (!alarm.enabled || alarm.skipDate != epochDayOf(at)) return false
+            if (!alarm.enabled || alarm.skipDate != epochDayOf(at)) return@withContext false
             clearSkip(alarm)
             true
         }
@@ -118,7 +123,7 @@ class AlarmRepository(
      * Called as an alarm rings: a skip whose day has come is spent, and the next ring is armed
      * before anything else can go wrong.
      */
-    suspend fun armNextRing(alarm: Alarm) {
+    suspend fun armNextRing(alarm: Alarm): Unit = withContext(io) {
         val today = LocalDate.now().toEpochDay()
         val skip = alarm.skipDate
         val current = if (skip != null && skip <= today) {
@@ -137,7 +142,7 @@ class AlarmRepository(
      * its ring may be in flight, and re-arming it now would replace it with the next day's.
      * Returns false when some alarm couldn't be armed.
      */
-    suspend fun rescheduleAll(sparingDue: Boolean = false, now: Long = System.currentTimeMillis()): Boolean {
+    suspend fun rescheduleAll(sparingDue: Boolean = false, now: Long = System.currentTimeMillis()): Boolean = withContext(io) {
         dao.clearSkipsBefore(LocalDate.now().toEpochDay())
         var allArmed = true
         for (alarm in dao.getAllEnabled().map { it.toDomain() }) {
@@ -145,7 +150,7 @@ class AlarmRepository(
             if (!scheduler.schedule(alarm)) allArmed = false
         }
         onChanged()
-        return allArmed
+        return@withContext allArmed
     }
 
     /** True when the alarm's time came up less than two minutes ago, on a day it rings. */

@@ -4,7 +4,9 @@ import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.os.Build
+import androidx.core.os.UserManagerCompat
 import com.wakewakeup.session.PRE_ALARM_CHANNEL_ID
+import kotlinx.coroutines.launch
 
 const val ALARM_NOTIFICATION_CHANNEL_ID = "alarm_ringing"
 
@@ -19,6 +21,15 @@ class WakeWakeUpApplication : Application() {
         super.onCreate()
         container = AppContainer(this)
         createNotificationChannels()
+        // Opens the preferences files off the main thread, so the first read on the main thread
+        // (the permissions onboarding, the pre-alarm check) finds them already loaded. Before
+        // the first unlock after a restart they are not readable: nothing to do then.
+        container.appScope.launch {
+            if (UserManagerCompat.isUserUnlocked(this@WakeWakeUpApplication)) {
+                getSharedPreferences("wwu_prefs", MODE_PRIVATE)
+                getSharedPreferences("pre_alarm", MODE_PRIVATE)
+            }
+        }
     }
 
     private fun createNotificationChannels() {

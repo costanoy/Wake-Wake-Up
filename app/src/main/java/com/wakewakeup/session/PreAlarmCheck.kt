@@ -19,7 +19,10 @@ import com.wakewakeup.data.Alarm
 import com.wakewakeup.data.AlarmDao
 import com.wakewakeup.data.toDomain
 import com.wakewakeup.ui.components.formatClock
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 
 const val PRE_ALARM_CHANNEL_ID = "pre_alarm"
 const val ACTION_PRE_ALARM_CHECK = "com.wakewakeup.action.PRE_ALARM_CHECK"
@@ -61,7 +64,12 @@ private const val KEY_APP_SEEN = "app_seen_at"
  * ([com.wakewakeup.ui.skip.SkipConfirmScreen]), so a reflexive tap can't silence an alarm.
  * The rules themselves live in [PreAlarmPlanner].
  */
-class PreAlarmCheck(private val context: Context, private val dao: AlarmDao) {
+class PreAlarmCheck(
+    private val context: Context,
+    private val dao: AlarmDao,
+    /** Where the preferences, database and AlarmManager work runs: never the main thread. */
+    private val io: CoroutineDispatcher = Dispatchers.IO,
+) {
 
     /** How long a check waits for a phone whose screen just came on to be unlocked. */
     var unlockWaitMs = 5_000L
@@ -69,13 +77,13 @@ class PreAlarmCheck(private val context: Context, private val dao: AlarmDao) {
     private val prefs get() = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
     /** Arms (or cancels) the next check. Runs after every change to the alarms and app start. */
-    suspend fun reschedule(now: Long = System.currentTimeMillis()) {
-        if (!UserManagerCompat.isUserUnlocked(context)) return
+    suspend fun reschedule(now: Long = System.currentTimeMillis()): Unit = withContext(io) {
+        if (!UserManagerCompat.isUserUnlocked(context)) return@withContext
         val alarms = enabledAlarms()
         dropStaleOffer(alarms, now)
         if (!notificationsAllowed()) {
             cancelCheck()
-            return
+            return@withContext
         }
         val plan = PreAlarmPlanner.plan(alarms, now, handled(), appSeenAt())
         if (plan.quietlyHandled.isNotEmpty()) markHandled(plan.quietlyHandled, now)
@@ -87,23 +95,23 @@ class PreAlarmCheck(private val context: Context, private val dao: AlarmDao) {
     }
 
     /** The check itself, delivered to [PreAlarmReceiver]. */
-    suspend fun check(now: Long = System.currentTimeMillis()) {
-        if (!UserManagerCompat.isUserUnlocked(context)) return
+    suspend fun check(now: Long = System.currentTimeMillis()): Unit = withContext(io) {
+        if (!UserManagerCompat.isUserUnlocked(context)) return@withContext
         if (!notificationsAllowed()) {
             cancelCheck()
-            return
+            return@withContext
         }
         // Ringing, Espere, mission or Bom dia: never ask about turning alarms off over that.
         if (AlarmSessionState.session.value != null) {
             armAt(now + SESSION_RETRY_MS)
-            return
+            return@withContext
         }
         val alarms = enabledAlarms()
         val plan = PreAlarmPlanner.plan(alarms, now, handled(), appSeenAt())
         if (plan.quietlyHandled.isNotEmpty()) markHandled(plan.quietlyHandled, now)
         if (plan.offer.isEmpty()) {
             if (plan.nextCheckAt != null) armFirstCheck(plan.nextCheckAt, now) else cancelCheck()
-            return
+            return@withContext
         }
         if (waitUntilInUse()) {
             markHandled(plan.offer, now)
