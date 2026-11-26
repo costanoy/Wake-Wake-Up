@@ -539,16 +539,23 @@ class AlarmRingService : LifecycleService() {
             val audio = getSystemService(Context.AUDIO_SERVICE) as AudioManager
             val floor = ceil(audio.getStreamMaxVolume(AudioManager.STREAM_ALARM) * AUDIBLE_FLOOR).toInt()
             val now = audio.getStreamVolume(AudioManager.STREAM_ALARM)
+            // A service that took over from one the process lost finds the volume already lifted:
+            // the level the person had was written down by the first one.
+            if (originalAlarmVolume == null) originalAlarmVolume = RingWatchdog.originalVolume(this)
             if (now < floor) {
-                if (originalAlarmVolume == null) originalAlarmVolume = now
+                if (originalAlarmVolume == null) {
+                    originalAlarmVolume = now
+                    RingWatchdog.saveOriginalVolume(this, now)
+                }
                 audio.setStreamVolume(AudioManager.STREAM_ALARM, floor, 0)
             }
         }
     }
 
     private fun restoreAlarmVolume() {
-        val original = originalAlarmVolume ?: return
+        val original = originalAlarmVolume ?: RingWatchdog.originalVolume(this) ?: return
         originalAlarmVolume = null
+        RingWatchdog.forgetOriginalVolume(this)
         runCatching {
             (getSystemService(Context.AUDIO_SERVICE) as AudioManager).setStreamVolume(AudioManager.STREAM_ALARM, original, 0)
         }

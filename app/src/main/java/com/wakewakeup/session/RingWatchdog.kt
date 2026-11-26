@@ -24,6 +24,7 @@ private const val KEY_ALARM = "alarm_id"
 private const val KEY_STARTED = "started_at"
 private const val KEY_WAITS = "waits"
 private const val KEY_HOLD = "hold_until"
+private const val KEY_ORIGINAL_VOLUME = "orig_volume"
 
 /**
  * Keeps a ringing alarm from dying with the app's process. While a session is open (ringing,
@@ -57,6 +58,21 @@ object RingWatchdog {
         val startedAt = prefs.getLong(KEY_STARTED, 0L)
         if (alarmId < 0 || now - startedAt !in 0..MAX_AGE_MS) return null
         return Saved(alarmId, startedAt, prefs.getInt(KEY_WAITS, 0), prefs.getLong(KEY_HOLD, 0L).takeIf { it > 0L })
+    }
+
+    /**
+     * The alarm volume the person had before the ring lifted it, kept here so a service that
+     * takes over after the process died can still put it back. Cleared with the session.
+     */
+    fun saveOriginalVolume(context: Context, volume: Int) {
+        prefs(context).edit().putInt(KEY_ORIGINAL_VOLUME, volume).commit()
+    }
+
+    fun originalVolume(context: Context): Int? =
+        prefs(context).takeIf { it.contains(KEY_ORIGINAL_VOLUME) }?.getInt(KEY_ORIGINAL_VOLUME, 0)
+
+    fun forgetOriginalVolume(context: Context) {
+        prefs(context).edit().remove(KEY_ORIGINAL_VOLUME).commit()
     }
 
     /** The watchdog's wake: re-arm while the service is alive, bring the alarm back if it isn't. */

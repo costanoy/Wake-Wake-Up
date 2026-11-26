@@ -290,4 +290,32 @@ class AlarmRingServiceEdgeTest {
         assertNull(session.holdUntilMillis)
         assertEquals(1, session.waits)
     }
+
+    @Test
+    fun theOriginalAlarmVolumeSurvivesTheProcessDyingMidRing() {
+        // REV-06: the first service lifted the volume and remembered the old level only in memory.
+        val audio = env.app.getSystemService(android.media.AudioManager::class.java)
+        audio.setStreamVolume(android.media.AudioManager.STREAM_ALARM, 1, 0)
+        val alarm = alarm(taskCount = 1)
+        ring(alarm)
+        assertEquals(1, RingWatchdog.originalVolume(env.app))
+        // The process dies: the session is gone from memory, the volume stays lifted.
+        controller!!.destroy()
+        controller = null
+        AlarmSessionState.clear()
+        players.clear()
+        assertTrue(audio.getStreamVolume(android.media.AudioManager.STREAM_ALARM) > 1)
+
+        val restart = Intent(env.app, AlarmRingService::class.java)
+            .putExtra(EXTRA_ALARM_ID, alarm.id).putExtra(EXTRA_RESUMED_SESSION, true)
+        val c = Robolectric.buildService(AlarmRingService::class.java, restart).create().also { controller = it }
+        c.get().onStartCommand(restart, 0, ++startId)
+        awaitUntil(message = "ringing again") { AlarmSessionState.session.value != null && playing() != null }
+        send(AlarmRingService.ACTION_START_MISSION)
+        solveAll()
+
+        assertEquals(SessionScreen.GOOD_MORNING, session.screen)
+        assertEquals(1, audio.getStreamVolume(android.media.AudioManager.STREAM_ALARM))
+        assertNull(RingWatchdog.originalVolume(env.app))
+    }
 }
