@@ -1,6 +1,8 @@
 package com.wakewakeup.ui
 
 import android.Manifest
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.media.AudioManager
 import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
@@ -10,6 +12,7 @@ import androidx.compose.ui.test.performClick
 import androidx.lifecycle.Lifecycle
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.wakewakeup.ALARM_NOTIFICATION_CHANNEL_ID
 import com.wakewakeup.MainActivity
 import com.wakewakeup.R
 import com.wakewakeup.data.Alarm
@@ -79,6 +82,30 @@ class ListWarningsUiTest {
         compose.waitForText(missing(1))
         // Battery saving is still on, but battery is only recommended and never counts.
         assertFalse(AlarmPermissions.isGranted(context, AlarmPermission.BATTERY))
+    }
+
+    private fun setRingingChannel(importance: Int) {
+        val manager = context.getSystemService(NotificationManager::class.java)
+        manager.deleteNotificationChannel(ALARM_NOTIFICATION_CHANNEL_ID)
+        manager.createNotificationChannel(NotificationChannel(ALARM_NOTIFICATION_CHANNEL_ID, "x", importance))
+    }
+
+    @Test
+    fun aLowRingingChannelShowsTheWarning() {
+        // Notifications are allowed for the app; only the channel decides. The full screen (not
+        // allowed under Robolectric) is the one other missing permission.
+        shadowOf(context).grantPermissions(Manifest.permission.POST_NOTIFICATIONS)
+        setRingingChannel(NotificationManager.IMPORTANCE_LOW)
+        launch()
+        compose.waitForText(missing(2))
+    }
+
+    @Test
+    fun aHighRingingChannelShowsNoWarningOfItsOwn() {
+        shadowOf(context).grantPermissions(Manifest.permission.POST_NOTIFICATIONS)
+        setRingingChannel(NotificationManager.IMPORTANCE_HIGH)
+        launch()
+        compose.waitForText(missing(1))
     }
 
     @Test
