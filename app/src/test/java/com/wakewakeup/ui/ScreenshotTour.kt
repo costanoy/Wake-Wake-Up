@@ -141,11 +141,18 @@ open class ScreenshotTour {
 
     @Test
     fun permissions() {
+        // First launch: the walkthrough, with the risk already printed under the foot key.
         launchMain(onboarded = false)
         compose.waitForText(str(R.string.perm_title))
         shot("05-permissoes", ::mainActivity)
-        compose.onNodeWithText(str(R.string.continue_label).uppercase()).performClick()
-        compose.waitForText(str(R.string.perm_nag))
+        main!!.close()
+
+        // Later: the same screen opened from the list's warning, with its ‹.
+        launchMain()
+        compose.waitForText(str(R.string.empty_title))
+        compose.waitForText(context.resources.getQuantityString(R.plurals.perm_missing, 1, 1), substring = true)
+        compose.onNodeWithText(context.resources.getQuantityString(R.plurals.perm_missing, 1, 1), substring = true).performClick()
+        compose.waitForText(str(R.string.perm_short_title))
         shot("06-permissoes-aviso", ::mainActivity)
     }
 

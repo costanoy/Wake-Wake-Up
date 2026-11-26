@@ -5,6 +5,7 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.media.AudioManager
 import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
@@ -114,11 +115,14 @@ class ListWarningsUiTest {
         launch()
         compose.waitForText(missing(2))
         compose.onNodeWithText(missing(2)).performClick()
-        compose.waitForText(str(R.string.perm_title))
+        compose.waitForText(str(R.string.perm_short_title))
 
-        // A detour, not the first-launch walkthrough: no warning first, straight back.
-        compose.onNodeWithText(str(R.string.continue_label).uppercase()).performClick()
-        compose.waitForNoText(str(R.string.perm_title))
+        // A detour, not the first-launch walkthrough: a ‹ in the header, no risk text first, and
+        // one tap on the foot key goes straight back.
+        compose.onNodeWithContentDescription(str(R.string.cd_back)).assertIsDisplayed()
+        assertTrue(compose.onAllNodesWithText(str(R.string.perm_nag)).fetchSemanticsNodes().isEmpty())
+        compose.onNodeWithText(str(R.string.back_to_list).uppercase()).performClick()
+        compose.waitForNoText(str(R.string.perm_short_title))
         compose.waitForText("Trabalho")
 
         // Back to the list it came from, not a second one on top: Back now leaves the app.

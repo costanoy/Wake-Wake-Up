@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import com.wakewakeup.R
+import com.wakewakeup.ui.components.BackHeader
 import com.wakewakeup.ui.components.Lamp
 import com.wakewakeup.ui.components.LedSegment
 import com.wakewakeup.ui.components.OrangeKey
@@ -55,14 +56,15 @@ import com.wakewakeup.ui.theme.WwuType
  * "Antes de começar": the system permissions an alarm needs, each with its LED (coral pending /
  * amber granted), then battery, which is only recommended and never holds anything up. State is
  * re-read from the system every time the screen resumes, since most of them are granted on a
- * system settings page. Opened from the list's warning ([fromList]), CONTINUAR just goes back.
+ * system settings page. Opened from the list's warning ([fromList]), it has a ‹ and VOLTAR PARA A
+ * LISTA just goes back. At first launch with something missing, CONTINUAR MESMO ASSIM continues in
+ * one tap, with the risk already printed under it.
  */
 @Composable
 fun PermissionsScreen(onContinue: () -> Unit, fromList: Boolean = false) {
     val context = LocalContext.current
     fun readAll() = AlarmPermission.entries.associateWith { AlarmPermissions.isGranted(context, it) }
     var granted by remember { mutableStateOf(readAll()) }
-    var nag by remember { mutableStateOf(false) }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { granted = readAll() }
 
     val notificationLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
@@ -77,21 +79,32 @@ fun PermissionsScreen(onContinue: () -> Unit, fromList: Boolean = false) {
         }
     }
 
+    fun finish() {
+        AlarmPermissions.markOnboarded(context)
+        onContinue()
+    }
+
     val required = AlarmPermission.entries.filter { it.required }
     val count = required.count { granted[it] == true }
     val all = count == required.size
 
     val scroll = rememberScrollState()
     Column(Modifier.fillMaxSize().background(Housing).statusBarsPadding().navigationBarsPadding()) {
+        // Opened from the list's warning it is a detour like the other inner screens: ‹ comes back.
+        if (fromList) {
+            BackHeader(
+                title = stringResource(R.string.perm_short_title),
+                backDescription = stringResource(R.string.cd_back),
+                onBack = { finish() },
+            )
+        }
         // On a small phone the last plate fades into the edge instead of looking sliced off.
         Column(Modifier.weight(1f).bottomFade(scroll).verticalScroll(scroll)) {
             Column(
                 Modifier.padding(start = 20.dp, end = 20.dp, top = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                // From the list's warning there is nothing left to start.
-                if (!fromList) PrintLabel(stringResource(R.string.perm_eyebrow))
-                Text(stringResource(R.string.perm_title), style = WwuType.titleM, color = Ink)
+                if (!fromList) Text(stringResource(R.string.perm_title), style = WwuType.titleM, color = Ink)
                 Text(stringResource(R.string.perm_body), style = WwuType.bodyS, color = InkMuted)
             }
 
@@ -142,25 +155,24 @@ fun PermissionsScreen(onContinue: () -> Unit, fromList: Boolean = false) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            // With something required missing the key already says "continue anyway" and the risk
+            // is printed under it: one tap continues, and the list keeps warning until it's fixed.
+            // Opened from that warning, it's just the way back.
             PillButton(
-                text = stringResource(if (nag) R.string.continue_anyway else R.string.continue_label),
+                text = stringResource(
+                    when {
+                        fromList -> R.string.back_to_list
+                        all -> R.string.continue_label
+                        else -> R.string.continue_anyway
+                    },
+                ),
                 primary = all,
-                onClick = {
-                    // With something required missing, the first tap explains the risk and a
-                    // second continues anyway: the list keeps warning until it's fixed. Opened
-                    // from that warning, it's just the way back.
-                    if (all || nag || fromList) {
-                        AlarmPermissions.markOnboarded(context)
-                        onContinue()
-                    } else {
-                        nag = true
-                    }
-                },
+                onClick = { finish() },
             )
             Text(
                 when {
                     all -> stringResource(R.string.perm_all_set)
-                    nag -> stringResource(R.string.perm_nag)
+                    !fromList -> stringResource(R.string.perm_nag)
                     else -> ""
                 },
                 style = WwuType.caption,
