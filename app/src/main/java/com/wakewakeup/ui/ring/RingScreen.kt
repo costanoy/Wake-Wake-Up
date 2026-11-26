@@ -37,8 +37,11 @@ import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.wakewakeup.R
 import com.wakewakeup.session.RAMP_SECONDS
@@ -61,6 +64,7 @@ import com.wakewakeup.ui.components.rememberReduceMotion
 import com.wakewakeup.ui.components.softShadow
 import com.wakewakeup.ui.components.visor
 import com.wakewakeup.ui.theme.EspereLabelPlate
+import com.wakewakeup.ui.theme.InstrumentSans
 import com.wakewakeup.ui.theme.Ink
 import com.wakewakeup.ui.theme.InkMuted
 import com.wakewakeup.ui.theme.Vfd
@@ -202,21 +206,7 @@ private fun Ringing(session: RingSession, onStartMission: () -> Unit, onHoldOn: 
             Spacer(Modifier.height(24.dp))
         }
 
-        LabeledRoundButton(
-            label = stringResource(R.string.start_mission),
-            onClick = onStartMission,
-            size = 96.dp,
-            style = RoundStyle.Action,
-            baseDepth = 5.dp,
-            gap = 10.dp,
-            labelColor = Ink,
-            labelStyle = WwuType.labelWide,
-            softShadow = softShadow(24.dp, 14.dp, 0.45f),
-            // On a short screen the caption lands on the sunrise's dark red: the plate the
-            // ESPERE label sits on keeps it readable.
-            labelPlate = EspereLabelPlate,
-            modifier = Modifier.align(Alignment.CenterHorizontally).padding(bottom = 36.dp),
-        ) { PlayGlyph(24.dp, 30.dp, nudge = 3.dp) }
+        StartMissionButton(stringResource(R.string.start_mission), onStartMission)
     }
 }
 
@@ -295,17 +285,36 @@ private fun EspereActive(session: RingSession, holdUntilMillis: Long, onStartMis
             Spacer(Modifier.height(24.dp))
         }
 
-        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-            LabeledRoundButton(
-                label = stringResource(R.string.awake_start_mission),
-                onClick = onStartMission,
-                size = 84.dp,
-                style = RoundStyle.Action,
-                gap = 10.dp,
-                labelColor = Ink,
-                softShadow = softShadow(20.dp, 12.dp, 0.5f),
-                modifier = Modifier.padding(start = 24.dp, end = 24.dp, bottom = 36.dp),
-            ) { PlayGlyph(20.dp, 26.dp, nudge = 2.5.dp) }
-        }
+        StartMissionButton(stringResource(R.string.awake_start_mission), onStartMission)
+    }
+}
+
+private val StartMissionLabel = TextStyle(
+    fontFamily = InstrumentSans,
+    fontWeight = FontWeight.SemiBold,
+    fontSize = 15.sp,
+    lineHeight = 20.sp,
+    letterSpacing = 0.14.em,
+)
+
+/** The one orange key of the ring and Espere screens: the same size and place on both. */
+@Composable
+private fun StartMissionButton(label: String, onClick: () -> Unit) {
+    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+        LabeledRoundButton(
+            label = label,
+            onClick = onClick,
+            size = 96.dp,
+            style = RoundStyle.Action,
+            baseDepth = 5.dp,
+            gap = 10.dp,
+            labelColor = Ink,
+            labelStyle = StartMissionLabel,
+            softShadow = softShadow(24.dp, 14.dp, 0.45f),
+            // On a short screen the caption lands on the sunrise's dark red: the plate the
+            // ESPERE label sits on keeps it readable.
+            labelPlate = EspereLabelPlate,
+            modifier = Modifier.padding(start = 24.dp, end = 24.dp, bottom = 36.dp),
+        ) { PlayGlyph(24.dp, 30.dp, nudge = 3.dp) }
     }
 }

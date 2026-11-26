@@ -353,7 +353,7 @@ private fun androidx.compose.foundation.layout.ColumnScope.PhraseBody(
                 mission.secondsLeft <= TIME_LOW_SECONDS -> stringResource(R.string.mission_time_low, mission.secondsLeft)
                 else -> stringResource(R.string.chars_of, matched, phrase.length)
             },
-            style = WwuType.caption,
+            style = WwuType.bodyS,
             color = if (mission.wrong || mission.secondsLeft <= TIME_LOW_SECONDS) ErrorText else InkMuted,
             modifier = Modifier
                 .padding(start = 24.dp, end = 24.dp, top = 8.dp, bottom = 16.dp)
