@@ -123,8 +123,11 @@ class EditAlarmViewModel(application: Application) : AndroidViewModel(applicatio
         busy = true
         viewModelScope.launch {
             try {
-                val id = repository.save(draft.copy(enabled = true))
-                draft = draft.copy(id = id, enabled = true)
+                // A new time or new days make the skipped day mean something else: the skip goes.
+                val scheduleChanged = draft.hour != original.hour || draft.minute != original.minute || draft.days != original.days
+                val toSave = draft.copy(enabled = true, skipDate = if (scheduleChanged) null else draft.skipDate)
+                val id = repository.save(toSave)
+                draft = toSave.copy(id = id)
                 original = draft
                 isNew = false
                 loadedForId = null
