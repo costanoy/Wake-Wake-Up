@@ -4,8 +4,10 @@ import android.app.AlarmManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
 import android.os.Build
 import androidx.core.content.ContextCompat
+import androidx.core.os.UserManagerCompat
 
 const val ACTION_RING_WATCHDOG = "com.wakewakeup.action.RING_WATCHDOG"
 const val EXTRA_RESUMED_SESSION = "extra_resumed_session"
@@ -106,5 +108,16 @@ object RingWatchdog {
 
     private fun alarmManager(context: Context) = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
 
-    private fun prefs(context: Context) = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+    /**
+     * Device-protected storage: it opens before the first unlock after a restart, when the
+     * watchdog and the ringing service already have to work. The file used to live in the
+     * ordinary storage; it is moved over the first time the phone is found unlocked.
+     */
+    private fun prefs(context: Context): SharedPreferences {
+        val store = context.createDeviceProtectedStorageContext()
+        if (UserManagerCompat.isUserUnlocked(context)) {
+            runCatching { store.moveSharedPreferencesFrom(context, PREFS) }
+        }
+        return store.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+    }
 }

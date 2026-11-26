@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.media.AudioAttributes
+import android.media.AudioManager
 import android.media.MediaPlayer
 import android.media.RingtoneManager
 import android.net.Uri
@@ -15,8 +16,10 @@ import android.os.VibrationAttributes
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.os.UserManagerCompat
 import androidx.lifecycle.LifecycleService
 import androidx.lifecycle.lifecycleScope
 import com.wakewakeup.ALARM_NOTIFICATION_CHANNEL_ID
@@ -26,17 +29,31 @@ import com.wakewakeup.data.Alarm
 import com.wakewakeup.data.TaskType
 import com.wakewakeup.data.WakeHistoryEntry
 import com.wakewakeup.ui.components.formatClock
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
+import kotlin.math.ceil
 
 private const val WAKE_LOCK_TAG = "wakewakeup:ring"
 private const val WAKE_LOCK_TIMEOUT_MS = 15 * 60 * 1000L
 private const val STREAM_TIMEOUT_MS = 8_000L
+
+/** A sound chosen from the phone has this long to start before the next one in the chain takes over. */
+private const val LOCAL_PREPARE_TIMEOUT_MS = 3_000L
+
+/** While ringing, the alarm stream is kept at least this fraction of its maximum. */
+private const val AUDIBLE_FLOOR = 0.6f
+
+private const val TAG = "AlarmRingService"
+private const val ALARM_COLOR = 0xFFE8663C.toInt()
 private const val RADIO_GRACE_MS = 3 * 60 * 1000L
 
 /** Bom dia closes by itself after this long, so the screen and the session don't stay up all day. */
@@ -51,6 +68,9 @@ class AlarmRingService : LifecycleService() {
 
     private var mediaPlayer: MediaPlayer? = null
     private var streamTimeout: Job? = null
+    private var bufferingTimeout: Job? = null
+    private var prepareTimeout: Job? = null
+    private var originalAlarmVolume: Int? = null
     private var goodMorningTimeout: Job? = null
     private var wakeLock: PowerManager.WakeLock? = null
     private var currentAlarm: Alarm? = null
@@ -96,7 +116,18 @@ class AlarmRingService : LifecycleService() {
 
     private fun onAlarmFired(alarmId: Long, resumedFrom: RingWatchdog.Saved?) {
         lifecycleScope.launch {
-            val alarm = container.alarmRepository.getById(alarmId)
+            val alarm = try {
+                container.alarmRepository.getById(alarmId)
+            } catch (e: Exception) {
+                // A closed database reports itself as a cancellation: only this coroutine's own
+                // cancellation (the service going away) is passed on.
+                currentCoroutineContext().ensureActive()
+                // The alarm can't be read (full disk, damaged database, phone still locked): an
+                // alarm that rings with the default sound beats one that stays silent.
+                Log.e(TAG, "Could not read alarm $alarmId; ringing a minimal one", e)
+                val time = LocalTime.now()
+                Alarm(id = alarmId, hour = time.hour, minute = time.minute, label = "", days = emptySet(), enabled = false)
+            }
             if (alarm == null) {
                 // Deleted in the meantime. Another alarm may still be ringing, though.
                 if (AlarmSessionState.session.value == null) {
@@ -105,20 +136,26 @@ class AlarmRingService : LifecycleService() {
                 }
                 return@launch
             }
+            // From here to the sound there is no suspension: two alarms due in the same minute
+            // can't interleave, and nothing slow (the database) comes before the sound.
+            val previous = AlarmSessionState.session.value?.takeIf { resumedFrom == null && it.alarmId != alarm.id }
+            if (previous?.screen == SessionScreen.MISSION) {
+                // The ritual of the first alarm is under way: leave it alone.
+                cleanUpAfterRing(alarm)
+                return@launch
+            }
             currentAlarm = alarm
-            // Another alarm may still be in its Espere: this one starts its own fresh session.
+            // Another alarm may still be in its Espere: this one starts its own session, which
+            // keeps the waits and the clock of the first (the ritual is one, however many ring).
             holdUntilMillis = null
             goodMorningTimeout?.cancel()
-            // Whatever the pre-alarm notification asked about, an alarm is ringing now.
-            container.preAlarm.cancelOffer()
-            // A non-repeating alarm only ever fires once: disable it the moment it rings (not
-            // just when the ritual finishes), so a reboot before the user completes it can't
-            // reschedule and fire it again.
-            if (alarm.days.isEmpty() && alarm.enabled) {
-                container.alarmRepository.setEnabled(alarm, false)
-            }
             val now = System.currentTimeMillis()
-            AlarmSessionState.start(alarm, startedAtMillis = resumedFrom?.startedAtMillis ?: now, waits = resumedFrom?.waits ?: 0)
+            if (previous?.screen == SessionScreen.RINGING) {
+                AlarmSessionState.start(alarm, startedAtMillis = previous.startedAtMillis, waits = previous.waits)
+                AlarmSessionState.update { it.copy(alarmHour = previous.alarmHour, alarmMinute = previous.alarmMinute) }
+            } else {
+                AlarmSessionState.start(alarm, startedAtMillis = resumedFrom?.startedAtMillis ?: now, waits = resumedFrom?.waits ?: 0)
+            }
             acquireWakeLock()
             val hold = resumedFrom?.holdUntilMillis?.takeIf { it > now }
             if (hold != null) {
@@ -126,12 +163,39 @@ class AlarmRingService : LifecycleService() {
                 holdUntilMillis = hold
                 AlarmSessionState.update { it.copy(holdUntilMillis = hold) }
             } else {
-                startRingActivity()
                 startAudio(AlarmSessionState.session.value?.volume ?: 1f)
+                startRingActivity()
             }
             refreshNotification()
             AlarmSessionState.session.value?.let { RingWatchdog.save(this@AlarmRingService, it) }
             startTicker()
+            cleanUpAfterRing(alarm)
+        }
+    }
+
+    /**
+     * What an alarm ringing leaves to do, once it rings: nothing here can delay the sound, and
+     * each step is on its own so one failing doesn't cost the others.
+     */
+    private fun cleanUpAfterRing(alarm: Alarm) {
+        if (!UserManagerCompat.isUserUnlocked(this)) {
+            Log.i(TAG, "Phone still locked: the clean-up after the ring is left for later")
+            return
+        }
+        container.appScope.launch {
+            // Whatever the pre-alarm notification asked about, an alarm is ringing now.
+            runCatching { container.preAlarm.cancelOffer() }
+            // A non-repeating alarm only ever fires once: disable it the moment it rings (not
+            // just when the ritual finishes), so a reboot before the user completes it can't
+            // reschedule and fire it again.
+            if (alarm.days.isEmpty() && alarm.enabled) {
+                try {
+                    container.alarmRepository.setEnabled(alarm, false)
+                } catch (e: Exception) {
+                    currentCoroutineContext().ensureActive()
+                    Log.w(TAG, "Could not switch off the one-time alarm ${alarm.id}", e)
+                }
+            }
         }
     }
 
@@ -156,6 +220,7 @@ class AlarmRingService : LifecycleService() {
         val screenIntent = ringScreenIntent()
         val builder = NotificationCompat.Builder(this, ALARM_NOTIFICATION_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification_sun)
+            .setColor(ALARM_COLOR)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setOngoing(true)
@@ -209,6 +274,7 @@ class AlarmRingService : LifecycleService() {
         startRingActivity()
         val notification = NotificationCompat.Builder(this, ALARM_NOTIFICATION_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification_sun)
+            .setColor(ALARM_COLOR)
             .setContentTitle(getString(R.string.alarm_notification_title, currentAlarm?.label?.ifBlank { null } ?: getString(R.string.untitled_alarm)))
             .setContentText(getString(R.string.alarm_notification_text))
             .setPriority(NotificationCompat.PRIORITY_HIGH)
@@ -248,23 +314,37 @@ class AlarmRingService : LifecycleService() {
     private fun startAudio(volume: Float) {
         stopAudio()
         startVibration()
+        ensureAudible()
         val chosenUri = currentAlarm?.soundUri?.let { runCatching { Uri.parse(it) }.getOrNull() }
-        if (chosenUri != null && chosenUri.isStream()) {
-            startStream(chosenUri, volume)
-            return
+        when {
+            chosenUri == null -> playDefault(volume)
+            chosenUri.isStream() -> startStream(chosenUri, volume)
+            // The saved sound might no longer be accessible (uninstalled app, revoked
+            // permission): the chain goes on to the system default, then the bell of the app.
+            else -> startSound(chosenUri, volume) { playDefault(sessionVolume(volume)) }
         }
-        // The saved sound might no longer be accessible (uninstalled app, revoked
-        // permission) — fall back to the system default rather than staying silent.
-        mediaPlayer = chosenUri?.let { buildPlayer(it, volume) } ?: buildFallbackPlayer(volume)
     }
+
+    private fun sessionVolume(fallback: Float) = AlarmSessionState.session.value?.volume ?: fallback
 
     /**
      * The system's default alarm sound, or — when there's none (set to silent, a file that was
      * deleted, a phone without ringtones) — the bell bundled with the app, which always plays.
      */
-    private fun buildFallbackPlayer(volume: Float): MediaPlayer? =
-        defaultAlarmUri()?.let { buildPlayer(it, volume) }
-            ?: buildPlayer(Uri.parse("android.resource://$packageName/${R.raw.campainha_mecanica}"), volume)
+    private fun playDefault(volume: Float) {
+        val uri = runCatching { defaultAlarmUri() }.getOrNull()
+        if (uri == null) {
+            playBell(volume)
+        } else {
+            startSound(uri, volume) { playBell(sessionVolume(volume)) }
+        }
+    }
+
+    /** The end of the chain: nowhere left to fall to, so a failure here is only logged. */
+    private fun playBell(volume: Float) {
+        val bell = Uri.parse("android.resource://$packageName/${R.raw.campainha_mecanica}")
+        startBundled(bell, volume) { Log.e(TAG, "Even the bundled bell failed to play") }
+    }
 
     private fun defaultAlarmUri(): Uri? =
         RingtoneManager.getActualDefaultRingtoneUri(this, RingtoneManager.TYPE_ALARM)
@@ -272,11 +352,13 @@ class AlarmRingService : LifecycleService() {
 
     private fun Uri.isStream() = scheme == "http" || scheme == "https"
 
+    private fun Uri.isBundled() = scheme == "android.resource"
+
     /**
      * Internet radio as the alarm sound. A stream can't be trusted to be there at wake-up time
      * (no connection, station offline, stream drops), so anything short of audio actually
-     * playing within [STREAM_TIMEOUT_MS] — or a stream that later errors or ends — falls back
-     * to the system's default alarm sound. An alarm must never stay silent.
+     * playing within [STREAM_TIMEOUT_MS] — or a stream that later errors, ends or stalls for
+     * that long — falls back to the system's default alarm sound. An alarm must never stay silent.
      *
      * A radio that does play is still easy to sleep through, so if it has been on for
      * [RADIO_GRACE_MS] with no reaction (no Espere, no mission started — either would have
@@ -288,10 +370,11 @@ class AlarmRingService : LifecycleService() {
         fun fallback(fullVolume: Boolean = false) {
             if (mediaPlayer !== player) return
             streamTimeout?.cancel()
+            bufferingTimeout?.cancel()
             runCatching { player.release() }
+            mediaPlayer = null
             if (fullVolume) AlarmSessionState.update { it.copy(volume = 1f) }
-            val current = AlarmSessionState.session.value?.volume ?: volume
-            mediaPlayer = buildFallbackPlayer(current)
+            playDefault(sessionVolume(volume))
         }
         try {
             player.setAudioAttributes(
@@ -305,7 +388,7 @@ class AlarmRingService : LifecycleService() {
             player.setOnPreparedListener {
                 if (mediaPlayer !== player) return@setOnPreparedListener
                 streamTimeout?.cancel()
-                val current = AlarmSessionState.session.value?.volume ?: volume
+                val current = sessionVolume(volume)
                 it.setVolume(current, current)
                 it.start()
                 streamTimeout = lifecycleScope.launch {
@@ -315,6 +398,21 @@ class AlarmRingService : LifecycleService() {
             }
             player.setOnErrorListener { _, _, _ -> fallback(); true }
             player.setOnCompletionListener { fallback() }
+            // A stream that stops at "loading" without an error stays silent: it gets the same
+            // time as the first connection.
+            player.setOnInfoListener { _, what, _ ->
+                when (what) {
+                    MediaPlayer.MEDIA_INFO_BUFFERING_START -> {
+                        bufferingTimeout?.cancel()
+                        bufferingTimeout = lifecycleScope.launch {
+                            delay(STREAM_TIMEOUT_MS)
+                            fallback()
+                        }
+                    }
+                    MediaPlayer.MEDIA_INFO_BUFFERING_END -> bufferingTimeout?.cancel()
+                }
+                false
+            }
             player.prepareAsync()
         } catch (e: Exception) {
             fallback()
@@ -326,25 +424,92 @@ class AlarmRingService : LifecycleService() {
         }
     }
 
-    private fun buildPlayer(uri: Uri, volume: Float): MediaPlayer? {
-        val player = MediaPlayer()
-        return try {
-            player.apply {
-                setAudioAttributes(
-                    AudioAttributes.Builder()
-                        .setUsage(AudioAttributes.USAGE_ALARM)
-                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                        .build(),
-                )
-                isLooping = true
-                setVolume(volume, volume)
-                setDataSource(this@AlarmRingService, uri)
-                prepare()
-                start()
+    private fun newLoopingPlayer(volume: Float): MediaPlayer = MediaPlayer().apply {
+        setAudioAttributes(
+            AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_ALARM)
+                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .build(),
+        )
+        isLooping = true
+        setVolume(volume, volume)
+    }
+
+    /** A sound of the app itself (inside the APK), or a file or provider of the phone. */
+    private fun startSound(uri: Uri, volume: Float, onFail: () -> Unit) {
+        if (uri.isBundled()) startBundled(uri, volume, onFail) else startLocal(uri, volume, onFail)
+    }
+
+    /**
+     * A sound from inside the APK: quick and certain, so it is prepared right here. The only
+     * path that still prepares synchronously.
+     */
+    private fun startBundled(uri: Uri, volume: Float, onFail: () -> Unit) {
+        val player = newLoopingPlayer(volume)
+        try {
+            player.setOnErrorListener { failed, _, _ ->
+                if (mediaPlayer === failed) {
+                    runCatching { failed.release() }
+                    mediaPlayer = null
+                    onFail()
+                }
+                true
             }
+            player.setDataSource(this, uri)
+            player.prepare()
+            player.start()
+            mediaPlayer = player
         } catch (e: Exception) {
-            player.release()
-            null
+            runCatching { player.release() }
+            onFail()
+        }
+    }
+
+    /**
+     * A file or provider of the phone (a song from the picker, the system's default sound): it
+     * may live in the cloud or on a card that went away, so nothing here blocks the main thread
+     * and [LOCAL_PREPARE_TIMEOUT_MS] is all it gets to start before [onFail] takes over.
+     */
+    private fun startLocal(uri: Uri, volume: Float, onFail: () -> Unit) {
+        val player = newLoopingPlayer(volume)
+        mediaPlayer = player
+        fun fail() {
+            if (mediaPlayer !== player) return
+            prepareTimeout?.cancel()
+            runCatching { player.release() }
+            mediaPlayer = null
+            onFail()
+        }
+        player.setOnErrorListener { _, _, _ -> fail(); true }
+        player.setOnPreparedListener {
+            if (mediaPlayer !== player) return@setOnPreparedListener
+            prepareTimeout?.cancel()
+            val current = sessionVolume(volume)
+            it.setVolume(current, current)
+            it.start()
+        }
+        prepareTimeout = lifecycleScope.launch {
+            delay(LOCAL_PREPARE_TIMEOUT_MS)
+            fail()
+        }
+        lifecycleScope.launch {
+            val opened = try {
+                withContext(Dispatchers.IO) { player.setDataSource(this@AlarmRingService, uri) }
+                true
+            } catch (e: Exception) {
+                currentCoroutineContext().ensureActive()
+                false
+            }
+            if (mediaPlayer !== player) return@launch
+            if (!opened) {
+                fail()
+                return@launch
+            }
+            try {
+                player.prepareAsync()
+            } catch (e: Exception) {
+                fail()
+            }
         }
     }
 
@@ -352,12 +517,41 @@ class AlarmRingService : LifecycleService() {
         stopVibration()
         streamTimeout?.cancel()
         streamTimeout = null
+        bufferingTimeout?.cancel()
+        bufferingTimeout = null
+        prepareTimeout?.cancel()
+        prepareTimeout = null
         mediaPlayer?.apply {
             // A stream may still be preparing, where stop() isn't a valid call.
             runCatching { if (isPlaying) stop() }
-            release()
+            runCatching { release() }
         }
         mediaPlayer = null
+    }
+
+    /**
+     * An alarm nobody can hear isn't one: while it rings, the alarm stream is lifted to a floor
+     * of [AUDIBLE_FLOOR] of its maximum, remembering the level the person had so it can be put
+     * back when the ringing ends.
+     */
+    private fun ensureAudible() {
+        runCatching {
+            val audio = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+            val floor = ceil(audio.getStreamMaxVolume(AudioManager.STREAM_ALARM) * AUDIBLE_FLOOR).toInt()
+            val now = audio.getStreamVolume(AudioManager.STREAM_ALARM)
+            if (now < floor) {
+                if (originalAlarmVolume == null) originalAlarmVolume = now
+                audio.setStreamVolume(AudioManager.STREAM_ALARM, floor, 0)
+            }
+        }
+    }
+
+    private fun restoreAlarmVolume() {
+        val original = originalAlarmVolume ?: return
+        originalAlarmVolume = null
+        runCatching {
+            (getSystemService(Context.AUDIO_SERVICE) as AudioManager).setStreamVolume(AudioManager.STREAM_ALARM, original, 0)
+        }
     }
 
     private fun vibrator(): Vibrator? =
@@ -423,6 +617,7 @@ class AlarmRingService : LifecycleService() {
             }
             return
         }
+        ensureAudible()
         // "Aumentar aos poucos": climb linearly from the start volume to full over RAMP_SECONDS.
         if (session.volume < 1f) {
             val step = (1f - RAMP_START_VOLUME) / RAMP_SECONDS
@@ -469,6 +664,7 @@ class AlarmRingService : LifecycleService() {
 
     private fun onStartMission() {
         val alarm = currentAlarm ?: return
+        if (AlarmSessionState.session.value?.screen != SessionScreen.RINGING) return
         holdUntilMillis = null
         stopAudio()
         dismissResurface()
@@ -485,6 +681,7 @@ class AlarmRingService : LifecycleService() {
 
     private fun onHoldOn() {
         if (holdUntilMillis != null || currentAlarm == null) return
+        if (AlarmSessionState.session.value?.screen != SessionScreen.RINGING) return
         val until = System.currentTimeMillis() + HOLD_ON_SECONDS * 1000L
         holdUntilMillis = until
         stopAudio()
@@ -498,6 +695,7 @@ class AlarmRingService : LifecycleService() {
     /** Calculator keys. After a wrong answer, the next key starts from an empty display. */
     private fun onMissionKey(key: String) {
         AlarmSessionState.update { session ->
+            if (session.screen != SessionScreen.MISSION) return@update session
             val mission = session.mission ?: return@update session
             val current = if (mission.wrong) "" else mission.typed
             val typed = when (key) {
@@ -512,6 +710,7 @@ class AlarmRingService : LifecycleService() {
 
     private fun onMissionSetTyped(text: String) {
         AlarmSessionState.update { session ->
+            if (session.screen != SessionScreen.MISSION) return@update session
             val mission = session.mission ?: return@update session
             session.copy(mission = mission.copy(typed = text.take(MAX_PHRASE_LENGTH), wrong = false))
         }
@@ -522,6 +721,7 @@ class AlarmRingService : LifecycleService() {
      * never races a keystroke still on its way here.
      */
     private fun onMissionConfirm(typedNow: String? = null) {
+        if (AlarmSessionState.session.value?.screen != SessionScreen.MISSION) return
         if (typedNow != null) onMissionSetTyped(typedNow)
         val alarm = currentAlarm ?: return
         val session = AlarmSessionState.session.value ?: return
@@ -539,7 +739,7 @@ class AlarmRingService : LifecycleService() {
         if (mission.type == TaskType.MATH && mission.index + 1 < mission.count) {
             val q = MissionGenerator.mathQuestion(alarm.difficulty)
             AlarmSessionState.update {
-                it.copy(mission = mission.copy(index = mission.index + 1, question = q.question, answer = q.answer, typed = "", wrong = false, justCorrect = true))
+                it.copy(mission = mission.copy(index = mission.index + 1, question = q.question, answer = q.answer, typed = "", wrong = false, justCorrect = true, secondsLeft = MISSION_TOTAL_SECONDS))
             }
             return
         }
@@ -548,6 +748,7 @@ class AlarmRingService : LifecycleService() {
 
     private fun onGiveUp() {
         AlarmSessionState.update { session ->
+            if (session.screen != SessionScreen.MISSION) return@update session
             val secondsLeft = session.mission?.secondsLeft ?: MISSION_TOTAL_SECONDS
             session.copy(mission = MissionState(type = TaskType.PHRASE, index = 0, count = 1, secondsLeft = secondsLeft, phrase = MissionGenerator.phraseOfTheDay()))
         }
@@ -574,24 +775,30 @@ class AlarmRingService : LifecycleService() {
         )
         AlarmSessionState.update { it.copy(screen = SessionScreen.GOOD_MORNING, finished = finished) }
         stopAudio()
+        restoreAlarmVolume()
         holdUntilMillis = null
         RingWatchdog.clear(this)
         dismissResurface()
         releaseWakeLock()
         stopForeground(STOP_FOREGROUND_REMOVE)
-        // Not tied to this service: a quick Concluir stops it before the write would be done.
-        container.appScope.launch {
-            container.wakeHistoryRepository.record(
-                WakeHistoryEntry(
-                    date = LocalDate.now(),
-                    alarmHour = finished.alarmHour,
-                    alarmMinute = finished.alarmMinute,
-                    wokeHour = finished.wokeHour,
-                    wokeMinute = finished.wokeMinute,
-                    waits = finished.waits,
-                    durationSec = finished.durationSec,
-                ),
-            )
+        if (UserManagerCompat.isUserUnlocked(this)) {
+            // Not tied to this service: a quick Concluir stops it before the write would be done.
+            container.appScope.launch {
+                container.wakeHistoryRepository.record(
+                    WakeHistoryEntry(
+                        date = LocalDate.now(),
+                        alarmHour = finished.alarmHour,
+                        alarmMinute = finished.alarmMinute,
+                        wokeHour = finished.wokeHour,
+                        wokeMinute = finished.wokeMinute,
+                        waits = finished.waits,
+                        durationSec = finished.durationSec,
+                    ),
+                )
+            }
+        } else {
+            // The database is shut until the first unlock: this wake-up can't be written.
+            Log.i(TAG, "Phone still locked: the wake-up is not recorded")
         }
         goodMorningTimeout?.cancel()
         goodMorningTimeout = lifecycleScope.launch {
@@ -608,12 +815,13 @@ class AlarmRingService : LifecycleService() {
         RingWatchdog.clear(this)
         dismissResurface()
         // The pre-alarm check waited while the session was open.
-        container.appScope.launch { container.preAlarm.reschedule() }
+        if (UserManagerCompat.isUserUnlocked(this)) container.appScope.launch { container.preAlarm.reschedule() }
         stopSelfSafely()
     }
 
     private fun stopSelfSafely() {
         stopAudio()
+        restoreAlarmVolume()
         releaseWakeLock()
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()

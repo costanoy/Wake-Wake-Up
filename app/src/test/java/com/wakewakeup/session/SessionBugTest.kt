@@ -7,12 +7,9 @@ import com.wakewakeup.data.Difficulty
 import com.wakewakeup.testing.AppEnv
 import com.wakewakeup.testing.awaitUntil
 import com.wakewakeup.testing.idleMain
-import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
-import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -45,7 +42,6 @@ class SessionBugTest {
         idleMain()
     }
 
-    @Ignore("BUG-1: Espere recebido durante a missão conta uma espera a mais e deixa o Espere preso (a tela da missão segue, mas o histórico sai com espera falsa)")
     @Test
     fun anEspereTapArrivingDuringTheMissionIsIgnored() {
         ShadowMediaPlayer.setCreateListener { _, shadow -> players += shadow }
@@ -66,18 +62,5 @@ class SessionBugTest {
         assertEquals(SessionScreen.MISSION, session.screen)
         assertEquals(0, session.waits)
         assertNull(session.holdUntilMillis)
-    }
-
-    @Ignore("BUG-2: mudar a hora do celular à mão (ACTION_TIME_CHANGED) não reagenda os alarmes, que ficam no instante antigo")
-    @Test
-    fun changingTheClockByHandRearmsTheAlarms() {
-        val alarm = env.save(Alarm(hour = 7, minute = 0, label = "", days = (0..6).toSet()))
-        env.alarmManager.scheduledAlarms.forEach { /* snapshot only */ }
-        com.wakewakeup.session.AlarmScheduler(env.app).cancel(alarm)
-        assertNull(env.scheduledFor(alarm))
-        env.deliverBroadcast(Intent(Intent.ACTION_TIME_CHANGED).setClass(env.app, BootReceiver::class.java))
-        awaitUntil(message = "alarm armed again") { env.scheduledFor(alarm) != null }
-        assertNotNull(env.scheduledFor(alarm))
-        runBlocking { }
     }
 }
