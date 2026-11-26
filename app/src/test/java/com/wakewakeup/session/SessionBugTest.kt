@@ -20,7 +20,7 @@ import org.robolectric.shadows.ShadowMediaPlayer
 
 /**
  * Bugs reais achados pela auditoria. Cada teste descreve o comportamento CORRETO e está ignorado
- * até a correção (a Fase 3 tira o @Ignore ao corrigir).
+ * até a correção (corrigidos neste lote).
  */
 @RunWith(AndroidJUnit4::class)
 class SessionBugTest {
