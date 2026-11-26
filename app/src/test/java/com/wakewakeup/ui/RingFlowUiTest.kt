@@ -265,7 +265,21 @@ class RingFlowUiTest {
         waitFor("typed") { session?.mission?.typed == "nada a ver" }
         compose.onNodeWithContentDescription(str(R.string.confirm)).performClick()
         waitFor("wrong") { session?.mission?.wrong == true }
-        compose.waitForText(str(R.string.wrong_try_again))
+        compose.waitForText(str(R.string.phrase_wrong_here))
+    }
+
+    @Test
+    fun aPhraseWithExtraTextAtTheEndSaysSo() {
+        ring(taskType = TaskType.PHRASE)
+        compose.onNodeWithContentDescription(str(R.string.start_mission)).performClick()
+        waitFor("mission") { session?.screen == SessionScreen.MISSION }
+        val phrase = MissionGenerator.phraseOfTheDay()
+        val typed = phrase.lowercase().filter { it.isLetter() || it == ' ' } + " e mais um pouco"
+        compose.onNode(hasSetTextAction()).performTextInput(typed)
+        waitFor("typed") { session?.mission?.typed == typed }
+        compose.onNodeWithContentDescription(str(R.string.confirm)).performClick()
+        waitFor("wrong") { session?.mission?.wrong == true }
+        compose.waitForText(str(R.string.phrase_wrong_extra))
     }
 
     @Test

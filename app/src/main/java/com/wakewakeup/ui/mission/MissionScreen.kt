@@ -375,7 +375,8 @@ private fun androidx.compose.foundation.layout.ColumnScope.PhraseBody(
 
         Text(
             when {
-                mission.wrong -> stringResource(R.string.wrong_try_again)
+                // Tells where it went wrong: from the underlined letter, or text left over at the end.
+                mission.wrong -> stringResource(if (matched < phrase.length) R.string.phrase_wrong_here else R.string.phrase_wrong_extra)
                 mission.secondsLeft <= TIME_LOW_SECONDS -> stringResource(R.string.mission_time_low, mission.secondsLeft)
                 else -> stringResource(R.string.chars_of, matched, phrase.length)
             },

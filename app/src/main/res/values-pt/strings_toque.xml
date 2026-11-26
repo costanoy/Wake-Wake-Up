@@ -3,4 +3,6 @@
     <string name="mission_timed_out">O tempo acabou. A missão recomeça do início.</string>
     <string name="mission_time_label">Tempo</string>
     <string name="mission_time_low">Faltam %1$d s. Depois o alarme volta a tocar.</string>
+    <string name="phrase_wrong_here">Não confere. Corrija a partir da letra sublinhada.</string>
+    <string name="phrase_wrong_extra">Não confere. Tem texto sobrando no fim.</string>
 </resources>
