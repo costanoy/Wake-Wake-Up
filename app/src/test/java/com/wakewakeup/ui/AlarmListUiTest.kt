@@ -8,6 +8,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasContentDescription
+import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isDialog
@@ -18,6 +19,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performCustomAccessibilityActionWithLabel
+import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTextInput
 import androidx.test.core.app.ActivityScenario
@@ -97,6 +99,22 @@ class AlarmListUiTest {
         val clock = "%02d:%02d".format(soon.hour, soon.minute)
         val countdown = str(R.string.next_in, str(R.string.duration_h_min, 2, 0)).uppercase().substringBefore(" 0 ")
         compose.waitForText("$clock · $countdown", substring = true)
+    }
+
+    @Config(qualifiers = "w360dp-h640dp-xhdpi")
+    @Test
+    fun theNextStripScrollsAwayWithTheListOnASmallPhone() {
+        for (i in 1..4) env.save(Alarm(hour = 5 + i, minute = 0, label = "Alarme $i", days = setOf(0)))
+        launch()
+        compose.waitForText("Alarme 1")
+        val next = str(R.string.next_label).uppercase()
+        assertTrue(compose.onAllNodesWithText(next).fetchSemanticsNodes().isNotEmpty())
+
+        // To the last card (index 0 is PRÓXIMO and the warnings): the strip leaves the screen.
+        compose.onNode(hasScrollAction()).performScrollToIndex(4)
+        compose.waitForText("Alarme 4")
+        compose.onNodeWithText("Alarme 4").assertIsDisplayed()
+        assertTrue(compose.onAllNodesWithText(next).fetchSemanticsNodes().isEmpty())
     }
 
     @Test

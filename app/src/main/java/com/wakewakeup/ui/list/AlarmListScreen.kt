@@ -174,24 +174,29 @@ fun AlarmListScreen(
     Box(modifier = Modifier.fillMaxSize().background(Housing).statusBarsPadding().navigationBarsPadding()) {
         Column(modifier = Modifier.fillMaxSize()) {
             ListHeader(showStats = alarms.isNotEmpty(), onStats = onStats)
-            NextStrip(
-                text = if (nextTrigger != null) nextRingText(now, nextTrigger) else null,
-                modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 18.dp),
-            )
-            Warnings(
-                missingPermissions = missing,
-                quietVolume = quietVolume,
-                onOpenPermissions = onOpenPermissions,
-                onTurnUp = {
-                    viewModel.turnUpAlarmVolume()
-                    volume = viewModel.alarmVolume()
-                },
-            )
+            // PRÓXIMO and the warnings: on a small phone they scroll away with the list, leaving
+            // the room to the cards; the empty screen keeps them in place.
+            val nextStrip: @Composable () -> Unit = {
+                NextStrip(
+                    text = if (nextTrigger != null) nextRingText(now, nextTrigger) else null,
+                    modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 18.dp),
+                )
+                Warnings(
+                    missingPermissions = missing,
+                    quietVolume = quietVolume,
+                    onOpenPermissions = onOpenPermissions,
+                    onTurnUp = {
+                        viewModel.turnUpAlarmVolume()
+                        volume = viewModel.alarmVolume()
+                    },
+                )
+            }
             if (alarms.isEmpty()) {
+                nextStrip()
                 // A warning takes most of the gap above, so CRIAR ALARME still fits a small phone.
                 EmptyState(onNewAlarm, topGap = if (missing > 0) 24.dp else 84.dp)
             } else {
-                AlarmList(alarms, now, viewModel, onEditAlarm)
+                AlarmList(alarms, now, viewModel, onEditAlarm, top = nextStrip)
             }
         }
 
@@ -384,7 +389,13 @@ private fun <T : Any> rememberLast(value: T?): T? {
 }
 
 @Composable
-private fun AlarmList(alarms: List<Alarm>, now: Long, viewModel: AlarmListViewModel, onEditAlarm: (Alarm) -> Unit) {
+private fun AlarmList(
+    alarms: List<Alarm>,
+    now: Long,
+    viewModel: AlarmListViewModel,
+    onEditAlarm: (Alarm) -> Unit,
+    top: @Composable () -> Unit,
+) {
     // The "skip just the next day" offer only makes sense right after switching a recurring
     // alarm off, not for every recurring alarm that already happens to be off.
     var justDisabledId by remember { mutableStateOf<Long?>(null) }
@@ -392,11 +403,19 @@ private fun AlarmList(alarms: List<Alarm>, now: Long, viewModel: AlarmListViewMo
     LazyColumn(
         state = rememberLazyListState(),
         modifier = Modifier.fillMaxSize(),
-        // The bottom padding lets the last card scroll clear of the base plate.
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 18.dp, bottom = 140.dp),
+        // The bottom padding lets the last card scroll clear of the base plate. The side margins
+        // are on the items, because PRÓXIMO and the warnings have their own.
+        contentPadding = PaddingValues(top = 0.dp, bottom = 140.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        items(alarms, key = { it.id }) { alarm ->
+        item(key = "top", contentType = "top") {
+            Column {
+                top()
+                // With the 14 dp between items, 18 dp from the warnings to the first card.
+                Spacer(Modifier.height(4.dp))
+            }
+        }
+        items(alarms, key = { it.id }, contentType = { "alarm" }) { alarm ->
             AlarmCard(
                 alarm = alarm,
                 now = now,
@@ -411,7 +430,7 @@ private fun AlarmList(alarms: List<Alarm>, now: Long, viewModel: AlarmListViewMo
                 },
                 onClearSkip = { viewModel.clearSkip(alarm) },
                 onOpen = { onEditAlarm(alarm) },
-                modifier = Modifier.animateItem(),
+                modifier = Modifier.padding(horizontal = 16.dp).animateItem(),
             )
         }
     }
