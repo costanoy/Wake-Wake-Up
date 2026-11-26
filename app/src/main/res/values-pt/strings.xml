@@ -59,7 +59,7 @@
     <string name="days_weekend">sábado e domingo</string>
     <string name="days_and">%1$s e %2$s</string>
     <string name="delete">Excluir</string>
-    <string name="delete_confirm">Toque de novo</string>
+    <string name="delete_confirm">Excluir mesmo?</string>
     <string name="discard">Descartar</string>
     <string name="leave_edit_title">Salvar as alterações?</string>
     <string name="leave_edit_body">Se sair agora, o alarme continua como estava.</string>
@@ -95,7 +95,7 @@
 
     <!-- Alarme tocando / Espere -->
     <string name="espere_title">Espere 5 min</string>
-    <string name="espere_sub">Sem limite</string>
+    <string name="espere_sub">Toque para adiar</string>
     <string name="espere_active">Espere ativo</string>
     <string name="volume">Volume</string>
     <string name="volume_rising">Subindo</string>
@@ -146,7 +146,7 @@
     <string name="today">Hoje</string>
     <string name="avg_7">Média de 7 dias</string>
     <string name="woke_at_time">acordou às %1$s</string>
-    <string name="waits_per_wake">%1$s Espere por alarme</string>
+    <string name="waits_per_wake">Espere: %1$s por alarme</string>
     <string name="minutes_to_wake">Minutos até acordar</string>
     <string name="seven_days">7 dias</string>
     <string name="col_alarm">Alarme</string>
@@ -156,12 +156,12 @@
     <string name="stats_row_spoken">%1$s: alarme das %2$s, acordou às %3$s, %4$s depois</string>
     <string name="privacy">Privacidade</string>
     <string name="privacy_url">https://wakewakeup.cyberhat.com.br/privacidade.html</string>
-    <string name="stats_empty">Ainda sem despertares. Conclua uma missão e ele aparece aqui.</string>
+    <string name="stats_empty">Ainda sem despertares. Conclua a missão de um alarme e o tempo que você levou aparece aqui.</string>
 
     <!-- Permissões -->
     <string name="perm_eyebrow">Antes de começar</string>
     <string name="perm_title">Para o alarme tocar de verdade</string>
-    <string name="perm_body">Para economizar bateria, o Android pode atrasar ou silenciar alarmes. Libere os três primeiros itens para o alarme tocar mesmo com o celular bloqueado. O último é recomendado.</string>
+    <string name="perm_body">O Android pode atrasar ou silenciar alarmes para economizar bateria. Libere os itens abaixo para o alarme tocar mesmo com o celular bloqueado.</string>
     <string name="perm_granted_label">Liberadas</string>
     <string name="perm_count">%1$d de %2$d</string>
     <string name="perm_notifications_title">Notificações</string>
@@ -171,7 +171,7 @@
     <string name="perm_fullscreen_title">Tela cheia no bloqueio</string>
     <string name="perm_fullscreen_desc">Abre a missão por cima da tela de bloqueio.</string>
     <string name="perm_battery_title">Sem limite de bateria</string>
-    <string name="perm_battery_desc">Impede o sistema de desligar o app à noite.</string>
+    <string name="perm_battery_desc">Impede o sistema de fechar o app à noite. Na lista que abrir, procure Wake Wake Up e desligue a otimização de bateria.</string>
     <string name="perm_recommended">Recomendado</string>
     <string name="allow">Permitir</string>
     <string name="cd_allow">Permitir %1$s</string>
@@ -221,23 +221,23 @@
 
     <!-- Aviso antes do alarme -->
     <string name="pre_alarm_channel_name">Aviso antes do alarme</string>
-    <string name="pre_alarm_channel_desc">Se você já está usando o celular até 1 hora antes de um alarme da manhã, pergunta se quer desativá-lo só desta vez.</string>
-    <string name="pre_alarm_title_one">Você quer desativar o próximo alarme?</string>
-    <string name="pre_alarm_title_many">Você quer desativar os próximos alarmes?</string>
-    <string name="pre_alarm_text_one">%1$s toca às %2$s. Já acordou? Dá para desativar só desta vez.</string>
-    <string name="pre_alarm_text_many">%1$s. Já acordou? Dá para desativar todos só desta vez.</string>
-    <string name="pre_alarm_action">Desativar</string>
-    <string name="skip_confirm_title">Desativar só desta vez?</string>
+    <string name="pre_alarm_channel_desc">Se você já está usando o celular até 1 hora antes de um alarme da manhã, pergunta se quer pulá-lo só desta vez.</string>
+    <string name="pre_alarm_title_one">Já acordou?</string>
+    <string name="pre_alarm_title_many">Já acordou?</string>
+    <string name="pre_alarm_text_one">%1$s toca às %2$s. Quer pular só desta vez?</string>
+    <string name="pre_alarm_text_many">%1$s. Quer pular todos só desta vez?</string>
+    <string name="pre_alarm_action">Pular</string>
+    <string name="skip_confirm_title">Pular só desta vez?</string>
     <string name="skip_confirm_back_on">Volta a tocar %1$s</string>
     <string name="skip_confirm_one_off">Fica desligado na lista</string>
     <string name="skip_confirm_gate">Para confirmar, resolva</string>
     <string name="skip_confirm_keep">Manter</string>
-    <string name="skip_confirm_turn_off">Desativar</string>
-    <string name="skip_confirm_done">Pronto, desativado só desta vez.</string>
+    <string name="skip_confirm_turn_off">Pular</string>
+    <string name="skip_confirm_done">Pronto, pulado só desta vez.</string>
     <string name="skip_confirm_stale">Esse alarme já mudou ou já tocou.</string>
     <string name="skip_receipt_title_one">%1$s não toca às %2$s</string>
     <string name="skip_receipt_title_many">Não tocam: %1$s</string>
-    <string name="skip_receipt_text">Desativado só desta vez.</string>
+    <string name="skip_receipt_text">Pulado só desta vez.</string>
     <string name="gm_skip_also">Pular também %1$s?</string>
     <string name="gm_skipped">Pronto, só desta vez.</string>
 

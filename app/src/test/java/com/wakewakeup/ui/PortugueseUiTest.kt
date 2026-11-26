@@ -110,7 +110,7 @@ class PortugueseUiTest {
         ring = ActivityScenario.launch(RingActivity::class.java)
 
         compose.waitForText("ESPERE 5 MIN")
-        compose.onNodeWithText("SEM LIMITE").assertIsDisplayed()
+        compose.onNodeWithText("TOQUE PARA ADIAR").assertIsDisplayed()
         compose.onNodeWithContentDescription("Começar missão").assertIsDisplayed()
         compose.onNodeWithText("SUBINDO").assertIsDisplayed()
         // "TRABALHO · TERÇA, 13 OUT"
