@@ -33,7 +33,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -70,6 +73,9 @@ import java.time.LocalTime
 import kotlin.math.ceil
 
 private const val VOLUME_SEGMENTS = 16
+
+/** Back on the ring screen with a mission still in the session: its time ran out. */
+private val RingSession.missionTimedOut get() = mission != null
 
 @Composable
 fun RingScreen(session: RingSession, onStartMission: () -> Unit, onHoldOn: () -> Unit) {
@@ -151,10 +157,24 @@ private fun Ringing(session: RingSession, onStartMission: () -> Unit, onHoldOn: 
                 colon = { ColonDots(8.dp, 14.dp, Vfd, glow = true) },
                 modifier = Modifier.graphicsLayer { alpha = pulseAlpha },
             )
-            PrintLabel(
-                stringResource(R.string.ring_alarm_at, formatClock(session.alarmHour, session.alarmMinute)),
-                modifier = Modifier.padding(top = 12.dp),
-            )
+            if (session.missionTimedOut) {
+                // The mission ran out of time and the alarm is back: say so, and that it starts over.
+                Text(
+                    stringResource(R.string.mission_timed_out),
+                    style = WwuType.bodyStrong,
+                    color = Ink,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .padding(horizontal = 24.dp)
+                        .padding(top = 12.dp)
+                        .semantics { liveRegion = LiveRegionMode.Polite },
+                )
+            } else {
+                PrintLabel(
+                    stringResource(R.string.ring_alarm_at, formatClock(session.alarmHour, session.alarmMinute)),
+                    modifier = Modifier.padding(top = 12.dp),
+                )
+            }
 
             Column(
                 Modifier

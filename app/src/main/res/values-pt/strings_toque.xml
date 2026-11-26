@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="mission_timed_out">O tempo acabou. A missão recomeça do início.</string>
+    <string name="mission_time_label">Tempo</string>
+    <string name="mission_time_low">Faltam %1$d s. Depois o alarme volta a tocar.</string>
+</resources>

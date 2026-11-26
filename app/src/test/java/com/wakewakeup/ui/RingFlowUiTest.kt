@@ -331,6 +331,42 @@ class RingFlowUiTest {
         waitFor("session over") { session == null }
     }
 
+    private fun openWithSession(transform: (com.wakewakeup.session.RingSession) -> com.wakewakeup.session.RingSession) {
+        AlarmSessionState.start(env.save(Alarm(hour = 6, minute = 30, label = "", days = setOf(0))))
+        AlarmSessionState.update(transform)
+        screen = ActivityScenario.launch(RingActivity::class.java)
+    }
+
+    @Test
+    fun aMissionThatRanOutOfTimeIsAnnouncedOnTheRingScreen() {
+        openWithSession { it.copy(mission = com.wakewakeup.session.MissionState(TaskType.MATH, 0, 1, question = "1 + 1", answer = "2")) }
+        compose.waitForText(str(R.string.mission_timed_out))
+        assertTrue(compose.onAllNodesWithText(str(R.string.ring_alarm_at, "06:30").uppercase()).fetchSemanticsNodes().isEmpty())
+    }
+
+    @Test
+    fun aFreshSessionDoesNotClaimTheTimeRanOut() {
+        openWithSession { it }
+        compose.waitForDescription(str(R.string.start_mission))
+        assertTrue(compose.onAllNodesWithText(str(R.string.mission_timed_out)).fetchSemanticsNodes().isEmpty())
+        compose.onNodeWithText(str(R.string.ring_alarm_at, "06:30").uppercase()).assertIsDisplayed()
+    }
+
+    @Test
+    fun theMissionClockReadsMinutesAndTurnsIntoAHintInTheLastTwentySeconds() {
+        openWithSession {
+            it.copy(
+                screen = SessionScreen.MISSION,
+                mission = com.wakewakeup.session.MissionState(TaskType.MATH, 0, 1, secondsLeft = 23, question = "1 + 1", answer = "2"),
+            )
+        }
+        compose.waitForText("0:23")
+        assertTrue(compose.onAllNodesWithText(str(R.string.mission_time_low, 23)).fetchSemanticsNodes().isEmpty())
+        AlarmSessionState.update { it.copy(mission = it.mission!!.copy(secondsLeft = 15)) }
+        compose.waitForText(str(R.string.mission_time_low, 15))
+        compose.onNodeWithText("0:15").assertIsDisplayed()
+    }
+
     @Test
     fun backDoesntDismissTheAlarm() {
         ring()

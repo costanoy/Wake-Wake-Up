@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="mission_timed_out">Time ran out. The mission starts over.</string>
+    <string name="mission_time_label">Time</string>
+    <string name="mission_time_low">%1$d s left. Then the alarm rings again.</string>
+</resources>

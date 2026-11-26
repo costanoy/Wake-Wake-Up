@@ -87,6 +87,9 @@ private const val TIMER_SEGMENTS = 20
 private const val MAX_PHRASE_CHARS = 80
 private const val TIMER_DANGER_SEGMENTS = 5
 
+/** From here on the clock turns red and the hint says how long is left. */
+private const val TIME_LOW_SECONDS = 20
+
 @Composable
 fun MissionScreen(
     mission: MissionState,
@@ -110,7 +113,17 @@ fun MissionScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            PrintLabel(stringResource(R.string.mission_seconds, mission.secondsLeft))
+            val low = mission.secondsLeft <= TIME_LOW_SECONDS
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                PrintLabel(stringResource(R.string.mission_time_label))
+                VfdText(
+                    "%d:%02d".format(mission.secondsLeft / 60, mission.secondsLeft % 60),
+                    18.sp.nonScaling(),
+                    color = if (low) ErrorDisplay else Vfd,
+                    glowColor = if (low) ErrorDisplay else Vfd,
+                    glowAlpha = 0.5f,
+                )
+            }
             VfdText(
                 if (isPhrase) {
                     stringResource(R.string.type_phrase_short).uppercase()
@@ -166,6 +179,7 @@ private fun androidx.compose.foundation.layout.ColumnScope.MathBody(
     val shake = rememberShake(mission.wrong)
     val (message, messageColor) = when {
         mission.wrong -> stringResource(R.string.wrong_try_again) to ErrorText
+        mission.secondsLeft <= TIME_LOW_SECONDS -> stringResource(R.string.mission_time_low, mission.secondsLeft) to ErrorText
         mission.justCorrect -> stringResource(R.string.correct_next) to VfdBright
         else -> stringResource(R.string.enter_result) to InkMuted
     }
@@ -326,9 +340,13 @@ private fun androidx.compose.foundation.layout.ColumnScope.PhraseBody(
         }
 
         Text(
-            if (mission.wrong) stringResource(R.string.wrong_try_again) else stringResource(R.string.chars_of, matched, phrase.length),
+            when {
+                mission.wrong -> stringResource(R.string.wrong_try_again)
+                mission.secondsLeft <= TIME_LOW_SECONDS -> stringResource(R.string.mission_time_low, mission.secondsLeft)
+                else -> stringResource(R.string.chars_of, matched, phrase.length)
+            },
             style = WwuType.caption,
-            color = if (mission.wrong) ErrorText else InkMuted,
+            color = if (mission.wrong || mission.secondsLeft <= TIME_LOW_SECONDS) ErrorText else InkMuted,
             modifier = Modifier
                 .padding(start = 24.dp, end = 24.dp, top = 8.dp, bottom = 16.dp)
                 .semantics { liveRegion = LiveRegionMode.Polite },
