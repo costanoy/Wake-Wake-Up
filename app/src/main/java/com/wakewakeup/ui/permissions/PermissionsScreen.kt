@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -170,17 +169,20 @@ fun PermissionsScreen(onContinue: () -> Unit, fromList: Boolean = false) {
                 primary = all,
                 onClick = { finish() },
             )
-            Text(
-                when {
-                    all -> stringResource(R.string.perm_all_set)
-                    !fromList -> stringResource(R.string.perm_nag)
-                    else -> ""
-                },
-                style = WwuType.caption,
-                color = InkMuted,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth().heightIn(min = 34.dp),
-            )
+            val note = when {
+                all -> stringResource(R.string.perm_all_set)
+                !fromList -> stringResource(R.string.perm_nag)
+                else -> ""
+            }
+            if (note.isNotEmpty()) {
+                Text(
+                    note,
+                    style = WwuType.bodyXS,
+                    color = InkMuted,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
         }
     }
 }
