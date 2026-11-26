@@ -39,6 +39,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -60,6 +61,7 @@ import com.wakewakeup.ui.components.CalcKeys
 import com.wakewakeup.ui.components.CalculatorKeypad
 import com.wakewakeup.ui.components.CheckGlyph
 import com.wakewakeup.ui.components.GraphiteKey
+import com.wakewakeup.ui.components.Lamp
 import com.wakewakeup.ui.components.LedMeter
 import com.wakewakeup.ui.components.PrintLabel
 import com.wakewakeup.ui.components.RoundButton
@@ -180,6 +182,11 @@ private fun androidx.compose.foundation.layout.ColumnScope.MathBody(
     onGiveUp: () -> Unit,
 ) {
     val shake = rememberShake(mission.wrong)
+    // A right answer is felt as well as seen: the next sum appears with a confirming tick.
+    val haptic = LocalHapticFeedback.current
+    LaunchedEffect(mission.justCorrect, mission.index) {
+        if (mission.justCorrect) haptic.performHapticFeedback(HapticFeedbackType.Confirm)
+    }
     val (message, messageColor) = when {
         mission.wrong -> stringResource(R.string.wrong_try_again) to ErrorText
         mission.secondsLeft <= TIME_LOW_SECONDS -> stringResource(R.string.mission_time_low, mission.secondsLeft) to ErrorText
@@ -226,7 +233,26 @@ private fun androidx.compose.foundation.layout.ColumnScope.MathBody(
                     .padding(horizontal = 18.dp, vertical = 14.dp),
                 verticalArrangement = Arrangement.SpaceBetween,
             ) {
-                VfdText("${mission.question} =", 34.sp.nonScaling(), glowRadius = 8.dp, glowAlpha = 0.5f, maxLines = 1)
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    VfdText(
+                        "${mission.question} =",
+                        34.sp.nonScaling(),
+                        modifier = Modifier.weight(1f, fill = false),
+                        glowRadius = 8.dp,
+                        glowAlpha = 0.5f,
+                        maxLines = 1,
+                    )
+                    // One lamp per sum, lit for each one done. "CONTA 2 DE 3" says the same for TalkBack.
+                    if (mission.count > 1) {
+                        Row(
+                            Modifier.padding(start = 12.dp).clearAndSetSemantics { },
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            repeat(mission.count) { i -> Lamp(Vfd, lit = i < mission.index, size = 8.dp) }
+                        }
+                    }
+                }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
                     Text(
                         message,
