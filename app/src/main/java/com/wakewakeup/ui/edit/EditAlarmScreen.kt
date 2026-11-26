@@ -49,6 +49,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
@@ -153,6 +154,11 @@ fun EditAlarmScreen(
         }
     }
 
+    // On a short phone the foot bar gives up some height so MISSÃO and SOM stay above it.
+    val compact = LocalConfiguration.current.screenHeightDp < 700
+    val saveSize = if (compact) 64.dp else 76.dp
+    val deleteSize = if (compact) 52.dp else 60.dp
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -210,6 +216,26 @@ fun EditAlarmScreen(
                     .faceplate()
                     .padding(horizontal = 14.dp, vertical = 4.dp),
             ) {
+                PlateRow(label = stringResource(R.string.task), onClick = onOpenTask) {
+                    Text(
+                        taskSummary(draft.taskType, draft.taskCount),
+                        style = WwuType.body,
+                        color = Ink,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+                PlateDivider()
+                PlateRow(label = stringResource(R.string.sound), onClick = onOpenSound) {
+                    Text(
+                        draft.soundName ?: stringResource(R.string.sound_default),
+                        style = WwuType.body,
+                        color = Ink,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+                PlateDivider()
                 PlateRow(label = stringResource(R.string.label), minHeight = 56.dp) {
                     Box(
                         Modifier
@@ -233,26 +259,6 @@ fun EditAlarmScreen(
                         )
                     }
                 }
-                PlateDivider()
-                PlateRow(label = stringResource(R.string.sound), onClick = onOpenSound) {
-                    Text(
-                        draft.soundName ?: stringResource(R.string.sound_default),
-                        style = WwuType.body,
-                        color = Ink,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f),
-                    )
-                }
-                PlateDivider()
-                PlateRow(label = stringResource(R.string.task), onClick = onOpenTask) {
-                    Text(
-                        taskSummary(draft.taskType, draft.taskCount),
-                        style = WwuType.body,
-                        color = Ink,
-                        modifier = Modifier.weight(1f),
-                    )
-                }
             }
             Spacer(Modifier.height(24.dp))
         }
@@ -260,7 +266,7 @@ fun EditAlarmScreen(
         Row(
             Modifier
                 .fillMaxWidth()
-                .padding(start = 40.dp, end = 40.dp, bottom = 32.dp, top = 8.dp),
+                .padding(start = 40.dp, end = 40.dp, bottom = if (compact) 16.dp else 32.dp, top = 8.dp),
             // A new alarm has nothing to delete yet (‹ abandons it), and SALVAR keeps its place.
             horizontalArrangement = if (isNew) Arrangement.End else Arrangement.SpaceBetween,
             verticalAlignment = Alignment.Bottom,
@@ -276,7 +282,7 @@ fun EditAlarmScreen(
                             deleteArmed = true
                         }
                     },
-                    size = 60.dp,
+                    size = deleteSize,
                     style = RoundStyle.Danger,
                     // Measured after SALVAR: at the largest font sizes its captions wrap instead
                     // of squeezing the save key.
@@ -286,15 +292,15 @@ fun EditAlarmScreen(
                     softShadow = softShadow(14.dp, 8.dp, 0.5f),
                     // Room for the longer caption either way, so the key stays under the confirming tap.
                     reserveLabel = stringResource(if (deleteArmed) R.string.delete else R.string.delete_confirm),
-                ) { CrossGlyph(60.dp) }
+                ) { CrossGlyph(deleteSize) }
             }
             LabeledRoundButton(
                 label = stringResource(R.string.save),
                 onClick = { viewModel.save(onSaved) },
-                size = 76.dp,
+                size = saveSize,
                 style = RoundStyle.Action,
                 softShadow = softShadow(18.dp, 10.dp, 0.55f),
-            ) { CheckGlyph(76.dp) }
+            ) { CheckGlyph(saveSize) }
         }
     }
 }
