@@ -215,7 +215,7 @@ private fun Gate(viewModel: SkipConfirmViewModel) {
         }
         Text(
             if (viewModel.wrong) stringResource(R.string.wrong_try_again) else stringResource(R.string.skip_confirm_hint),
-            style = WwuType.caption,
+            style = WwuType.bodyS,
             color = if (viewModel.wrong) ErrorText else InkMuted,
             modifier = Modifier
                 .fillMaxWidth()
