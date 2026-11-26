@@ -90,7 +90,6 @@ import com.wakewakeup.ui.components.FlipSize
 import com.wakewakeup.ui.components.GraphiteKey
 import com.wakewakeup.ui.components.LabeledRoundButton
 import com.wakewakeup.ui.components.Lamp
-import com.wakewakeup.ui.components.OrangeKey
 import com.wakewakeup.ui.components.PlusGlyph
 import com.wakewakeup.ui.components.PrintLabel
 import com.wakewakeup.ui.components.RoundButton
@@ -348,7 +347,7 @@ private fun Warnings(
                 WarningRow(
                     text = stringResource(R.string.alarm_volume_low, v.level, v.max),
                     modifier = rowSpacing,
-                ) { OrangeKey(stringResource(R.string.alarm_volume_up), onClick = onTurnUp) }
+                ) { GraphiteKey(stringResource(R.string.alarm_volume_up), onClick = onTurnUp) }
             }
         }
     }
@@ -561,7 +560,7 @@ private fun AlarmCard(
                 } else {
                     Text(stringResource(R.string.skip_prompt, skipName, backName), style = WwuType.bodyXS, color = Ink, modifier = Modifier.weight(1f))
                     Spacer(Modifier.width(8.dp))
-                    OrangeKey(stringResource(R.string.skip_once), onClick = onSkipNext)
+                    GraphiteKey(stringResource(R.string.skip_once), onClick = onSkipNext)
                 }
             }
         }
