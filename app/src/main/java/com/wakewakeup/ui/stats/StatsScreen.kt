@@ -184,22 +184,22 @@ fun StatsScreen(onBack: () -> Unit, viewModel: StatsViewModel = viewModel()) {
                         }
                     }
                 }
-
-                // Google Play asks for the privacy policy to be reachable from inside the app.
-                Row(
-                    Modifier
-                        .padding(start = 16.dp, end = 16.dp, top = 8.dp)
-                        .heightIn(min = 48.dp)
-                        .clickable(role = Role.Button) { openPage(context, privacyUrl) }
-                        .padding(horizontal = 14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Text(stringResource(R.string.privacy), style = WwuType.bodyXS, color = InkMuted)
-                    Chevron(color = InkMuted, size = 12.dp)
-                }
-                Spacer(Modifier.height(16.dp))
             }
+
+            // Google Play asks for the privacy policy to be reachable from inside the app.
+            Row(
+                Modifier
+                    .padding(start = 16.dp, end = 16.dp, top = 8.dp)
+                    .heightIn(min = 48.dp)
+                    .clickable(role = Role.Button) { openPage(context, privacyUrl) }
+                    .padding(horizontal = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text(stringResource(R.string.privacy), style = WwuType.bodyXS, color = InkMuted)
+                Chevron(color = InkMuted, size = 12.dp)
+            }
+            Spacer(Modifier.height(16.dp))
         }
     }
 }
