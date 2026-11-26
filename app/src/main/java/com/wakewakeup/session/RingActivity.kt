@@ -4,6 +4,7 @@ import android.content.Intent
 import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
+import android.view.KeyEvent
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
@@ -102,6 +103,19 @@ class RingActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    /**
+     * Volume up still works, but lowering or muting the alarm is not a way out of the mission:
+     * the keys are swallowed while it rings, until Bom dia.
+     */
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        val key = event.keyCode
+        if (key == KeyEvent.KEYCODE_VOLUME_DOWN || key == KeyEvent.KEYCODE_VOLUME_MUTE) {
+            val screen = AlarmSessionState.session.value?.screen
+            if (screen != null && screen != SessionScreen.GOOD_MORNING) return true
+        }
+        return super.dispatchKeyEvent(event)
     }
 
     private fun setShowsOverLockScreen() {

@@ -289,6 +289,33 @@ class RingFlowUiTest {
         compose.waitFor("app opened") { MainActivity::class.java.name in openedActivities() }
     }
 
+    private fun volumeDownIsConsumed(): Boolean {
+        var consumed = false
+        screen!!.onActivity {
+            consumed = it.dispatchKeyEvent(android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_VOLUME_DOWN))
+        }
+        return consumed
+    }
+
+    @Test
+    fun theVolumeDownKeyIsConsumedWhileRingingAndOnTheMissionButNotOnGoodMorning() {
+        ring()
+        assertTrue("on the ring screen", volumeDownIsConsumed())
+        compose.onNodeWithContentDescription(str(R.string.start_mission)).performClick()
+        waitFor("mission") { session?.screen == SessionScreen.MISSION }
+        assertTrue("on the mission", volumeDownIsConsumed())
+        var upConsumed = true
+        screen!!.onActivity {
+            upConsumed = it.dispatchKeyEvent(android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_VOLUME_UP))
+        }
+        assertFalse("volume up still works", upConsumed)
+        pressKeys(session!!.mission!!.answer)
+        waitFor("typed") { session?.mission?.typed == session?.mission?.answer }
+        compose.onNodeWithContentDescription(str(R.string.confirm)).performClick()
+        waitFor("good morning") { session?.screen == SessionScreen.GOOD_MORNING }
+        assertFalse("on Bom dia", volumeDownIsConsumed())
+    }
+
     @Test
     fun backDoesntDismissTheAlarm() {
         ring()
