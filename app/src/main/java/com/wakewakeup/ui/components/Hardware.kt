@@ -72,6 +72,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpOffset
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -788,7 +789,7 @@ fun SlideSwitch(
             val knobShape = WwuShape.knob
             Row(
                 Modifier
-                    .offset(x = knobX, y = 3.dp)
+                    .offset { IntOffset(knobX.roundToPx(), 3.dp.roundToPx()) }
                     .size(24.dp)
                     .dropShadow(knobShape, blur(3.dp, 2.dp, 0.7f))
                     .background(Brush.verticalGradient(listOf(Color(0xFF4A4148), Color(0xFF2E272D))), knobShape)
