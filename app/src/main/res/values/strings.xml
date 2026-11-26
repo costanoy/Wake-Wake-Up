@@ -58,7 +58,7 @@
     <string name="days_weekend">Saturday and Sunday</string>
     <string name="days_and">%1$s and %2$s</string>
     <string name="delete">Delete</string>
-    <string name="delete_confirm">Tap again</string>
+    <string name="delete_confirm">Really delete?</string>
     <string name="discard">Discard</string>
     <string name="leave_edit_title">Save your changes?</string>
     <string name="leave_edit_body">If you leave now, the alarm stays as it was.</string>

@@ -59,7 +59,7 @@
     <string name="days_weekend">sábado e domingo</string>
     <string name="days_and">%1$s e %2$s</string>
     <string name="delete">Excluir</string>
-    <string name="delete_confirm">Toque de novo</string>
+    <string name="delete_confirm">Excluir mesmo?</string>
     <string name="discard">Descartar</string>
     <string name="leave_edit_title">Salvar as alterações?</string>
     <string name="leave_edit_body">Se sair agora, o alarme continua como estava.</string>
