@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<script src="lang.js?v=20261028"></script>
-<title>Wake Wake Up · Despertador para quem dorme pesado</title>
-<meta name="description" content="Despertador para Android para quem dorme pesado. O alarme só desliga depois de uma missão: contas de matemática ou uma frase.">
+<script src="lang.js?v=20261126"></script>
+<title>Despertador para quem dorme pesado · Wake Wake Up</title>
+<meta name="description" content="Despertador grátis para Android que só desliga depois de uma missão: contas de matemática ou uma frase. Sem anúncios e sem cadastro. Baixe o APK.">
 <meta name="robots" content="index, follow, max-image-preview:large, max-video-preview:-1">
 <meta name="theme-color" content="#141017">
 
@@ -35,7 +35,7 @@
 <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png">
 <link rel="preload" href="assets/fonts/instrument-sans-600.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="assets/fonts/barlow-condensed-600.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="styles.css?v=20261028">
+<link rel="stylesheet" href="styles.css?v=20261126">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -44,10 +44,13 @@
       "@type": "MobileApplication",
       "@id": "https://wakewakeup.cyberhat.com.br/#app",
       "name": "Wake Wake Up",
-      "description": "Despertador para Android para quem dorme pesado. O alarme só desliga depois de uma missão: contas de matemática ou uma frase.",
+      "description": "Despertador grátis para Android que só desliga depois de uma missão: contas de matemática ou uma frase. Sem anúncios e sem cadastro. Baixe o APK.",
       "url": "https://wakewakeup.cyberhat.com.br/",
       "image": "https://wakewakeup.cyberhat.com.br/og-image.png",
-      "operatingSystem": "Android 8.0 ou superior",
+      "operatingSystem": "Android",
+      "softwareRequirements": "Android 8.0 ou superior",
+      "softwareVersion": "1.2",
+      "isAccessibleForFree": true,
       "applicationCategory": "UtilitiesApplication",
       "inLanguage": ["pt-BR", "en"],
       "downloadUrl": "https://wakewakeup.cyberhat.com.br/wake-wake-up.apk",
@@ -95,16 +98,23 @@
       <p class="lead">Para quem dorme pesado demais para a soneca funcionar. O alarme só desliga depois que você cumpre uma missão.</p>
     </div>
     <div class="hero__cta">
-      <a class="download" href="wake-wake-up.apk" download data-download aria-label="Baixar o APK do Wake Wake Up para Android"><span class="download__button" aria-hidden="true"></span><span class="download__label">BAIXAR O APK</span></a>
-      <a class="hero__test" href="#teste">Ou peça um acesso de teste</a>
+      <a class="download" href="wake-wake-up.apk" download data-download><span class="download__button" aria-hidden="true"></span><span class="download__label">BAIXAR O APK</span><span class="download__meta" data-apk-meta>v1.2 · 4 MB · Android 8+</span></a>
+      <a class="hero__test" href="#instalar">Como instalar</a>
     </div>
   </div>
 </header>
 
 <main>
 
+<ul class="facts wrap" aria-label="Em resumo">
+  <li><i aria-hidden="true"></i><span class="vfd">GRÁTIS</span></li>
+  <li><i aria-hidden="true"></i><span class="vfd">SEM ANÚNCIOS</span></li>
+  <li><i aria-hidden="true"></i><span class="vfd">SEM CADASTRO</span></li>
+  <li><i aria-hidden="true"></i><span class="vfd">FUNCIONA SEM INTERNET</span></li>
+</ul>
+
 <section class="section">
-  <div class="section__inner wrap split" data-reveal>
+  <div class="section__inner wrap split">
     <div class="split__text">
       <div class="label">Em 28 segundos</div>
       <h2 class="h2">Veja uma manhã com o Wake Wake Up.</h2>
@@ -113,7 +123,7 @@
     <div class="phone-wrap">
       <div class="phone">
         <video id="demo-video" src="wake-wake-up-video.mp4" preload="none" playsinline poster="assets/video-poster.jpg" width="1080" height="1920" aria-label="Vídeo de demonstração do Wake Wake Up"></video>
-        <button type="button" class="phone__play" id="demo-play" aria-label="Assistir ao vídeo, 0:28"><span></span><span>ASSISTIR · 0:28</span></button>
+        <button type="button" class="phone__play" id="demo-play"><span></span><span>ASSISTIR<span class="sr-only"> ao vídeo</span> <span aria-hidden="true">·</span> 0:28</span></button>
       </div>
     </div>
   </div>
@@ -121,15 +131,15 @@
 
 <section class="section" id="como-funciona">
   <div class="section__inner wrap steps">
-    <div class="steps__head" data-reveal>
+    <div class="steps__head">
       <div class="label">Como funciona</div>
       <h2 class="h2">Três passos até levantar.</h2>
     </div>
     <div class="steps__grid">
 
-      <article class="step plate" data-reveal>
+      <article class="step plate">
         <div class="step__head"><span class="vfd">01</span><h3>Toca até você levantar</h3></div>
-        <p>O volume pode subir do baixo ao máximo em 60 segundos. No lugar da soneca existe o Espere: pausa de 5 minutos, sem limite de usos.</p>
+        <p>O volume pode subir do baixo ao máximo em 60 segundos. Precisa de um instante? O Espere pausa o toque por 5 minutos, mas não desliga: o alarme volta sozinho e só a missão encerra.</p>
         <div class="step__demo">
           <button type="button" class="espere" id="espere"><span><b>ESPERE 5 MIN</b><small id="espere-count">SEM LIMITE</small><span class="sr-only"> (demonstração)</span></span></button>
           <div class="meter visor">
@@ -145,7 +155,7 @@
         </div>
       </article>
 
-      <article class="step plate" data-reveal>
+      <article class="step plate">
         <div class="step__head"><span class="vfd">02</span><h3>Só desliga com a missão</h3></div>
         <p>Resolva contas (3 dificuldades, de 1 a 10 contas) ou digite a frase do dia. Você tem 2 minutos: se o tempo acabar, o alarme volta a tocar, já quase no máximo. Experimente aqui.</p>
         <div class="step__demo calc" id="calc">
@@ -161,7 +171,7 @@
             <button type="button" class="key" data-key="4">4</button>
             <button type="button" class="key" data-key="5">5</button>
             <button type="button" class="key" data-key="6">6</button>
-            <button type="button" class="key key--fn" data-key="B" aria-label="Apagar">⌫</button>
+            <button type="button" class="key key--fn" data-key="B" aria-label="Apagar"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5h10a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9l-6-7 6-7z"/><path d="m12 9.5 5 5m0-5-5 5"/></svg></button>
             <button type="button" class="key" data-key="1">1</button>
             <button type="button" class="key" data-key="2">2</button>
             <button type="button" class="key" data-key="3">3</button>
@@ -190,18 +200,22 @@
 
     </div>
 
-    <div class="extras">
-      <article class="extra plate" data-reveal>
+    <div class="extras plate">
+      <article class="extra">
         <h3 class="extra__title"><i aria-hidden="true"></i>Vai folgar?</h3>
         <p>Pule só o próximo toque de um alarme que se repete. Ele volta a tocar sozinho na vez seguinte.</p>
       </article>
-      <article class="extra plate" data-reveal>
+      <article class="extra">
         <h3 class="extra__title"><i aria-hidden="true"></i>Acordou antes do alarme?</h3>
         <p>Se você já estiver usando o celular até 1 hora antes de um alarme da manhã, o app pergunta se quer desativar esse alarme só desta vez. Para confirmar, resolva uma conta rápida.</p>
       </article>
-      <article class="extra plate" data-reveal>
+      <article class="extra">
         <h3 class="extra__title"><i aria-hidden="true"></i>Travou na conta?</h3>
         <p>Toque em <strong>Não consigo resolver</strong> e digite a frase do dia, no tempo que sobrar.</p>
+      </article>
+      <article class="extra">
+        <h3 class="extra__title"><i aria-hidden="true"></i>Fechou o app?</h3>
+        <p>Fechar o app no meio do toque não desliga o alarme: ele volta a tocar em até 3 minutos. Só a missão encerra.</p>
       </article>
     </div>
   </div>
@@ -209,17 +223,17 @@
 
 <section class="section">
   <div class="section__inner wrap split">
-    <div class="split__text split__text--wide" data-reveal>
+    <div class="split__text split__text--wide">
       <div class="label">Sons e rádio</div>
       <h2 class="h2">Acorde com o som que funciona para você.</h2>
-      <p class="copy">Sete sons próprios do app, os toques e as músicas do seu celular ou uma rádio da internet que você escolher.</p>
+      <p class="copy">Os sons do próprio app, feitos para acordar, os toques e as músicas do seu celular ou uma rádio da internet que você escolher. A rádio é a única parte do app que usa internet.</p>
       <div class="rules visor">
         <div class="label">Com rádio, o alarme de verdade assume se</div>
         <div class="rules__item"><i></i><span class="vfd">A ESTAÇÃO NÃO TOCAR</span></div>
         <div class="rules__item"><i></i><span class="vfd">VOCÊ NÃO REAGIR EM 3 MIN</span></div>
       </div>
     </div>
-    <div class="tuner plate" data-reveal>
+    <div class="tuner plate">
       <div class="tuner__top">
         <div class="grille" aria-hidden="true"></div>
         <div class="dial">
@@ -234,7 +248,7 @@
 
 <section class="section">
   <div class="section__inner wrap split">
-    <div class="split__text" data-reveal>
+    <div class="split__text">
       <div class="label">Estatísticas</div>
       <h2 class="h2">Quanto tempo você leva para acordar.</h2>
       <p class="copy">O app mede o tempo entre o primeiro toque e a missão cumprida, e mostra os últimos 7 dias.</p>
@@ -245,23 +259,34 @@
       <div class="readouts">
         <div class="readout"><span class="label">Hoje</span><span class="vfd vfd--bright">12 MIN</span></div>
         <div class="readout"><span class="label">Média</span><span class="vfd">11 MIN</span></div>
-        <div class="readout"><span class="label">Espere/dia</span><span class="vfd">1,4×</span></div>
+        <div class="readout"><span class="label">Espere</span><span class="vfd">1,4×</span></div>
       </div>
     </div>
   </div>
 </section>
 
 <section class="final" id="baixar">
-  <div class="final__inner wrap" data-reveal>
+  <div class="final__inner wrap">
     <div class="final__text">
       <h2>Bom dia, de verdade.</h2>
       <p class="lead">Configure o primeiro alarme hoje à noite.</p>
     </div>
     <div class="final__download">
-      <a class="download" href="wake-wake-up.apk" download data-download aria-label="Baixar o APK do Wake Wake Up para Android"><span class="download__button" aria-hidden="true"></span><span class="download__label">BAIXAR O APK</span></a>
-      <p class="apk-note" data-apk-note>Para Android 8 ou superior. Na instalação, o Android pode pedir para você permitir apps desta origem. Se ele não deixar instalar, peça um acesso de teste logo abaixo.</p>
-      <p class="apk-note" data-desktop-note hidden>Está no computador? Abra wakewakeup.cyberhat.com.br no celular Android para baixar direto nele.</p>
-      <p class="apk-note" data-ios-note hidden>O Wake Wake Up é só para Android. Abra este site em um celular Android para baixar.</p>
+      <a class="download" href="wake-wake-up.apk" download data-download><span class="download__button" aria-hidden="true"></span><span class="download__label">BAIXAR O APK</span><span class="download__meta" data-apk-meta>v1.2 · 4 MB · Android 8+</span></a>
+      <div class="final__notes visor" id="instalar" tabindex="-1">
+        <div data-apk-note>
+          <div class="label">Como instalar</div>
+          <ol class="install">
+            <li>Toque em <strong>Baixar o APK</strong>. O navegador avisa sobre qualquer app baixado fora da Play Store: confirme o download.</li>
+            <li>Abra o arquivo baixado. Se o Android pedir, permita que o navegador instale apps.</li>
+            <li>Toque em <strong>Instalar</strong> e abra o Wake Wake Up. A primeira tela pede as permissões de alarme e notificação.</li>
+          </ol>
+          <p class="apk-note">Não instalou? Peça acesso ao teste logo abaixo.</p>
+          <p class="apk-note">Já tinha uma versão anterior baixada aqui? Desinstale antes de instalar esta: o Android não atualiza por cima dela, e os alarmes precisam ser recriados.</p>
+        </div>
+        <p class="apk-note" data-desktop-note hidden>Está no computador? Abra wakewakeup.cyberhat.com.br no celular Android para baixar direto nele.</p>
+        <p class="apk-note" data-ios-note hidden>O Wake Wake Up é só para Android. Abra este site em um celular Android para baixar.</p>
+      </div>
     </div>
     <div class="tester plate" id="teste">
       <div class="tester__head"><i aria-hidden="true"></i><span class="label">Teste no Android</span></div>
@@ -269,13 +294,15 @@
       <p>O app ainda está em fase de testes. Quer participar?</p>
       <details class="tester__reveal">
         <summary class="tester__button">QUERO TESTAR</summary>
-        <p class="tester__text">É só mandar um e-mail para <a href="mailto:vinicostamaga@outlook.com?subject=Acesso%20de%20teste%20do%20Wake%20Wake%20Up">vinicostamaga@<wbr>outlook.com</a> pedindo um acesso de teste para o Wake Wake Up.</p>
+        <p class="tester__text">É só mandar um e-mail para <a data-contact-link data-subject="Acesso de teste do Wake Wake Up" href="mailto:vinicostamaga@outlook.com?subject=Acesso%20de%20teste%20do%20Wake%20Wake%20Up">vinicostamaga@<wbr>outlook.com</a> pedindo um acesso de teste para o Wake Wake Up.</p>
       </details>
     </div>
   </div>
 </section>
 
 </main>
+
+<div class="dock" id="dock" hidden><a class="dock__key" href="wake-wake-up.apk" download data-download><span class="download__label">BAIXAR O APK</span></a></div>
 
 <footer class="footer">
   <div class="footer__inner wrap">
@@ -287,7 +314,7 @@
   </div>
 </footer>
 
-<script src="site-config.js?v=20261028" defer></script>
-<script src="main.js?v=20261028" defer></script>
+<script src="site-config.js?v=20261126" defer></script>
+<script src="main.js?v=20261126" defer></script>
 </body>
 </html>

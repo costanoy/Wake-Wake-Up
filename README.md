@@ -21,7 +21,7 @@ E também:
 - **Sons e rádio**: sons do próprio app, os toques do celular, uma música do aparelho ou uma rádio da internet (busca pelo [Radio Browser](https://www.radio-browser.info/)). Com rádio, o alarme comum assume se a estação não tocar ou se você não reagir em 3 minutos. O celular vibra junto.
 - **Pular só um dia**: ao desligar um alarme que se repete, dá para pular só o próximo dia. Ele continua ligado e volta a tocar no dia seguinte, e o relógio do celular já mostra o próximo toque de verdade.
 - **Já acordou?**: se você já está usando o celular até 1 hora antes de um alarme da manhã, uma notificação silenciosa pergunta se quer desativá-lo só desta vez. Para confirmar, o app pede uma conta rápida, e dá para desfazer.
-- **Sem saída pelos fundos**: se o app for encerrado ou o celular reiniciar no meio do toque, o alarme volta a tocar.
+- **Sem saída pelos fundos**: se o app for encerrado no meio do toque, o alarme volta a tocar.
 - **Estatísticas**: o tempo entre o primeiro toque e a missão cumprida, nos últimos 7 dias.
 - Visual de rádio-relógio dos anos 70, com dígitos flip, em português e inglês.
 

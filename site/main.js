@@ -2,7 +2,7 @@
 (function () {
   'use strict';
 
-  var config = Object.assign({ storeUrl: '', apkUrl: '', contact: '' }, window.WWU_CONFIG || {});
+  var config = Object.assign({ storeUrl: '', apkUrl: '', apkVersion: '', apkSize: '', contact: '', testContact: '' }, window.WWU_CONFIG || {});
   var reduceMotion = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   var $ = function (id) { return document.getElementById(id); };
 
@@ -138,9 +138,25 @@
     return node;
   }
 
+  // The fixed phone key has no use when there is no APK to offer (iPhone, "coming soon").
+  var dock = $('dock');
+  if (dock && (mode === 'ios' || mode === 'soon')) { dock.remove(); dock = null; }
+
+  // Under each button: version and size, from site-config.js (change them together with the APK).
+  var apkMeta = [config.apkVersion && 'v' + config.apkVersion, config.apkSize, 'Android 8+'].filter(Boolean).join(' · ');
+  var installBox = $(EN ? 'install' : 'instalar');
+
   document.querySelectorAll('[data-download]').forEach(function (link) {
     if (mode === 'apk') {
       link.href = siteUrl(config.apkUrl);
+      // The download goes on as usual; a moment later the page shows what to do with the file.
+      link.addEventListener('click', function () {
+        setTimeout(function () {
+          if (!installBox) return;
+          installBox.scrollIntoView({ block: 'start' });
+          installBox.focus({ preventScroll: true });
+        }, 600);
+      });
     } else if (mode === 'store') {
       link.href = config.storeUrl;
       link.removeAttribute('download');
@@ -150,16 +166,45 @@
       link.replaceWith(plate(mode === 'ios' ? T.androidOnly : T.soon));
     }
   });
+  document.querySelectorAll('[data-apk-meta]').forEach(function (meta) {
+    if (mode === 'apk') meta.textContent = apkMeta; else meta.hidden = true;
+  });
   // The install notes only make sense while the download is a loose APK file.
   document.querySelectorAll('[data-apk-note]').forEach(function (note) { note.hidden = mode !== 'apk'; });
   document.querySelectorAll('[data-desktop-note]').forEach(function (note) { note.hidden = mode !== 'apk' || isAndroid; });
   document.querySelectorAll('[data-ios-note]').forEach(function (note) { note.hidden = mode !== 'ios'; });
+
+  // Show the dock only while neither the top button nor the final call is on screen.
+  if (dock && 'IntersectionObserver' in window) {
+    var covered = [false, false];
+    var dockWatch = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) { covered[entry.target === finalCall ? 1 : 0] = entry.isIntersecting; });
+      dock.hidden = covered[0] || covered[1];
+    });
+    var finalCall = document.querySelector('.final');
+    dockWatch.observe(document.querySelector('.hero__cta'));
+    if (finalCall) dockWatch.observe(finalCall);
+  }
+
+  // "How to install" has nothing to show once the button is a store link or a plate.
+  if (mode === 'store' || mode === 'soon') {
+    document.querySelectorAll('.hero__test').forEach(function (link) { link.hidden = true; });
+  }
 
   var contactLink = $('contact-link');
   if (contactLink && config.contact) {
     contactLink.href = 'mailto:' + config.contact;
     contactLink.textContent = config.contact;
     contactLink.hidden = false;
+  }
+
+  // The test card's link: testContact if set, otherwise the footer address (one line in site-config.js).
+  var testAddress = config.testContact || config.contact;
+  if (testAddress) {
+    document.querySelectorAll('[data-contact-link]').forEach(function (link) {
+      link.href = 'mailto:' + testAddress + '?subject=' + encodeURIComponent(link.getAttribute('data-subject') || '');
+      link.textContent = testAddress;
+    });
   }
 
   // ------------------------------------------------------------------ Video (never autoplays)
@@ -376,7 +421,7 @@
   }
   paintChart(12);
 
-  // ------------------------------------------------------------------ Scroll reveals and their triggers
+  // ------------------------------------------------------------------ Scroll triggers
 
   var triggers = {
     stats: function () {
@@ -395,21 +440,16 @@
     }
   };
 
+  // Only the two blocks with a trigger animate when they scroll into view (the LED chart and the "Bom dia" digits).
   if (!reduceMotion && 'IntersectionObserver' in window) {
-    var targets = Array.prototype.slice.call(document.querySelectorAll('[data-reveal]'));
-    targets.forEach(function (el) {
-      if (el.getBoundingClientRect().top > window.innerHeight * 0.92) el.classList.add('reveal');
-    });
     var observer = new IntersectionObserver(function (entries) {
       entries.forEach(function (entry) {
         if (!entry.isIntersecting) return;
-        var el = entry.target;
-        el.classList.add('is-in');
-        var trigger = el.getAttribute('data-trigger');
+        var trigger = entry.target.getAttribute('data-trigger');
         if (trigger && triggers[trigger]) triggers[trigger]();
-        observer.unobserve(el);
+        observer.unobserve(entry.target);
       });
     }, { threshold: 0.2 });
-    targets.forEach(function (el) { observer.observe(el); });
+    document.querySelectorAll('[data-trigger]').forEach(function (el) { observer.observe(el); });
   }
 })();
