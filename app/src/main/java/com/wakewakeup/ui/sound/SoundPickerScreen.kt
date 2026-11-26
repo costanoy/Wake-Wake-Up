@@ -5,6 +5,7 @@ import android.content.Intent
 import android.media.RingtoneManager
 import android.net.Uri
 import android.provider.OpenableColumns
+import androidx.annotation.StringRes
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.Animatable
@@ -30,6 +31,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
@@ -121,6 +124,9 @@ fun SoundPickerScreen(onBack: () -> Unit, onOpenRadio: () -> Unit, viewModel: Ed
     val selectedIndex = options.indexOfFirst { it.uri == draft.soundUri }.coerceAtLeast(0)
 
     val player = rememberSoundPreview()
+    val selectedRequester = remember { BringIntoViewRequester() }
+    // Once the phone's sounds are in, bring the chosen row into view (a station has no row here).
+    LaunchedEffect(systemSounds != null) { if (systemSounds != null) selectedRequester.bringIntoView() }
     fun preview(option: SoundOption) =
         player.play(option.uri, if (option.uri.isStreamUrl()) STREAM_PREVIEW_MS else PREVIEW_MS)
     fun select(option: SoundOption) {
@@ -154,14 +160,36 @@ fun SoundPickerScreen(onBack: () -> Unit, onOpenRadio: () -> Unit, viewModel: Ed
             modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp),
         )
 
-        Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
+        Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).selectableGroup()) {
+            Row(
+                Modifier
+                    .padding(start = 16.dp, end = 16.dp, top = 12.dp)
+                    .fillMaxWidth()
+                    .faceplate(softShadow = false)
+                    .padding(start = 14.dp, end = 10.dp, top = 12.dp, bottom = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(stringResource(R.string.ramp_title), style = WwuType.body, color = Ink)
+                    Text(stringResource(R.string.ramp_desc), style = WwuType.caption, color = InkMuted)
+                }
+                SlideSwitch(
+                    checked = draft.rampUp,
+                    onCheckedChange = viewModel::setRampUp,
+                    description = stringResource(R.string.ramp_title),
+                    onLabel = stringResource(R.string.switch_on),
+                    offLabel = stringResource(R.string.switch_off),
+                )
+            }
+
+            // Sources: both rows open something else, so they sit apart from the sounds themselves.
             Column(
                 Modifier
                     .padding(start = 16.dp, end = 16.dp, top = 12.dp)
                     .fillMaxWidth()
                     .faceplate(softShadow = false)
-                    .padding(start = 14.dp, end = 6.dp, top = 4.dp, bottom = 4.dp)
-                    .selectableGroup(),
+                    .padding(start = 14.dp, end = 6.dp, top = 4.dp, bottom = 4.dp),
             ) {
                 val radioSelected = draft.soundUri.isStreamUrl()
                 Row(
@@ -194,17 +222,6 @@ fun SoundPickerScreen(onBack: () -> Unit, onOpenRadio: () -> Unit, viewModel: Ed
                     Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) { Chevron(size = 14.dp) }
                 }
                 PlateDivider()
-                options.filterNot { it.uri.isStreamUrl() }.forEach { option ->
-                    val selected = option.uri == draft.soundUri
-                    SoundRow(
-                        option = option,
-                        selected = selected,
-                        playing = player.isPreviewing(option.uri),
-                        onSelect = { select(option) },
-                        onPlay = { preview(option) },
-                    )
-                    PlateDivider()
-                }
                 Row(
                     Modifier
                         .fillMaxWidth()
@@ -219,27 +236,10 @@ fun SoundPickerScreen(onBack: () -> Unit, onOpenRadio: () -> Unit, viewModel: Ed
                 }
             }
 
-            Row(
-                Modifier
-                    .padding(start = 16.dp, end = 16.dp, top = 12.dp)
-                    .fillMaxWidth()
-                    .faceplate(softShadow = false)
-                    .padding(start = 14.dp, end = 10.dp, top = 12.dp, bottom = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text(stringResource(R.string.ramp_title), style = WwuType.body, color = Ink)
-                    Text(stringResource(R.string.ramp_desc), style = WwuType.caption, color = InkMuted)
-                }
-                SlideSwitch(
-                    checked = draft.rampUp,
-                    onCheckedChange = viewModel::setRampUp,
-                    description = stringResource(R.string.ramp_title),
-                    onLabel = stringResource(R.string.switch_on),
-                    offLabel = stringResource(R.string.switch_off),
-                )
-            }
+            val bundledUris = bundled.mapTo(HashSet()) { it.uri }
+            val phoneOptions = options.filterNot { it.uri.isStreamUrl() || it.uri in bundledUris }
+            SoundSection(R.string.sounds_app, bundled, draft.soundUri, player, selectedRequester, ::select, ::preview)
+            SoundSection(R.string.sounds_phone, phoneOptions, draft.soundUri, player, selectedRequester, ::select, ::preview)
             Spacer(Modifier.height(24.dp))
         }
     }
@@ -306,10 +306,54 @@ private fun TunerVisor(name: String, previewing: Boolean, position: Float, modif
     }
 }
 
+/** A serigraphed title and a plate with its sounds; the selected one answers to [selectedRequester]. */
 @Composable
-private fun SoundRow(option: SoundOption, selected: Boolean, playing: Boolean, onSelect: () -> Unit, onPlay: () -> Unit) {
-    Row(
+private fun SoundSection(
+    @StringRes title: Int,
+    options: List<SoundOption>,
+    selectedUri: String?,
+    player: SoundPreview,
+    selectedRequester: BringIntoViewRequester,
+    onSelect: (SoundOption) -> Unit,
+    onPlay: (SoundOption) -> Unit,
+) {
+    PrintLabel(
+        stringResource(title),
+        modifier = Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 8.dp),
+    )
+    Column(
         Modifier
+            .padding(horizontal = 16.dp)
+            .fillMaxWidth()
+            .faceplate(softShadow = false)
+            .padding(start = 14.dp, end = 6.dp, top = 4.dp, bottom = 4.dp),
+    ) {
+        options.forEachIndexed { index, option ->
+            val selected = option.uri == selectedUri
+            SoundRow(
+                option = option,
+                selected = selected,
+                playing = player.isPreviewing(option.uri),
+                onSelect = { onSelect(option) },
+                onPlay = { onPlay(option) },
+                modifier = if (selected) Modifier.bringIntoViewRequester(selectedRequester) else Modifier,
+            )
+            if (index < options.lastIndex) PlateDivider()
+        }
+    }
+}
+
+@Composable
+private fun SoundRow(
+    option: SoundOption,
+    selected: Boolean,
+    playing: Boolean,
+    onSelect: () -> Unit,
+    onPlay: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier
             .fillMaxWidth()
             .heightIn(min = 56.dp)
             .selectable(selected = selected, role = Role.RadioButton, onClick = onSelect),
