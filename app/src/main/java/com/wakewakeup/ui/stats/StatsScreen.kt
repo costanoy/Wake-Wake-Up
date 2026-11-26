@@ -85,118 +85,121 @@ fun StatsScreen(onBack: () -> Unit, viewModel: StatsViewModel = viewModel()) {
         BackHeader(title = stringResource(R.string.stats), backDescription = stringResource(R.string.cd_back), onBack = onBack)
 
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
-            // With nothing recorded yet, say what to do before showing the empty week.
-            if (state.loaded && !state.hasData) {
-                Text(
-                    stringResource(R.string.stats_empty),
-                    style = WwuType.body,
-                    color = Ink,
-                    modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 12.dp),
-                )
-            }
-            Row(
-                Modifier.padding(start = 16.dp, end = 16.dp, top = 10.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                SummaryPlate(
-                    label = stringResource(R.string.today),
-                    value = state.todayMinutes?.toString() ?: dash,
-                    bright = true,
-                    showUnit = state.todayMinutes != null,
-                    caption = state.todayWoke?.let { stringResource(R.string.woke_at_time, it) } ?: "",
-                )
-                SummaryPlate(
-                    label = stringResource(R.string.avg_7),
-                    value = state.avgMinutes?.toString() ?: dash,
-                    bright = false,
-                    showUnit = state.avgMinutes != null,
-                    caption = state.avgWaits?.let { stringResource(R.string.waits_per_wake, oneDecimal(it)) } ?: "",
-                )
-            }
-
-            Column(
-                Modifier
-                    .padding(start = 16.dp, end = 16.dp, top = 12.dp)
-                    .fillMaxWidth()
-                    .faceplate()
-                    .padding(14.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    PrintLabel(stringResource(R.string.minutes_to_wake))
-                    PrintLabel(stringResource(R.string.seven_days))
+            // Nothing is drawn until the first read of the database: no flash of an empty week on a real phone.
+            if (state.loaded) {
+                // With nothing recorded yet, say what to do before showing the empty week.
+                if (!state.hasData) {
+                    Text(
+                        stringResource(R.string.stats_empty),
+                        style = WwuType.body,
+                        color = Ink,
+                        modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 12.dp),
+                    )
                 }
                 Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .visor(WwuShape.visorSmall, lip = false)
-                        .padding(start = 10.dp, end = 10.dp, top = 12.dp, bottom = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    Modifier.padding(start = 16.dp, end = 16.dp, top = 10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    state.days.forEach { day ->
-                        ChartColumn(day, dayLabel(day.dayIndex, day.isToday), daySpoken(day.dayIndex, day.isToday), dash)
-                    }
+                    SummaryPlate(
+                        label = stringResource(R.string.today),
+                        value = state.todayMinutes?.toString() ?: dash,
+                        bright = true,
+                        showUnit = state.todayMinutes != null,
+                        caption = state.todayWoke?.let { stringResource(R.string.woke_at_time, it) } ?: "",
+                    )
+                    SummaryPlate(
+                        label = stringResource(R.string.avg_7),
+                        value = state.avgMinutes?.toString() ?: dash,
+                        bright = false,
+                        showUnit = state.avgMinutes != null,
+                        caption = state.avgWaits?.let { stringResource(R.string.waits_per_wake, oneDecimal(it)) } ?: "",
+                    )
                 }
-            }
 
-            if (state.vsRows.isNotEmpty()) {
                 Column(
                     Modifier
                         .padding(start = 16.dp, end = 16.dp, top = 12.dp)
                         .fillMaxWidth()
-                        .faceplate(softShadow = false)
-                        .padding(horizontal = 14.dp, vertical = 12.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                        .faceplate()
+                        .padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Spacer(Modifier.width(60.dp))
-                        PrintLabel(stringResource(R.string.col_alarm), modifier = Modifier.weight(1f))
-                        PrintLabel(stringResource(R.string.col_woke), modifier = Modifier.weight(1f))
-                        PrintLabel(stringResource(R.string.col_plus_min), modifier = Modifier.width(48.dp), textAlign = TextAlign.End)
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        PrintLabel(stringResource(R.string.minutes_to_wake))
+                        PrintLabel(stringResource(R.string.seven_days))
                     }
-                    val rowStyle = WwuType.vfd(19.sp.nonScaling()).copy(fontFamily = BarlowCondensed)
-                    state.vsRows.forEach { row ->
-                        // One sentence per row for TalkBack instead of four cells read one by one.
-                        val spoken = stringResource(
-                            R.string.stats_row_spoken,
-                            daySpoken(row.dayIndex, row.isToday),
-                            row.alarm,
-                            row.woke,
-                            pluralStringResource(R.plurals.minutes_spoken, row.deltaMinutes, row.deltaMinutes),
-                        )
-                        Row(
-                            Modifier.semantics(mergeDescendants = true) { contentDescription = spoken },
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            PrintLabel(dayLabel(row.dayIndex, row.isToday), modifier = Modifier.width(60.dp))
-                            Text(row.alarm, style = rowStyle, color = Ink, modifier = Modifier.weight(1f))
-                            VfdText(row.woke, 19.sp.nonScaling(), glowAlpha = 0.45f, modifier = Modifier.weight(1f))
-                            Text(
-                                "+${row.deltaMinutes}",
-                                style = rowStyle,
-                                color = if (row.deltaMinutes > LATE_MINUTES) Action else Ink,
-                                textAlign = TextAlign.End,
-                                modifier = Modifier.width(48.dp),
-                            )
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .visor(WwuShape.visorSmall, lip = false)
+                            .padding(start = 10.dp, end = 10.dp, top = 12.dp, bottom = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        state.days.forEach { day ->
+                            ChartColumn(day, dayLabel(day.dayIndex, day.isToday), daySpoken(day.dayIndex, day.isToday), dash)
                         }
                     }
                 }
-            }
 
-            // Google Play asks for the privacy policy to be reachable from inside the app.
-            Row(
-                Modifier
-                    .padding(start = 16.dp, end = 16.dp, top = 8.dp)
-                    .heightIn(min = 48.dp)
-                    .clickable(role = Role.Button) { openPage(context, privacyUrl) }
-                    .padding(horizontal = 14.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Text(stringResource(R.string.privacy), style = WwuType.bodyXS, color = InkMuted)
-                Chevron(color = InkMuted, size = 12.dp)
+                if (state.vsRows.isNotEmpty()) {
+                    Column(
+                        Modifier
+                            .padding(start = 16.dp, end = 16.dp, top = 12.dp)
+                            .fillMaxWidth()
+                            .faceplate(softShadow = false)
+                            .padding(horizontal = 14.dp, vertical = 12.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Spacer(Modifier.width(60.dp))
+                            PrintLabel(stringResource(R.string.col_alarm), modifier = Modifier.weight(1f))
+                            PrintLabel(stringResource(R.string.col_woke), modifier = Modifier.weight(1f))
+                            PrintLabel(stringResource(R.string.col_plus_min), modifier = Modifier.width(48.dp), textAlign = TextAlign.End)
+                        }
+                        val rowStyle = WwuType.vfd(19.sp.nonScaling()).copy(fontFamily = BarlowCondensed)
+                        state.vsRows.forEach { row ->
+                            // One sentence per row for TalkBack instead of four cells read one by one.
+                            val spoken = stringResource(
+                                R.string.stats_row_spoken,
+                                daySpoken(row.dayIndex, row.isToday),
+                                row.alarm,
+                                row.woke,
+                                pluralStringResource(R.plurals.minutes_spoken, row.deltaMinutes, row.deltaMinutes),
+                            )
+                            Row(
+                                Modifier.semantics(mergeDescendants = true) { contentDescription = spoken },
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                PrintLabel(dayLabel(row.dayIndex, row.isToday), modifier = Modifier.width(60.dp))
+                                Text(row.alarm, style = rowStyle, color = Ink, modifier = Modifier.weight(1f))
+                                VfdText(row.woke, 19.sp.nonScaling(), glowAlpha = 0.45f, modifier = Modifier.weight(1f))
+                                Text(
+                                    "+${row.deltaMinutes}",
+                                    style = rowStyle,
+                                    color = if (row.deltaMinutes > LATE_MINUTES) Action else Ink,
+                                    textAlign = TextAlign.End,
+                                    modifier = Modifier.width(48.dp),
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Google Play asks for the privacy policy to be reachable from inside the app.
+                Row(
+                    Modifier
+                        .padding(start = 16.dp, end = 16.dp, top = 8.dp)
+                        .heightIn(min = 48.dp)
+                        .clickable(role = Role.Button) { openPage(context, privacyUrl) }
+                        .padding(horizontal = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text(stringResource(R.string.privacy), style = WwuType.bodyXS, color = InkMuted)
+                    Chevron(color = InkMuted, size = 12.dp)
+                }
+                Spacer(Modifier.height(16.dp))
             }
-            Spacer(Modifier.height(16.dp))
         }
     }
 }
