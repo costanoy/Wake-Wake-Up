@@ -8,6 +8,7 @@ import com.wakewakeup.session.nextTriggerEpochDay
 import com.wakewakeup.session.nextTriggerMillis
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
@@ -37,7 +38,7 @@ class AlarmRepository(
 
     suspend fun getById(id: Long): Alarm? = withContext(io) { dao.getById(id)?.toDomain() }
 
-    suspend fun save(alarm: Alarm): Long = withContext(io) {
+    suspend fun save(alarm: Alarm): Long = withContext(io + NonCancellable) {
         // A skip survives an edit only while it still names one of this alarm's upcoming days.
         val clean = alarm.copy(skipDate = alarm.skipDate?.takeIf { alarm.enabled && isValidSkip(alarm, it) })
         val id = if (clean.id == 0L) dao.insert(clean.toEntity()) else {
@@ -49,14 +50,14 @@ class AlarmRepository(
         id
     }
 
-    suspend fun delete(alarm: Alarm): Unit = withContext(io) {
+    suspend fun delete(alarm: Alarm): Unit = withContext(io + NonCancellable) {
         dao.delete(alarm.toEntity())
         scheduler.cancel(alarm)
         onChanged()
     }
 
     /** Switching an alarm on or off by hand also drops any day it was skipping. */
-    suspend fun setEnabled(alarm: Alarm, enabled: Boolean): Unit = withContext(io) {
+    suspend fun setEnabled(alarm: Alarm, enabled: Boolean): Unit = withContext(io + NonCancellable) {
         dao.setEnabled(alarm.id, enabled)
         scheduler.schedule(alarm.copy(enabled = enabled, skipDate = null))
         onChanged()
@@ -67,7 +68,7 @@ class AlarmRepository(
      * A one-time alarm has nothing after its next ring, so it is switched off instead.
      * Returns the skipped day, or null for a one-time alarm.
      */
-    suspend fun skipNext(alarm: Alarm): Long? = withContext(io) {
+    suspend fun skipNext(alarm: Alarm): Long? = withContext(io + NonCancellable) {
         if (alarm.days.isEmpty()) {
             setEnabled(alarm, false)
             return@withContext null
@@ -80,7 +81,7 @@ class AlarmRepository(
     }
 
     /** Rings on the skipped day after all. */
-    suspend fun clearSkip(alarm: Alarm): Unit = withContext(io) {
+    suspend fun clearSkip(alarm: Alarm): Unit = withContext(io + NonCancellable) {
         dao.setSkipDate(alarm.id, null)
         scheduler.schedule(alarm.copy(skipDate = null))
         onChanged()
@@ -93,13 +94,17 @@ class AlarmRepository(
     suspend fun skipOccurrence(id: Long, at: Long, now: Long = System.currentTimeMillis()): Boolean = withContext(io) {
         val alarm = getById(id) ?: return@withContext false
         if (!alarm.enabled || at - now < ACTION_MARGIN_MS || nextRingMillis(alarm, localNow(now)) != at) return@withContext false
-        if (alarm.days.isEmpty()) {
-            setEnabled(alarm, false)
-        } else {
-            val day = epochDayOf(at)
-            dao.setSkipDate(id, day)
-            scheduler.schedule(alarm.copy(skipDate = day))
-            onChanged()
+        // The write is all or nothing: leaving the screen half way must not leave the database
+        // and AlarmManager disagreeing about the skip.
+        withContext(NonCancellable) {
+            if (alarm.days.isEmpty()) {
+                setEnabled(alarm, false)
+            } else {
+                val day = epochDayOf(at)
+                dao.setSkipDate(id, day)
+                scheduler.schedule(alarm.copy(skipDate = day))
+                onChanged()
+            }
         }
         true
     }
@@ -110,11 +115,11 @@ class AlarmRepository(
         if (at <= now) return@withContext false
         if (alarm.days.isEmpty()) {
             if (alarm.enabled || nextTriggerMillis(alarm, localNow(now)) != at) return@withContext false
-            setEnabled(alarm, true)
+            withContext(NonCancellable) { setEnabled(alarm, true) }
             true
         } else {
             if (!alarm.enabled || alarm.skipDate != epochDayOf(at)) return@withContext false
-            clearSkip(alarm)
+            withContext(NonCancellable) { clearSkip(alarm) }
             true
         }
     }
@@ -123,7 +128,7 @@ class AlarmRepository(
      * Called as an alarm rings: a skip whose day has come is spent, and the next ring is armed
      * before anything else can go wrong.
      */
-    suspend fun armNextRing(alarm: Alarm): Unit = withContext(io) {
+    suspend fun armNextRing(alarm: Alarm): Unit = withContext(io + NonCancellable) {
         val today = LocalDate.now().toEpochDay()
         val skip = alarm.skipDate
         val current = if (skip != null && skip <= today) {
