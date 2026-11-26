@@ -65,11 +65,28 @@ class AlarmReceiver : BroadcastReceiver() {
                     Log.e(TAG, "Not allowed to start the ringing service", e)
                 }
                 // A one-time alarm is switched off by the ringing service.
-                if (alarm != null) armNext(repository, alarm, unlocked)
+                if (alarm != null) {
+                    armNext(repository, alarm, unlocked)
+                } else if (readFailed) {
+                    armNextFromArmedCopy(context, alarmId)
+                }
             } finally {
                 pending.finish()
             }
         }
+    }
+
+    /**
+     * The alarm couldn't be read (phone still locked, or a database with an error): the ring that
+     * just fired was the one AlarmManager held, so a repeating alarm would be gone from the next
+     * day on. The device-protected copy has what is needed to arm the next one.
+     */
+    private fun armNextFromArmedCopy(context: Context, alarmId: Long) {
+        runCatching {
+            val entry = ArmedRings.all(context).firstOrNull { it.alarm.id == alarmId } ?: return
+            if (entry.alarm.days.isEmpty()) return
+            AlarmScheduler(context).schedule(entry.alarm)
+        }.onFailure { Log.e(TAG, "Could not arm the next ring from the protected copy", it) }
     }
 
     private suspend fun armNext(repository: AlarmRepository, alarm: Alarm, unlocked: Boolean) {
