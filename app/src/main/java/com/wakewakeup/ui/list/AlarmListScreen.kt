@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -26,14 +27,18 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -42,26 +47,42 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.innerShadow
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.shadow.Shadow
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.wakewakeup.R
 import com.wakewakeup.data.Alarm
 import com.wakewakeup.session.epochDayOf
 import com.wakewakeup.session.isSkippingNext
+import com.wakewakeup.session.isoDayIndexOf
+import com.wakewakeup.session.nextTriggerEpochDay
 import com.wakewakeup.session.nextTriggerMillis
 import com.wakewakeup.ui.components.CardShadow
+import com.wakewakeup.ui.components.Chevron
 import com.wakewakeup.ui.components.ColonDots
 import com.wakewakeup.ui.components.DayPrintRow
 import com.wakewakeup.ui.components.FlipNumber
@@ -69,7 +90,6 @@ import com.wakewakeup.ui.components.FlipSize
 import com.wakewakeup.ui.components.GraphiteKey
 import com.wakewakeup.ui.components.LabeledRoundButton
 import com.wakewakeup.ui.components.Lamp
-import com.wakewakeup.ui.components.OrangeKey
 import com.wakewakeup.ui.components.PlusGlyph
 import com.wakewakeup.ui.components.PrintLabel
 import com.wakewakeup.ui.components.RoundButton
@@ -85,6 +105,8 @@ import com.wakewakeup.ui.components.speakerGrille
 import com.wakewakeup.ui.components.taskCardLabel
 import com.wakewakeup.ui.components.visor
 import com.wakewakeup.ui.components.weekdayName
+import com.wakewakeup.ui.permissions.AlarmPermissions
+import com.wakewakeup.ui.theme.Action
 import com.wakewakeup.ui.theme.Drawer
 import com.wakewakeup.ui.theme.Housing
 import com.wakewakeup.ui.theme.Ink
@@ -93,17 +115,25 @@ import com.wakewakeup.ui.theme.InkOff
 import com.wakewakeup.ui.theme.Vfd
 import com.wakewakeup.ui.theme.WwuShape
 import com.wakewakeup.ui.theme.WwuType
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneId
+import java.time.temporal.ChronoUnit
+
+/** The radio's base plate along the bottom, which the NOVO key sits on and the cards slide under. */
+private val BasePlateHeight = 136.dp
 
 @Composable
 fun AlarmListScreen(
     onNewAlarm: () -> Unit,
     onEditAlarm: (Alarm) -> Unit,
     onStats: () -> Unit,
+    onOpenPermissions: () -> Unit,
     viewModel: AlarmListViewModel = viewModel(),
 ) {
     val loaded by viewModel.alarms.collectAsStateWithLifecycle()
@@ -123,21 +153,62 @@ fun AlarmListScreen(
     }
     val nextTrigger = remember(alarms, now) { viewModel.nextAlarmMillis(alarms, now) }
 
+    // Both change outside the app (in Settings, with the volume keys), so they're read again
+    // every time the list comes back.
+    val context = LocalContext.current
+    // The permission check talks to system services (IPC), so it runs off the main thread.
+    val scope = rememberCoroutineScope()
+    var missing by remember { mutableIntStateOf(0) }
+    var volume by remember { mutableStateOf(viewModel.alarmVolume()) }
+    LaunchedEffect(Unit) {
+        missing = withContext(Dispatchers.Default) { AlarmPermissions.missingRequired(context).size }
+    }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        volume = viewModel.alarmVolume()
+        scope.launch { missing = withContext(Dispatchers.Default) { AlarmPermissions.missingRequired(context).size } }
+    }
+    // A quiet phone only matters while some alarm is on (one skipping a day is on too).
+    val quietVolume = volume?.takeIf { it.isLow && alarms.any { alarm -> alarm.enabled } }
+
     Box(modifier = Modifier.fillMaxSize().background(Housing).statusBarsPadding().navigationBarsPadding()) {
         Column(modifier = Modifier.fillMaxSize()) {
             ListHeader(showStats = alarms.isNotEmpty(), onStats = onStats)
-            NextStrip(
-                text = if (nextTrigger != null) nextAlarmInText(now, nextTrigger) else null,
-                modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 18.dp),
-            )
+            // PRÓXIMO and the warnings: on a small phone they scroll away with the list, leaving
+            // the room to the cards; the empty screen keeps them in place.
+            val nextStrip: @Composable () -> Unit = {
+                NextStrip(
+                    text = if (nextTrigger != null) nextRingText(now, nextTrigger) else null,
+                    modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 18.dp),
+                )
+                Warnings(
+                    missingPermissions = missing,
+                    quietVolume = quietVolume,
+                    onOpenPermissions = onOpenPermissions,
+                    onTurnUp = {
+                        viewModel.turnUpAlarmVolume()
+                        volume = viewModel.alarmVolume()
+                    },
+                )
+            }
             if (alarms.isEmpty()) {
-                EmptyState(onNewAlarm)
+                nextStrip()
+                // A warning takes most of the gap above, so CRIAR ALARME still fits a small phone.
+                EmptyState(onNewAlarm, topGap = if (missing > 0) 24.dp else 84.dp)
             } else {
-                AlarmList(alarms, now, viewModel, onEditAlarm)
+                AlarmList(alarms, now, viewModel, onEditAlarm, top = nextStrip)
             }
         }
 
         if (alarms.isNotEmpty()) {
+            // Cards slide under the base plate, so the key never sits on a card's switch. It takes
+            // no touches: taps and scrolling go through to the list.
+            Box(
+                Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .height(BasePlateHeight)
+                    .background(Brush.verticalGradient(0f to Housing.copy(alpha = 0f), 0.45f to Housing)),
+            )
             LabeledRoundButton(
                 label = stringResource(R.string.new_short),
                 onClick = onNewAlarm,
@@ -188,6 +259,27 @@ private fun StatsBarsGlyph() {
     }
 }
 
+/**
+ * What the PRÓXIMO display reads: the time and a countdown within a day ("06:30 · EM 8 H 12 MIN"), then the ring's
+ * day and time ("SÁB, 09:00"), since "EM 38 H" leaves the reader working out which morning.
+ * A week or more ahead it says so ("SEG QUE VEM, 06:30"), like the card drawers: the weekday
+ * alone would name the nearer one, which for a weekly alarm skipping its next day is the very
+ * day it skips.
+ */
+@Composable
+private fun nextRingText(now: Long, trigger: Long): String {
+    // Rounded up like the countdown, so it never reads "24 H 0 MIN".
+    val minutes = (trigger - now + 59_999L) / 60_000L
+    val zone = ZoneId.systemDefault()
+    val at = LocalDateTime.ofInstant(Instant.ofEpochMilli(trigger), zone)
+    // Within a day the time comes first, so the countdown never stands alone: "06:30 · EM 8 H 59 MIN".
+    if (minutes < 24 * 60) return "${formatClock(at.hour, at.minute)} · ${nextAlarmInText(now, trigger)}"
+    val today = LocalDateTime.ofInstant(Instant.ofEpochMilli(now), zone).toLocalDate()
+    val short = stringArrayResource(R.array.day_short).getOrElse(isoDayIndexOf(at.toLocalDate())) { "" }
+    val day = if (ChronoUnit.DAYS.between(today, at.toLocalDate()) >= 7) stringResource(R.string.day_next_week, short) else short
+    return "$day, ${formatClock(at.hour, at.minute)}"
+}
+
 /** The speaker-grille strip with its PRÓXIMO visor — the only place the grille texture appears. */
 @Composable
 private fun NextStrip(text: String?, modifier: Modifier = Modifier) {
@@ -204,11 +296,12 @@ private fun NextStrip(text: String?, modifier: Modifier = Modifier) {
             if (text != null) {
                 VfdText(text.uppercase(), 20.sp.nonScaling(), tracking = 0.04f, maxLines = 1)
             } else {
+                // Unlit next to the glowing countdown, but still readable: it's all the strip says.
                 VfdText(
                     stringResource(R.string.next_none).uppercase(),
                     20.sp.nonScaling(),
                     tracking = 0.04f,
-                    modifier = Modifier.alpha(0.35f),
+                    modifier = Modifier.alpha(0.65f),
                     glowAlpha = 0f,
                 )
             }
@@ -216,8 +309,98 @@ private fun NextStrip(text: String?, modifier: Modifier = Modifier) {
     }
 }
 
+/**
+ * Slim plates under the PRÓXIMO strip for what can keep an alarm from being heard: permissions
+ * Android doesn't allow (the row opens their screen) and a low alarm volume (its key turns it up).
+ */
 @Composable
-private fun AlarmList(alarms: List<Alarm>, now: Long, viewModel: AlarmListViewModel, onEditAlarm: (Alarm) -> Unit) {
+private fun Warnings(
+    missingPermissions: Int,
+    quietVolume: AlarmVolume?,
+    onOpenPermissions: () -> Unit,
+    onTurnUp: () -> Unit,
+) {
+    // Rows that are closing fade out as they were, not with a count of zero.
+    val shownMissing = rememberLast(missingPermissions.takeIf { it > 0 }) ?: 0
+    val shownVolume = rememberLast(quietVolume)
+    // AnimatedVisibility clips to its bounds: the bottom padding keeps each plate's base inside.
+    val rowSpacing = Modifier.padding(top = 12.dp, bottom = 2.dp)
+    Column(Modifier.padding(horizontal = 16.dp)) {
+        AnimatedVisibility(
+            visible = missingPermissions > 0,
+            enter = expandVertically(expandFrom = Alignment.Top) + fadeIn(),
+            exit = shrinkVertically(shrinkTowards = Alignment.Top) + fadeOut(),
+        ) {
+            WarningRow(
+                text = stringResource(R.string.perm_missing_title),
+                detail = pluralStringResource(R.plurals.perm_missing_detail, shownMissing, shownMissing),
+                onClick = onOpenPermissions,
+                modifier = rowSpacing,
+            ) { Chevron(color = InkMuted) }
+        }
+        AnimatedVisibility(
+            visible = quietVolume != null,
+            enter = expandVertically(expandFrom = Alignment.Top) + fadeIn(),
+            exit = shrinkVertically(shrinkTowards = Alignment.Top) + fadeOut(),
+        ) {
+            shownVolume?.let { v ->
+                WarningRow(
+                    text = stringResource(R.string.alarm_volume_low, v.level, v.max),
+                    modifier = rowSpacing,
+                ) { GraphiteKey(stringResource(R.string.alarm_volume_up), onClick = onTurnUp) }
+            }
+        }
+    }
+}
+
+/** One warning: a lamp, what's wrong (with an optional [detail] line), and on the right what fixes it. */
+@Composable
+private fun WarningRow(
+    text: String,
+    detail: String? = null,
+    modifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null,
+    fix: @Composable RowScope.() -> Unit,
+) {
+    val shape = WwuShape.faceplateSmall
+    // A row that opens something is one big key; one with a key of its own hugs that key.
+    val inset = if (onClick != null) 10.dp else 6.dp
+    Row(
+        modifier
+            .fillMaxWidth()
+            .faceplate(shape, softShadow = false)
+            .heightIn(min = 48.dp)
+            .then(if (onClick != null) Modifier.clip(shape).clickable(role = Role.Button, onClick = onClick) else Modifier)
+            .padding(start = 14.dp, end = if (onClick != null) 10.dp else 8.dp, top = inset, bottom = inset),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Lamp(Action, glowAlpha = 0.5f)
+        // What is wrong in the strong style, and (when there is one) what to do about it, muted.
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(text, style = WwuType.bodyStrong, color = Ink)
+            if (detail != null) Text(detail, style = WwuType.bodyXS, color = InkMuted)
+        }
+        fix()
+    }
+}
+
+/** [value], or while it's gone the last one it had. */
+@Composable
+private fun <T : Any> rememberLast(value: T?): T? {
+    var last by remember { mutableStateOf(value) }
+    SideEffect { if (value != null) last = value }
+    return value ?: last
+}
+
+@Composable
+private fun AlarmList(
+    alarms: List<Alarm>,
+    now: Long,
+    viewModel: AlarmListViewModel,
+    onEditAlarm: (Alarm) -> Unit,
+    top: @Composable () -> Unit,
+) {
     // The "skip just the next day" offer only makes sense right after switching a recurring
     // alarm off, not for every recurring alarm that already happens to be off.
     var justDisabledId by remember { mutableStateOf<Long?>(null) }
@@ -225,10 +408,19 @@ private fun AlarmList(alarms: List<Alarm>, now: Long, viewModel: AlarmListViewMo
     LazyColumn(
         state = rememberLazyListState(),
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 18.dp, bottom = 140.dp),
+        // The bottom padding lets the last card scroll clear of the base plate. The side margins
+        // are on the items, because PRÓXIMO and the warnings have their own.
+        contentPadding = PaddingValues(top = 0.dp, bottom = 140.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        items(alarms, key = { it.id }) { alarm ->
+        item(key = "top", contentType = "top") {
+            Column {
+                top()
+                // With the 14 dp between items, 18 dp from the warnings to the first card.
+                Spacer(Modifier.height(4.dp))
+            }
+        }
+        items(alarms, key = { it.id }, contentType = { "alarm" }) { alarm ->
             AlarmCard(
                 alarm = alarm,
                 now = now,
@@ -243,6 +435,7 @@ private fun AlarmList(alarms: List<Alarm>, now: Long, viewModel: AlarmListViewMo
                 },
                 onClearSkip = { viewModel.clearSkip(alarm) },
                 onOpen = { onEditAlarm(alarm) },
+                modifier = Modifier.padding(horizontal = 16.dp).animateItem(),
             )
         }
     }
@@ -257,10 +450,12 @@ private fun AlarmCard(
     onSkipNext: () -> Unit,
     onClearSkip: () -> Unit,
     onOpen: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val name = alarm.label.ifBlank { stringResource(R.string.untitled_alarm) }
     val time = formatClock(alarm.hour, alarm.minute)
-    Column {
+    val from = remember(now) { LocalDateTime.ofInstant(Instant.ofEpochMilli(now), ZoneId.systemDefault()) }
+    Column(modifier) {
         Column(
             modifier = Modifier
                 .zIndex(1f)
@@ -287,8 +482,21 @@ private fun AlarmCard(
                     )
                 }
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                    Text(name, style = WwuType.bodyStrong, color = if (alarm.enabled) Ink else InkOff, maxLines = 2)
-                    PrintLabel(taskCardLabel(alarm.taskType))
+                    Text(
+                        name,
+                        style = WwuType.bodyStrong,
+                        color = if (alarm.enabled) Ink else InkOff,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    // One word on one line, even in the narrow column of a small phone.
+                    PrintLabel(
+                        taskCardLabel(alarm.taskType),
+                        color = if (alarm.enabled) InkMuted else InkOff,
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                 }
                 SlideSwitch(
                     checked = alarm.enabled,
@@ -298,12 +506,15 @@ private fun AlarmCard(
                     offLabel = stringResource(R.string.switch_off),
                 )
             }
-            DayPrintRow(activeDays = alarm.days)
+            if (alarm.days.isEmpty()) {
+                OnceLine(alarm, from)
+            } else {
+                DayPrintRow(activeDays = alarm.days, dimmed = !alarm.enabled)
+            }
         }
 
         // Drawer sliding out from under the card: the day a recurring alarm is skipping, with an
         // undo, or, right after one is switched off, the offer to skip only its next day instead.
-        val from = remember(now) { LocalDateTime.ofInstant(Instant.ofEpochMilli(now), ZoneId.systemDefault()) }
         val drawer = when {
             isSkippingNext(alarm, from) -> CardDrawerKind.SKIPPING
             !alarm.enabled && alarm.days.isNotEmpty() && showSkipPrompt -> CardDrawerKind.SKIP_PROMPT
@@ -312,6 +523,20 @@ private fun AlarmCard(
         // Keeps the content of a drawer that is closing, so it fades out as it was.
         var lastDrawer by remember { mutableStateOf(drawer) }
         SideEffect { if (drawer != null) lastDrawer = drawer }
+
+        // Once the offer has slid out, scroll it into view and clear of the base plate, where the
+        // NOVO key would cover its PULAR key.
+        val requester = remember { BringIntoViewRequester() }
+        var drawerSize by remember { mutableStateOf(IntSize.Zero) }
+        val clearance = with(LocalDensity.current) { BasePlateHeight.toPx() }
+        val prompting = drawer == CardDrawerKind.SKIP_PROMPT
+        LaunchedEffect(prompting) {
+            if (prompting) {
+                delay(300)
+                requester.bringIntoView(Rect(0f, 0f, drawerSize.width.toFloat(), drawerSize.height + clearance))
+            }
+        }
+
         AnimatedVisibility(
             visible = drawer != null,
             enter = expandVertically(expandFrom = Alignment.Top) + fadeIn(),
@@ -320,7 +545,12 @@ private fun AlarmCard(
             val (skipDay, backDay) = remember(alarm, from) { skipAndReturnDays(alarm, from) }
             val skipName = weekdayName(skipDay, from.toLocalDate())
             val backName = weekdayName(backDay, from.toLocalDate())
-            CardDrawer(top = 16.dp, end = 8.dp, bottom = 8.dp) {
+            CardDrawer(
+                modifier = Modifier.bringIntoViewRequester(requester).onSizeChanged { drawerSize = it },
+                top = 16.dp,
+                end = 8.dp,
+                bottom = 8.dp,
+            ) {
                 if ((drawer ?: lastDrawer) == CardDrawerKind.SKIPPING) {
                     Lamp(Vfd, size = 6.dp)
                     Spacer(Modifier.width(8.dp))
@@ -330,11 +560,29 @@ private fun AlarmCard(
                 } else {
                     Text(stringResource(R.string.skip_prompt, skipName, backName), style = WwuType.bodyXS, color = Ink, modifier = Modifier.weight(1f))
                     Spacer(Modifier.width(8.dp))
-                    OrangeKey(stringResource(R.string.skip_once), onClick = onSkipNext)
+                    GraphiteKey(stringResource(R.string.skip_once), onClick = onSkipNext)
                 }
             }
         }
     }
+}
+
+/**
+ * Where a one-time alarm's card would print seven unlit days (which reads as "never"): one line,
+ * "UMA VEZ · QUARTA", with the day it rings.
+ */
+@Composable
+private fun OnceLine(alarm: Alarm, from: LocalDateTime) {
+    val day = remember(alarm, from) { LocalDate.ofEpochDay(nextTriggerEpochDay(alarm, from)) }
+    val text = stringResource(R.string.once_on_day, weekdayName(day, from.toLocalDate()))
+    PrintLabel(
+        text,
+        Modifier.padding(horizontal = 4.dp).clearAndSetSemantics { contentDescription = text },
+        color = if (alarm.enabled) Ink else InkMuted,
+        maxLines = 1,
+        softWrap = false,
+        overflow = TextOverflow.Ellipsis,
+    )
 }
 
 private enum class CardDrawerKind { SKIPPING, SKIP_PROMPT }
@@ -379,12 +627,12 @@ private fun CardDrawer(
 }
 
 @Composable
-private fun EmptyState(onNewAlarm: () -> Unit) {
+private fun EmptyState(onNewAlarm: () -> Unit, topGap: Dp) {
     Column(
         Modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Spacer(Modifier.height(84.dp))
+        Spacer(Modifier.height(topGap))
         Column(
             Modifier.padding(horizontal = 32.dp),
             horizontalAlignment = Alignment.CenterHorizontally,

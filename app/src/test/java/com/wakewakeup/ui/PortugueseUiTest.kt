@@ -74,8 +74,9 @@ class PortugueseUiTest {
         compose.onNodeWithContentDescription("Salvar").performClick()
 
         compose.waitForDescription("Alarme das 07:00")
-        compose.onNodeWithText("MATEMÁTICA").assertIsDisplayed()
-        compose.onNodeWithText("SEG").assertIsDisplayed()
+        compose.onNodeWithText("CONTAS").assertIsDisplayed()
+        // The day row reads as one phrase to TalkBack.
+        compose.onNodeWithContentDescription("segunda").assertIsDisplayed()
     }
 
     @Test
@@ -109,12 +110,26 @@ class PortugueseUiTest {
         ring = ActivityScenario.launch(RingActivity::class.java)
 
         compose.waitForText("ESPERE 5 MIN")
-        compose.onNodeWithText("SEM LIMITE").assertIsDisplayed()
+        compose.onNodeWithText("TOQUE PARA ADIAR").assertIsDisplayed()
         compose.onNodeWithContentDescription("Começar missão").assertIsDisplayed()
         compose.onNodeWithText("SUBINDO").assertIsDisplayed()
         // "TRABALHO · TERÇA, 13 OUT"
         val date = LocalDate.now()
         val weekday = context.resources.getStringArray(R.array.day_full)[com.wakewakeup.session.isoDayIndexOf(date)].uppercase()
         compose.onNodeWithText("TRABALHO · $weekday, ", substring = true).assertIsDisplayed()
+        // The flip clock is the time now; the alarm's time is printed under it.
+        compose.onNodeWithText("ALARME DAS 06:30").assertIsDisplayed()
+    }
+
+    @Test
+    fun thePrivacyLinkOpensThePortuguesePage() {
+        main = ActivityScenario.launch(Intent(context, MainActivity::class.java).putExtra(MainActivity.EXTRA_OPEN_STATS, true))
+        compose.waitForText("Privacidade")
+        compose.onNodeWithText("Privacidade").performClick()
+        val opened = generateSequence { org.robolectric.Shadows.shadowOf(context).nextStartedActivity }.toList()
+        assertEquals(
+            listOf("https://wakewakeup.cyberhat.com.br/privacidade.html"),
+            opened.filter { it.action == Intent.ACTION_VIEW }.map { it.dataString },
+        )
     }
 }

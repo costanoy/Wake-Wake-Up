@@ -3,9 +3,9 @@ package com.wakewakeup.ui.mission
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -39,7 +39,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -60,6 +60,8 @@ import com.wakewakeup.session.MissionState
 import com.wakewakeup.ui.components.CalcKeys
 import com.wakewakeup.ui.components.CalculatorKeypad
 import com.wakewakeup.ui.components.CheckGlyph
+import com.wakewakeup.ui.components.GraphiteKey
+import com.wakewakeup.ui.components.Lamp
 import com.wakewakeup.ui.components.LedMeter
 import com.wakewakeup.ui.components.PrintLabel
 import com.wakewakeup.ui.components.RoundButton
@@ -78,6 +80,7 @@ import com.wakewakeup.ui.theme.Vfd
 import com.wakewakeup.ui.theme.VfdBright
 import com.wakewakeup.ui.theme.WwuShape
 import com.wakewakeup.ui.theme.WwuType
+import kotlinx.coroutines.delay
 import kotlin.math.ceil
 
 private const val TIMER_SEGMENTS = 20
@@ -85,6 +88,12 @@ private const val TIMER_SEGMENTS = 20
 /** The same cap the service applies to a typed phrase. */
 private const val MAX_PHRASE_CHARS = 80
 private const val TIMER_DANGER_SEGMENTS = 5
+
+/** Fixed height of the math screen besides the display and the keys: margins, 24 dp, gaps, give-up key. */
+private val MATH_FIXED_HEIGHT = 18.dp + 24.dp + 14.dp * 3 + 16.dp + 48.dp + 16.dp
+
+/** From here on the clock turns red and the hint says how long is left. */
+private const val TIME_LOW_SECONDS = 20
 
 @Composable
 fun MissionScreen(
@@ -109,7 +118,17 @@ fun MissionScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            PrintLabel(stringResource(R.string.mission_seconds, mission.secondsLeft))
+            val low = mission.secondsLeft <= TIME_LOW_SECONDS
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                PrintLabel(stringResource(R.string.mission_time_label))
+                VfdText(
+                    "%d:%02d".format(mission.secondsLeft / 60, mission.secondsLeft % 60),
+                    18.sp.nonScaling(),
+                    color = if (low) ErrorDisplay else Vfd,
+                    glowColor = if (low) ErrorDisplay else Vfd,
+                    glowAlpha = 0.5f,
+                )
+            }
             VfdText(
                 if (isPhrase) {
                     stringResource(R.string.type_phrase_short).uppercase()
@@ -163,59 +182,115 @@ private fun androidx.compose.foundation.layout.ColumnScope.MathBody(
     onGiveUp: () -> Unit,
 ) {
     val shake = rememberShake(mission.wrong)
+    // A right answer is felt as well as seen: the next sum appears with a confirming tick.
+    val haptic = LocalHapticFeedback.current
+    LaunchedEffect(mission.justCorrect, mission.index) {
+        if (mission.justCorrect) haptic.performHapticFeedback(HapticFeedbackType.Confirm)
+    }
     val (message, messageColor) = when {
         mission.wrong -> stringResource(R.string.wrong_try_again) to ErrorText
+        mission.secondsLeft <= TIME_LOW_SECONDS -> stringResource(R.string.mission_time_low) to ErrorText
         mission.justCorrect -> stringResource(R.string.correct_next) to VfdBright
         else -> stringResource(R.string.enter_result) to InkMuted
     }
     val answerColor = if (mission.wrong) ErrorDisplay else VfdBright
 
-    Column(
-        Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
+    // Giving up takes two taps: a stray one would swap the sums for the phrase and lose the
+    // progress. The first arms it ("TOQUE DE NOVO PARA TROCAR"), which disarms after 3 s.
+    var giveUpArmed by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(giveUpArmed) {
+        if (giveUpArmed) {
+            delay(3000)
+            giveUpArmed = false
+        }
+    }
+
+    BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
+        // Keys as big as the width or the height allows (width: four keys, three 16 dp gaps,
+        // inside the display's 20 dp margins; height: what is left under the display, the
+        // 14 dp gaps between four rows and the give-up key), 52 to 76 dp. The display sits 24 dp
+        // above the keys, with the spare height above it. Short screens scroll.
+        val displayH = if (maxHeight < 560.dp) 132.dp else 150.dp
+        val byWidth = (maxWidth - 40.dp - 16.dp * 3) / 4
+        val byHeight = (maxHeight - displayH - MATH_FIXED_HEIGHT) / 4
+        val keySize = minOf(byWidth, byHeight).coerceIn(52.dp, 76.dp)
         Column(
             Modifier
-                .padding(start = 20.dp, end = 20.dp, top = 18.dp)
-                .graphicsLayer { translationX = shake.value.dp.toPx() }
                 .fillMaxWidth()
-                .height(150.dp)
-                .visor(WwuShape.visorMedium, depth = 3.dp, blurRadius = 8.dp)
-                .padding(horizontal = 18.dp, vertical = 14.dp),
-            verticalArrangement = Arrangement.SpaceBetween,
+                .verticalScroll(rememberScrollState())
+                .heightIn(min = maxHeight),
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            VfdText("${mission.question} =", 34.sp.nonScaling(), glowRadius = 8.dp, glowAlpha = 0.5f, maxLines = 1)
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
-                Text(
-                    message,
-                    style = WwuType.caption,
-                    color = messageColor,
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(bottom = 6.dp)
-                        .semantics { liveRegion = LiveRegionMode.Polite },
-                )
-                val size = 64.sp.nonScaling()
-                Text(
-                    mission.typed.replace("-", "−").ifEmpty { "_" },
-                    style = WwuType.flip(size).copy(shadow = glowShadow(answerColor, 10.dp, 0.55f)),
-                    color = answerColor,
-                    maxLines = 1,
-                )
+            Spacer(Modifier.height(18.dp))
+            Spacer(Modifier.weight(1f))
+            Column(
+                Modifier
+                    .padding(horizontal = 20.dp)
+                    .graphicsLayer { translationX = shake.value.dp.toPx() }
+                    .fillMaxWidth()
+                    .heightIn(min = displayH)
+                    .visor(WwuShape.visorMedium, depth = 3.dp, blurRadius = 8.dp)
+                    .padding(horizontal = 18.dp, vertical = 14.dp),
+                verticalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    VfdText(
+                        "${mission.question} =",
+                        34.sp.nonScaling(),
+                        modifier = Modifier.weight(1f, fill = false),
+                        glowRadius = 8.dp,
+                        glowAlpha = 0.5f,
+                        maxLines = 1,
+                    )
+                    // One lamp per sum, lit for each one done. "CONTA 2 DE 3" says the same for TalkBack.
+                    if (mission.count > 1) {
+                        Row(
+                            Modifier.padding(start = 12.dp).clearAndSetSemantics { },
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            repeat(mission.count) { i -> Lamp(Vfd, lit = i < mission.index, size = 8.dp) }
+                        }
+                    }
+                }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
+                    Text(
+                        message,
+                        style = WwuType.bodyS,
+                        color = messageColor,
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(bottom = 6.dp)
+                            .semantics { liveRegion = LiveRegionMode.Polite },
+                    )
+                    val size = 64.sp.nonScaling()
+                    Text(
+                        mission.typed.replace("-", "−").ifEmpty { "_" },
+                        style = WwuType.flip(size).copy(shadow = glowShadow(answerColor, 10.dp, 0.55f)),
+                        color = answerColor,
+                        maxLines = 1,
+                    )
+                }
             }
+
+            Spacer(Modifier.height(24.dp))
+            CalculatorKeypad(onKey = { key -> if (key == CalcKeys.OK) onConfirm() else onKey(key) }, key = keySize)
+
+            Spacer(Modifier.height(16.dp))
+            GraphiteKey(
+                stringResource(if (giveUpArmed) R.string.cant_solve_confirm else R.string.cant_solve),
+                onClick = {
+                    if (giveUpArmed) {
+                        giveUpArmed = false
+                        onGiveUp()
+                    } else {
+                        giveUpArmed = true
+                    }
+                },
+                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+            )
+            Spacer(Modifier.height(16.dp))
         }
-
-        Spacer(Modifier.height(24.dp))
-        CalculatorKeypad(onKey = { key -> if (key == CalcKeys.OK) onConfirm() else onKey(key) })
-
-        Spacer(Modifier.height(16.dp))
-        PrintLabel(
-            stringResource(R.string.cant_solve),
-            modifier = Modifier
-                .clickable(role = Role.Button, onClick = onGiveUp)
-                .heightIn(min = 48.dp)
-                .padding(horizontal = 16.dp, vertical = 16.dp),
-        )
     }
 }
 
@@ -299,9 +374,14 @@ private fun androidx.compose.foundation.layout.ColumnScope.PhraseBody(
         }
 
         Text(
-            if (mission.wrong) stringResource(R.string.wrong_try_again) else stringResource(R.string.chars_of, matched, phrase.length),
-            style = WwuType.caption,
-            color = if (mission.wrong) ErrorText else InkMuted,
+            when {
+                // Tells where it went wrong: from the underlined letter, or text left over at the end.
+                mission.wrong -> stringResource(if (matched < phrase.length) R.string.phrase_wrong_here else R.string.phrase_wrong_extra)
+                mission.secondsLeft <= TIME_LOW_SECONDS -> stringResource(R.string.mission_time_low)
+                else -> stringResource(R.string.chars_of, matched, phrase.length)
+            },
+            style = WwuType.bodyS,
+            color = if (mission.wrong || mission.secondsLeft <= TIME_LOW_SECONDS) ErrorText else InkMuted,
             modifier = Modifier
                 .padding(start = 24.dp, end = 24.dp, top = 8.dp, bottom = 16.dp)
                 .semantics { liveRegion = LiveRegionMode.Polite },

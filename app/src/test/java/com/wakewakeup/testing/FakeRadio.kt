@@ -47,11 +47,13 @@ object FakeRadio {
         }
     }
 
+    /** Brazilian stations plus one from the test phone's own country (en-US). */
     const val SAMPLE = """[
-      {"name": "Radio Um", "url_resolved": "https://um.example/stream", "url": "http://um.example/raw", "country": "Brazil", "tags": "pop, rock,mpb"},
-      {"name": "  Radio Dois  ", "url_resolved": "", "url": "https://dois.example/live", "country": "Brazil", "tags": ""},
-      {"name": "Radio Insegura", "url_resolved": "http://insegura.example/stream", "url": "http://insegura.example", "country": "Brazil", "tags": "news"},
-      {"name": "Radio Um (copia)", "url_resolved": "https://um.example/stream", "url": "", "country": "Brazil", "tags": "pop"},
-      {"name": "", "url_resolved": "https://semnome.example/stream", "url": "", "country": "", "tags": ""}
+      {"name": "Radio Um", "url_resolved": "https://um.example/stream", "url": "http://um.example/raw", "country": "Brazil", "countrycode": "BR", "tags": "pop, rock,mpb"},
+      {"name": "  Radio Dois  ", "url_resolved": "", "url": "https://dois.example/live", "country": "Brazil", "countrycode": "BR", "tags": ""},
+      {"name": "Radio Insegura", "url_resolved": "http://insegura.example/stream", "url": "http://insegura.example", "country": "Brazil", "countrycode": "BR", "tags": "news"},
+      {"name": "Radio Um (copia)", "url_resolved": "https://um.example/stream", "url": "", "country": "Brazil", "countrycode": "BR", "tags": "pop"},
+      {"name": "", "url_resolved": "https://semnome.example/stream", "url": "", "country": "", "countrycode": "", "tags": ""},
+      {"name": "Radio Tres", "url_resolved": "https://tres.example/stream", "url": "", "country": "The United States Of America", "countrycode": "us", "tags": "talk"}
     ]"""
 }

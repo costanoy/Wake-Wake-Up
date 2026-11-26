@@ -5,6 +5,7 @@ import android.app.AlarmManager
 import android.app.KeyguardManager
 import android.app.Notification
 import android.app.NotificationManager
+import android.content.Intent
 import android.os.PowerManager
 import androidx.core.app.NotificationCompat
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -12,6 +13,7 @@ import com.wakewakeup.MainActivity
 import com.wakewakeup.R
 import com.wakewakeup.data.Alarm
 import com.wakewakeup.testing.AppEnv
+import com.wakewakeup.testing.awaitUntil
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
@@ -131,6 +133,70 @@ class PreAlarmCheckTest {
         usingPhone(screenOn = true, unlocked = true)
         checkAt(at - 39 * minute)
         assertNotNull(offer())
+    }
+
+    @Test
+    fun aScreenThatIsUnlockedWhileTheCheckWaitsGetsTheOffer() {
+        val (_, at) = morningAlarm()
+        usingPhone(screenOn = true, unlocked = false)
+        check.unlockWaitMs = 10_000
+        val now = at - 40 * minute
+        val finished = java.util.concurrent.atomic.AtomicBoolean(false)
+        Thread { checkAt(now); finished.set(true) }.start()
+        awaitUntil(message = "the check waiting for the unlock") {
+            shadowOf(env.app).registeredReceivers.any { it.intentFilter.hasAction(Intent.ACTION_USER_PRESENT) }
+        }
+
+        usingPhone(screenOn = true, unlocked = true)
+        env.app.sendBroadcast(Intent(Intent.ACTION_USER_PRESENT))
+        awaitUntil(message = "the check done") { finished.get() }
+
+        assertNotNull(offer())
+        assertTrue("the receiver is unregistered",
+            shadowOf(env.app).registeredReceivers.none { it.intentFilter.hasAction(Intent.ACTION_USER_PRESENT) })
+    }
+
+    @Test
+    fun aScreenThatGoesOffWhileTheCheckWaitsEndsTheWaitWithoutAnOffer() {
+        val (_, at) = morningAlarm()
+        usingPhone(screenOn = true, unlocked = false)
+        check.unlockWaitMs = 10_000
+        val finished = java.util.concurrent.atomic.AtomicBoolean(false)
+        Thread { checkAt(at - 40 * minute); finished.set(true) }.start()
+        awaitUntil(message = "the check waiting for the unlock") {
+            shadowOf(env.app).registeredReceivers.any { it.intentFilter.hasAction(Intent.ACTION_SCREEN_OFF) }
+        }
+
+        usingPhone(screenOn = false, unlocked = false)
+        env.app.sendBroadcast(Intent(Intent.ACTION_SCREEN_OFF))
+        awaitUntil(message = "the check done") { finished.get() }
+
+        assertNull(offer())
+        assertNotNull(env.scheduledWithAction(ACTION_PRE_ALARM_CHECK))
+    }
+
+    @Test
+    fun twoBroadcastsInARowWhileTheCheckWaitsDoNotResumeItTwice() {
+        // REV-03: the wait used to resume its continuation once per broadcast and crashed on the second.
+        val (_, at) = morningAlarm()
+        usingPhone(screenOn = true, unlocked = false)
+        check.unlockWaitMs = 10_000
+        val failure = java.util.concurrent.atomic.AtomicReference<Throwable?>(null)
+        val finished = java.util.concurrent.atomic.AtomicBoolean(false)
+        Thread {
+            try { checkAt(at - 40 * minute) } catch (t: Throwable) { failure.set(t) }
+            finished.set(true)
+        }.start()
+        awaitUntil(message = "the check waiting for the unlock") {
+            shadowOf(env.app).registeredReceivers.any { it.intentFilter.hasAction(Intent.ACTION_USER_PRESENT) }
+        }
+
+        usingPhone(screenOn = true, unlocked = true)
+        env.app.sendBroadcast(Intent(Intent.ACTION_USER_PRESENT))
+        env.app.sendBroadcast(Intent(Intent.ACTION_SCREEN_OFF))
+        awaitUntil(message = "the check done") { finished.get() }
+
+        assertNull(failure.get())
     }
 
     @Test

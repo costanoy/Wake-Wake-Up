@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Editar alarme: digitar a hora -->
+    <string name="cd_type_time">Type the time</string>
+    <string name="type_time_title">Type the time</string>
+    <string name="type_time_hint">Four digits, e.g. 0645 for 06:45.</string>
+    <string name="type_time_invalid">That time doesn\'t exist. Use 00:00 to 23:59.</string>
+    <string name="cancel">Cancel</string>
+
+    <!-- Permissões -->
+    <string name="perm_short_title">Permissions</string>
+    <string name="back_to_list">Back to the list</string>
+
+    <!-- Aviso da lista -->
+    <string name="perm_missing_title">Your alarm may not ring</string>
+    <plurals name="perm_missing_detail">
+        <item quantity="one">%d permission missing. Tap to allow.</item>
+        <item quantity="other">%d permissions missing. Tap to allow.</item>
+    </plurals>
+
+    <!-- Editar alarme: sem dias marcados -->
+    <string name="days_none_hint_at">No day selected: rings once, %1$s at %2$s.</string>
+</resources>

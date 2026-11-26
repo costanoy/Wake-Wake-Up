@@ -1,0 +1,4 @@
+# Shell scripts must keep LF endings, or bash fails on worktree checkouts with autocrlf.
+*.sh text eol=lf
+gradlew text eol=lf
+*.bat text eol=crlf

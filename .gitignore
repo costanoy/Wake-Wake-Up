@@ -28,3 +28,10 @@ portfolio-preview/
 *.keystore
 keystore.properties
 .env
+
+# Audit and tooling outputs (kept locally, too heavy for git)
+.auditoria/prints/
+.auditoria/logs/
+.auditoria/logs-*.txt
+.playwright-mcp/
+.claude/worktrees/

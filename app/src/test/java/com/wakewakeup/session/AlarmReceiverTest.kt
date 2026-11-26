@@ -123,4 +123,22 @@ class AlarmReceiverTest {
         assertEquals(nextRingMillis(env.reload(skipping)!!), env.scheduledFor(skipping)!!.triggerAtMs)
         assertNull(env.scheduledFor(disabled))
     }
+
+    @Test
+    fun aRingThatCouldNotReadTheDatabaseStillArmsTheNextOneFromTheProtectedCopy() {
+        // REV-07: phone locked, database shut: the repeating alarm must not vanish after this ring.
+        val alarm = env.save(Alarm(hour = 7, minute = 0, label = "", days = everyDay))
+        val scheduled = env.scheduledFor(alarm)!!
+        env.app.getSystemService(AlarmManager::class.java).cancelAll()
+        assertNull(env.scheduledFor(alarm))
+        com.wakewakeup.testing.resetDatabase()
+        shadowOf(env.app.getSystemService(android.os.UserManager::class.java)).setUserUnlocked(false)
+
+        env.deliverBroadcast(ringIntent(alarm))
+
+        assertEquals(1, startedServices().size)
+        assertNotNull(env.scheduledFor(alarm))
+        assertEquals(nextRingMillis(alarm), env.scheduledFor(alarm)!!.triggerAtMs)
+        assertNotNull(scheduled)
+    }
 }

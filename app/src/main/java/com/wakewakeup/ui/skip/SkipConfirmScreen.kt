@@ -4,12 +4,14 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -22,6 +24,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
@@ -92,26 +95,37 @@ fun SkipConfirmScreen(
             backDescription = stringResource(R.string.cd_back),
             onBack = onDone,
         )
-        Column(
-            Modifier
-                .weight(1f)
-                .fillMaxWidth()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp),
-        ) {
-            when (stage) {
-                SkipStage.LOADING -> Unit
-                SkipStage.STALE -> Text(
-                    stringResource(R.string.skip_confirm_stale),
-                    style = WwuType.body,
-                    color = Ink,
-                    modifier = Modifier.padding(top = 24.dp, start = 4.dp, end = 4.dp),
-                )
-                SkipStage.CONFIRM, SkipStage.DONE -> {
-                    viewModel.rows.forEach { SkipRowCard(it, turnedOff = stage == SkipStage.DONE) }
-                    if (stage == SkipStage.CONFIRM) {
-                        Gate(viewModel)
-                    } else {
+        // On a tall screen the cards stay on top and the sum with KEEP sits at the foot, like the mission;
+        // on a short one the column is taller than the screen and just scrolls.
+        BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
+            val confirming = stage == SkipStage.CONFIRM
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+                    .heightIn(min = maxHeight)
+                    .padding(horizontal = 16.dp),
+                verticalArrangement = if (confirming) Arrangement.SpaceBetween else Arrangement.Top,
+            ) {
+                when (stage) {
+                    SkipStage.LOADING -> Unit
+                    SkipStage.STALE -> Text(
+                        stringResource(R.string.skip_confirm_stale),
+                        style = WwuType.body,
+                        color = Ink,
+                        modifier = Modifier.padding(top = 24.dp, start = 4.dp, end = 4.dp),
+                    )
+                    SkipStage.CONFIRM -> {
+                        Column { viewModel.rows.forEach { SkipRowCard(it, turnedOff = false) } }
+                        Column {
+                            Gate(viewModel)
+                            Spacer(Modifier.height(24.dp))
+                            GraphiteKey(stringResource(R.string.skip_confirm_keep), onClick = onDone, modifier = Modifier.fillMaxWidth())
+                            Spacer(Modifier.height(16.dp))
+                        }
+                    }
+                    SkipStage.DONE -> {
+                        viewModel.rows.forEach { SkipRowCard(it, turnedOff = true) }
                         Row(
                             Modifier.padding(top = 20.dp, start = 4.dp).semantics { liveRegion = LiveRegionMode.Polite },
                             verticalAlignment = Alignment.CenterVertically,
@@ -122,20 +136,17 @@ fun SkipConfirmScreen(
                         }
                     }
                 }
+                if (!confirming) Spacer(Modifier.height(16.dp))
             }
-            Spacer(Modifier.height(16.dp))
         }
 
-        Row(
+        // While confirming, the keypad's OK is the only confirm and Keep sits under it, inside the scroll.
+        if (stage == SkipStage.DONE || stage == SkipStage.STALE) Row(
             Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 20.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             when (stage) {
-                SkipStage.LOADING -> Unit
-                SkipStage.CONFIRM -> {
-                    GraphiteKey(stringResource(R.string.skip_confirm_keep), onClick = onDone, modifier = Modifier.weight(1f))
-                    OrangeKey(stringResource(R.string.skip_confirm_turn_off), onClick = viewModel::confirm, modifier = Modifier.weight(1f))
-                }
+                SkipStage.LOADING, SkipStage.CONFIRM -> Unit
                 SkipStage.DONE -> {
                     GraphiteKey(stringResource(R.string.undo), onClick = { viewModel.undo(onDone) }, modifier = Modifier.weight(1f))
                     OrangeKey(stringResource(R.string.cd_back), onClick = onDone, modifier = Modifier.weight(1f))
@@ -188,15 +199,13 @@ private fun SkipRowCard(row: SkipRow, turnedOff: Boolean) {
 
 @Composable
 private fun Gate(viewModel: SkipConfirmViewModel) {
+    val keySize = if (LocalConfiguration.current.screenHeightDp < 700) 56.dp else 64.dp
     val answerColor = if (viewModel.wrong) ErrorDisplay else VfdBright
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-        PrintLabel(
-            stringResource(R.string.skip_confirm_gate),
-            modifier = Modifier.fillMaxWidth().padding(start = 4.dp, top = 22.dp, bottom = 8.dp),
-        )
         Row(
             Modifier
                 .fillMaxWidth()
+                .padding(top = 16.dp)
                 .visor(WwuShape.visorMedium, depth = 3.dp, blurRadius = 8.dp)
                 .padding(horizontal = 18.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -216,8 +225,8 @@ private fun Gate(viewModel: SkipConfirmViewModel) {
             )
         }
         Text(
-            if (viewModel.wrong) stringResource(R.string.wrong_try_again) else stringResource(R.string.enter_result),
-            style = WwuType.caption,
+            if (viewModel.wrong) stringResource(R.string.wrong_try_again) else stringResource(R.string.skip_confirm_hint),
+            style = WwuType.bodyS,
             color = if (viewModel.wrong) ErrorText else InkMuted,
             modifier = Modifier
                 .fillMaxWidth()
@@ -225,6 +234,6 @@ private fun Gate(viewModel: SkipConfirmViewModel) {
                 .semantics { liveRegion = LiveRegionMode.Polite },
         )
         Spacer(Modifier.height(16.dp))
-        CalculatorKeypad(onKey = viewModel::pressKey)
+        CalculatorKeypad(onKey = viewModel::pressKey, key = keySize)
     }
 }

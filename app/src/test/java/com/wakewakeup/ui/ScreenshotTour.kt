@@ -1,13 +1,23 @@
 package com.wakewakeup.ui
 
+import android.Manifest
 import android.app.Activity
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.media.AudioManager
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.isDialog
 import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
+import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -21,9 +31,11 @@ import com.wakewakeup.session.AlarmSessionState
 import com.wakewakeup.session.FinishedInfo
 import com.wakewakeup.session.MissionGenerator
 import com.wakewakeup.session.MissionState
+import com.wakewakeup.session.Occurrence
+import com.wakewakeup.session.PreAlarmCheck
 import com.wakewakeup.session.RingActivity
 import com.wakewakeup.session.SessionScreen
-import com.wakewakeup.session.nextTriggerEpochDay
+import com.wakewakeup.session.nextRingMillis
 import com.wakewakeup.testing.AppEnv
 import com.wakewakeup.testing.FakeRadio
 import com.wakewakeup.ui.permissions.AlarmPermissions
@@ -34,6 +46,7 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import java.io.File
@@ -61,6 +74,11 @@ open class ScreenshotTour {
     fun onlyWhenAsked() {
         assumeTrue("set WWU_SCREENSHOTS to render the screens", System.getenv("WWU_SCREENSHOTS") != null)
         FakeRadio.install()
+        // A phone as people have it: notifications allowed and the alarm volume up, so the list
+        // only warns about what Robolectric can't grant (full screen on the lock screen).
+        shadowOf(context).grantPermissions(Manifest.permission.POST_NOTIFICATIONS)
+        val audio = context.getSystemService(AudioManager::class.java)
+        audio.setStreamVolume(AudioManager.STREAM_ALARM, audio.getStreamMaxVolume(AudioManager.STREAM_ALARM) * 5 / 7, 0)
     }
 
     @After
@@ -77,6 +95,20 @@ open class ScreenshotTour {
         val view = a.window.decorView
         val bitmap = Bitmap.createBitmap(view.width, view.height, Bitmap.Config.ARGB_8888)
         view.draw(Canvas(bitmap))
+        val dir = File("build/screenshots").apply { mkdirs() }
+        File(dir, "$prefix-$name.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+    }
+
+    /** A dialog is a window of its own, so it is drawn from the last window root the system holds. */
+    private fun shotOfTheTopWindow(name: String) {
+        val global = Class.forName("android.view.WindowManagerGlobal")
+        val manager = global.getMethod("getInstance").invoke(null)
+        val names = global.getMethod("getViewRootNames").invoke(manager) as Array<*>
+        val view = global.getMethod("getRootView", String::class.java).invoke(manager, names.last()) as android.view.View
+        val bitmap = Bitmap.createBitmap(view.width, view.height, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+        canvas.drawColor(com.wakewakeup.ui.theme.Housing.toArgb())
+        view.draw(canvas)
         val dir = File("build/screenshots").apply { mkdirs() }
         File(dir, "$prefix-$name.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
     }
@@ -129,11 +161,18 @@ open class ScreenshotTour {
 
     @Test
     fun permissions() {
+        // First launch: the walkthrough, with the risk already printed under the foot key.
         launchMain(onboarded = false)
         compose.waitForText(str(R.string.perm_title))
         shot("05-permissoes", ::mainActivity)
-        compose.onNodeWithText(str(R.string.continue_label).uppercase()).performClick()
-        compose.waitForText(str(R.string.perm_nag))
+        main!!.close()
+
+        // Later: the same screen opened from the list's warning, with its ‹.
+        launchMain()
+        compose.waitForText(str(R.string.empty_title))
+        compose.waitForText(str(R.string.perm_missing_title))
+        compose.onNodeWithText(str(R.string.perm_missing_title)).performClick()
+        compose.waitForText(str(R.string.perm_short_title))
         shot("06-permissoes-aviso", ::mainActivity)
     }
 
@@ -145,13 +184,31 @@ open class ScreenshotTour {
         compose.waitForText(str(R.string.new_alarm))
         shot("07-novo-alarme", ::mainActivity)
 
+        // Tapping a drum opens the four-digit entry (a dialog window of its own).
+        compose.onNode(hasContentDescription(str(R.string.hour)) and SemanticsMatcher.keyIsDefined(SemanticsActions.SetProgress)).performClick()
+        compose.waitForText(str(R.string.type_time_title))
+        compose.onNode(hasSetTextAction() and hasAnyAncestor(isDialog())).performTextInput("06")
+        compose.waitForIdle()
+        compose.mainClock.advanceTimeBy(1_000)
+        compose.waitForIdle()
+        shotOfTheTopWindow("07b-digitar-hora")
+        compose.onNodeWithText(str(R.string.cancel).uppercase()).performClick()
+        compose.waitForNoText(str(R.string.type_time_title))
+
         compose.onNode(hasSetTextAction()).performTextInput("Trabalho")
         for (day in 0..4) compose.onNodeWithContentDescription(context.resources.getStringArray(R.array.day_full)[day]).performClick()
+        // A new alarm has no delete key: save it, then open it again.
+        compose.onNodeWithContentDescription(str(R.string.save)).performClick()
+        // The name is also typed in the editor, so wait for the list itself before tapping the row.
+        compose.waitFor("editor closed") { compose.onAllNodesWithContentDescription(str(R.string.save)).fetchSemanticsNodes().isEmpty() }
+        compose.waitForText("Trabalho")
+        compose.onNodeWithText("Trabalho").performClick()
+        compose.waitForText(str(R.string.edit_alarm))
         compose.onNodeWithContentDescription(str(R.string.delete)).performClick()
         compose.waitForDescription(str(R.string.delete_confirm))
         shot("08-editando-excluir-armado", ::mainActivity)
 
-        compose.onNodeWithText(context.resources.getQuantityString(R.plurals.task_summary_math, 3, 3)).performClick()
+        compose.onNodeWithText(context.resources.getQuantityString(R.plurals.task_summary_math, 3, 3)).performScrollTo().performClick()
         compose.waitForText(str(R.string.task_setup_title))
         shot("09-tarefa-matematica", ::mainActivity)
         compose.onNodeWithContentDescription(str(R.string.mode_phrase)).performClick()
@@ -160,11 +217,11 @@ open class ScreenshotTour {
         compose.onNodeWithContentDescription(str(R.string.cd_back)).performClick()
 
         compose.waitForText(str(R.string.sound_default))
-        compose.onNodeWithText(str(R.string.sound_default)).performClick()
+        compose.onNodeWithText(str(R.string.sound_default)).performScrollTo().performClick()
         compose.waitForText(str(R.string.sound_bell_name))
         shot("11-som", ::mainActivity)
 
-        compose.onNodeWithText(str(R.string.radio_row_desc)).performClick()
+        compose.onNodeWithText(str(R.string.radio_row_desc)).performScrollTo().performClick()
         compose.waitForText("Radio Um")
         shot("12-radio", ::mainActivity)
     }
@@ -231,7 +288,19 @@ open class ScreenshotTour {
         compose.waitForText("Trabalho")
         compose.onNodeWithContentDescription(str(R.string.cd_stats_icon)).performClick()
         compose.waitForText(str(R.string.minutes_to_wake).uppercase())
+        // Only exists once the database answered: the skeleton has no times.
+        compose.waitForText("06:42")
         shot("19-estatisticas", ::mainActivity)
+    }
+
+    @Test
+    fun skipConfirm() {
+        // Where the pre-alarm notification's "Desativar" leads.
+        val alarm = env.save(Alarm(hour = 6, minute = 30, label = "Trabalho", days = setOf(0, 1, 2, 3, 4)))
+        val at = nextRingMillis(alarm)
+        main = ActivityScenario.launch(PreAlarmCheck.confirmSkipIntent(context, listOf(Occurrence(alarm.id, at, alarm.label, alarm.hour, alarm.minute))))
+        compose.waitForText(str(R.string.skip_confirm_title))
+        shot("21-confirmar-desativar", ::mainActivity)
     }
 
     @Test

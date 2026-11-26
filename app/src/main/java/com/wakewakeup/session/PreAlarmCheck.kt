@@ -4,7 +4,9 @@ import android.Manifest
 import android.app.AlarmManager
 import android.app.KeyguardManager
 import android.app.PendingIntent
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.IntentFilter
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
@@ -12,13 +14,19 @@ import android.os.PowerManager
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
+import androidx.core.os.UserManagerCompat
 import com.wakewakeup.MainActivity
 import com.wakewakeup.R
 import com.wakewakeup.data.Alarm
 import com.wakewakeup.data.AlarmDao
 import com.wakewakeup.data.toDomain
 import com.wakewakeup.ui.components.formatClock
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withTimeoutOrNull
+import java.util.UUID
+import kotlinx.coroutines.withContext
 
 const val PRE_ALARM_CHANNEL_ID = "pre_alarm"
 const val ACTION_PRE_ALARM_CHECK = "com.wakewakeup.action.PRE_ALARM_CHECK"
@@ -26,6 +34,9 @@ const val ACTION_CONFIRM_SKIP = "com.wakewakeup.action.CONFIRM_SKIP"
 const val ACTION_UNDO_SKIP = "com.wakewakeup.action.UNDO_SKIP"
 const val EXTRA_SKIP_IDS = "extra_skip_ids"
 const val EXTRA_SKIP_ATS = "extra_skip_ats"
+
+/** Proves the confirm intent came from our own notification: MainActivity is exported, anyone can fire one. */
+const val EXTRA_SKIP_TOKEN = "extra_skip_token"
 
 /** Every notification the app posts, in one place so no two ever share an id by accident. */
 object NotificationIds {
@@ -42,13 +53,16 @@ private const val UNDO_REQUEST_CODE = -1003
 
 private const val FIRST_CHECK_WINDOW_MS = 10 * 60_000L
 private const val SESSION_RETRY_MS = 5 * 60_000L
-private const val UNLOCK_POLL_MS = 250L
 private const val HANDLED_KEPT_MS = 24 * 60 * 60_000L
+
+/** The dial's orange, behind the small icon (GUIA-VISUAL). */
+private const val NOTIFICATION_COLOR = 0xFFE8663C.toInt()
 
 private const val PREFS = "pre_alarm"
 private const val KEY_HANDLED = "handled"
 private const val KEY_POSTED = "posted"
 private const val KEY_APP_SEEN = "app_seen_at"
+private const val KEY_SKIP_TOKEN = "skip_token"
 
 /**
  * "Você quer desativar o próximo alarme?": when the phone is already in use (screen on and
@@ -60,7 +74,12 @@ private const val KEY_APP_SEEN = "app_seen_at"
  * ([com.wakewakeup.ui.skip.SkipConfirmScreen]), so a reflexive tap can't silence an alarm.
  * The rules themselves live in [PreAlarmPlanner].
  */
-class PreAlarmCheck(private val context: Context, private val dao: AlarmDao) {
+class PreAlarmCheck(
+    private val context: Context,
+    private val dao: AlarmDao,
+    /** Where the preferences, database and AlarmManager work runs: never the main thread. */
+    private val io: CoroutineDispatcher = Dispatchers.IO,
+) {
 
     /** How long a check waits for a phone whose screen just came on to be unlocked. */
     var unlockWaitMs = 5_000L
@@ -68,12 +87,13 @@ class PreAlarmCheck(private val context: Context, private val dao: AlarmDao) {
     private val prefs get() = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
     /** Arms (or cancels) the next check. Runs after every change to the alarms and app start. */
-    suspend fun reschedule(now: Long = System.currentTimeMillis()) {
+    suspend fun reschedule(now: Long = System.currentTimeMillis()): Unit = withContext(io) {
+        if (!UserManagerCompat.isUserUnlocked(context)) return@withContext
         val alarms = enabledAlarms()
         dropStaleOffer(alarms, now)
         if (!notificationsAllowed()) {
             cancelCheck()
-            return
+            return@withContext
         }
         val plan = PreAlarmPlanner.plan(alarms, now, handled(), appSeenAt())
         if (plan.quietlyHandled.isNotEmpty()) markHandled(plan.quietlyHandled, now)
@@ -85,22 +105,23 @@ class PreAlarmCheck(private val context: Context, private val dao: AlarmDao) {
     }
 
     /** The check itself, delivered to [PreAlarmReceiver]. */
-    suspend fun check(now: Long = System.currentTimeMillis()) {
+    suspend fun check(now: Long = System.currentTimeMillis()): Unit = withContext(io) {
+        if (!UserManagerCompat.isUserUnlocked(context)) return@withContext
         if (!notificationsAllowed()) {
             cancelCheck()
-            return
+            return@withContext
         }
         // Ringing, Espere, mission or Bom dia: never ask about turning alarms off over that.
         if (AlarmSessionState.session.value != null) {
             armAt(now + SESSION_RETRY_MS)
-            return
+            return@withContext
         }
         val alarms = enabledAlarms()
         val plan = PreAlarmPlanner.plan(alarms, now, handled(), appSeenAt())
         if (plan.quietlyHandled.isNotEmpty()) markHandled(plan.quietlyHandled, now)
         if (plan.offer.isEmpty()) {
             if (plan.nextCheckAt != null) armFirstCheck(plan.nextCheckAt, now) else cancelCheck()
-            return
+            return@withContext
         }
         if (waitUntilInUse()) {
             markHandled(plan.offer, now)
@@ -117,6 +138,7 @@ class PreAlarmCheck(private val context: Context, private val dao: AlarmDao) {
 
     /** MainActivity is showing: whatever is coming up, the user can see it there. */
     fun appSeen(now: Long = System.currentTimeMillis()) {
+        if (!UserManagerCompat.isUserUnlocked(context)) return
         prefs.edit().putLong(KEY_APP_SEEN, now).apply()
     }
 
@@ -139,6 +161,7 @@ class PreAlarmCheck(private val context: Context, private val dao: AlarmDao) {
         )
         val notification = NotificationCompat.Builder(context, PRE_ALARM_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification_sun)
+            .setColor(NOTIFICATION_COLOR)
             .setContentTitle(title)
             .setContentText(context.getString(R.string.skip_receipt_text))
             .setSilent(true)
@@ -151,8 +174,9 @@ class PreAlarmCheck(private val context: Context, private val dao: AlarmDao) {
     }
 
     fun cancelOffer() {
+        if (!UserManagerCompat.isUserUnlocked(context)) return
         NotificationManagerCompat.from(context).cancel(NotificationIds.PRE_ALARM)
-        prefs.edit().remove(KEY_POSTED).apply()
+        prefs.edit().remove(KEY_POSTED).remove(KEY_SKIP_TOKEN).apply()
     }
 
     private fun postOffer(offer: List<Occurrence>, now: Long) {
@@ -170,6 +194,7 @@ class PreAlarmCheck(private val context: Context, private val dao: AlarmDao) {
         )
         val notification = NotificationCompat.Builder(context, PRE_ALARM_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification_sun)
+            .setColor(NOTIFICATION_COLOR)
             .setContentTitle(title)
             .setContentText(text)
             .setStyle(NotificationCompat.BigTextStyle().bigText(text))
@@ -196,18 +221,44 @@ class PreAlarmCheck(private val context: Context, private val dao: AlarmDao) {
         if (!stillAhead) cancelOffer()
     }
 
+    /**
+     * True when the phone is on and unlocked. A screen that is on but still locked gets
+     * [unlockWaitMs] to be unlocked: the wait ends on the unlock or the screen going off (a
+     * broadcast), never by looking again and again.
+     */
     private suspend fun waitUntilInUse(): Boolean {
         val power = context.getSystemService(Context.POWER_SERVICE) as PowerManager
         val keyguard = context.getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
-        var waited = 0L
-        while (true) {
-            if (!power.isInteractive) return false
-            // Still true while the ring screen or the camera covers the lock screen: right, here.
-            if (!keyguard.isKeyguardLocked) return true
-            if (waited >= unlockWaitMs) return false
-            delay(UNLOCK_POLL_MS)
-            waited += UNLOCK_POLL_MS
+        // Still true while the ring screen or the camera covers the lock screen: right, here.
+        fun inUse() = power.isInteractive && !keyguard.isKeyguardLocked
+        if (!power.isInteractive) return false
+        if (inUse()) return true
+        if (unlockWaitMs <= 0L) return false
+        val appContext = context.applicationContext
+        // complete() may be called any number of times: the receiver (main thread) and the check
+        // after the registration (IO) can both get there, and neither may fail the other.
+        val done = CompletableDeferred<Unit>()
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                done.complete(Unit)
+            }
         }
+        try {
+            ContextCompat.registerReceiver(
+                appContext, receiver,
+                IntentFilter().apply {
+                    addAction(Intent.ACTION_USER_PRESENT)
+                    addAction(Intent.ACTION_SCREEN_OFF)
+                },
+                ContextCompat.RECEIVER_NOT_EXPORTED,
+            )
+            // It may have been unlocked (or turned off) between the check above and the registration.
+            if (!power.isInteractive || !keyguard.isKeyguardLocked) done.complete(Unit)
+            withTimeoutOrNull(unlockWaitMs) { done.await() }
+        } finally {
+            runCatching { appContext.unregisterReceiver(receiver) }
+        }
+        return inUse()
     }
 
     private fun notificationsAllowed(): Boolean {
@@ -271,12 +322,26 @@ class PreAlarmCheck(private val context: Context, private val dao: AlarmDao) {
     private fun alarmManager() = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
 
     companion object {
-        /** Opens the confirm screen for [occurrences]. */
-        fun confirmSkipIntent(context: Context, occurrences: List<Occurrence>): Intent =
-            Intent(context, MainActivity::class.java)
+        /**
+         * Opens the confirm screen for [occurrences]. Carries a fresh token, also saved here: an
+         * intent from any other app can't know it, and [isSkipTokenValid] turns it away.
+         */
+        fun confirmSkipIntent(context: Context, occurrences: List<Occurrence>): Intent {
+            val token = UUID.randomUUID().toString()
+            context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString(KEY_SKIP_TOKEN, token).apply()
+            return Intent(context, MainActivity::class.java)
                 .setAction(ACTION_CONFIRM_SKIP)
+                .putExtra(EXTRA_SKIP_TOKEN, token)
                 .putExtra(EXTRA_SKIP_IDS, occurrences.map { it.alarmId }.toLongArray())
                 .putExtra(EXTRA_SKIP_ATS, occurrences.map { it.at }.toLongArray())
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        }
+
+        /** True when [token] is the one the last confirm intent was made with. */
+        fun isSkipTokenValid(context: Context, token: String?): Boolean {
+            if (token.isNullOrEmpty()) return false
+            val saved = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(KEY_SKIP_TOKEN, null)
+            return saved != null && saved == token
+        }
     }
 }

@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<script src="../lang.js?v=20261028"></script>
-<title>Wake Wake Up · The alarm clock for heavy sleepers</title>
-<meta name="description" content="Android alarm clock for heavy sleepers. The alarm only turns off after a mission: math problems or a phrase.">
+<script src="../lang.js?v=20261126"></script>
+<title>Alarm clock for heavy sleepers · Wake Wake Up</title>
+<meta name="description" content="Free Android alarm clock that only turns off after a mission: math problems or a phrase. No ads, no sign-up. Download the APK.">
 <meta name="robots" content="index, follow, max-image-preview:large, max-video-preview:-1">
 <meta name="theme-color" content="#141017">
 
@@ -20,22 +20,22 @@
 <meta property="og:site_name" content="Wake Wake Up">
 <meta property="og:title" content="Wake Wake Up · Wake up for real">
 <meta property="og:description" content="Android alarm clock for heavy sleepers. The alarm only turns off after a mission.">
-<meta property="og:image" content="https://wakewakeup.cyberhat.com.br/og-image.png">
+<meta property="og:image" content="https://wakewakeup.cyberhat.com.br/og-image-en.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="Flip clock showing 06:30 and the Portuguese tagline Acorde de verdade, which means wake up for real.">
+<meta property="og:image:alt" content="Flip clock showing 06:30 and the tagline Wake up for real.">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Wake Wake Up · Wake up for real">
 <meta name="twitter:description" content="Android alarm clock for heavy sleepers. The alarm only turns off after a mission.">
-<meta name="twitter:image" content="https://wakewakeup.cyberhat.com.br/og-image.png">
-<meta name="twitter:image:alt" content="Flip clock showing 06:30 and the Portuguese tagline Acorde de verdade, which means wake up for real.">
+<meta name="twitter:image" content="https://wakewakeup.cyberhat.com.br/og-image-en.png">
+<meta name="twitter:image:alt" content="Flip clock showing 06:30 and the tagline Wake up for real.">
 
 <link rel="icon" type="image/png" sizes="32x32" href="../assets/favicon-32.png">
 <link rel="icon" type="image/png" sizes="96x96" href="../assets/app-icon.png">
 <link rel="apple-touch-icon" sizes="180x180" href="../assets/apple-touch-icon.png">
 <link rel="preload" href="../assets/fonts/instrument-sans-600.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="../assets/fonts/barlow-condensed-600.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="../styles.css?v=20261028">
+<link rel="stylesheet" href="../styles.css?v=20261126">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -44,10 +44,13 @@
       "@type": "MobileApplication",
       "@id": "https://wakewakeup.cyberhat.com.br/#app",
       "name": "Wake Wake Up",
-      "description": "Android alarm clock for heavy sleepers. The alarm only turns off after a mission: math problems or a phrase.",
+      "description": "Free Android alarm clock that only turns off after a mission: math problems or a phrase. No ads, no sign-up. Download the APK.",
       "url": "https://wakewakeup.cyberhat.com.br/en/",
-      "image": "https://wakewakeup.cyberhat.com.br/og-image.png",
-      "operatingSystem": "Android 8.0 or later",
+      "image": "https://wakewakeup.cyberhat.com.br/og-image-en.png",
+      "operatingSystem": "Android",
+      "softwareRequirements": "Android 8.0 or later",
+      "softwareVersion": "1.2",
+      "isAccessibleForFree": true,
       "applicationCategory": "UtilitiesApplication",
       "inLanguage": ["pt-BR", "en"],
       "downloadUrl": "https://wakewakeup.cyberhat.com.br/wake-wake-up.apk",
@@ -92,21 +95,27 @@
     </div>
     <div class="hero__text">
       <h1>Wake up for real.</h1>
-      <p class="lead">For people who sleep too deeply for snooze to work. The alarm only turns off after you complete a mission.</p>
+      <p class="lead">For people who sleep through every alarm. This one only turns off after you complete a mission.</p>
     </div>
     <div class="hero__cta">
-      <a class="download" href="../wake-wake-up.apk" download data-download aria-label="Download the APK of Wake Wake Up for Android"><span class="download__button" aria-hidden="true"></span><span class="download__label">DOWNLOAD THE APK</span></a>
-      <a class="hero__test" href="#test">Or ask for test access</a>
+      <a class="download" href="../wake-wake-up.apk" download data-download><span class="download__button" aria-hidden="true"></span><span class="download__label">DOWNLOAD THE APK</span><span class="download__meta" data-apk-meta>v1.2 · 4 MB · Android 8+</span></a>
+      <a class="hero__test" href="#install">How to install</a>
     </div>
   </div>
 </header>
 
 <main>
 
+<ul class="facts wrap" aria-label="At a glance">
+  <li><i aria-hidden="true"></i><span class="vfd">FREE</span></li>
+  <li><i aria-hidden="true"></i><span class="vfd">NO ADS</span></li>
+  <li><i aria-hidden="true"></i><span class="vfd">NO SIGN-UP</span></li>
+  <li><i aria-hidden="true"></i><span class="vfd">WORKS OFFLINE</span></li>
+</ul>
+
 <section class="section">
-  <div class="section__inner wrap split" data-reveal>
+  <div class="section__inner wrap split">
     <div class="split__text">
-      <div class="label">In 28 seconds</div>
       <h2 class="h2">See a morning with Wake Wake Up.</h2>
       <p class="copy">From the first ring to good morning: the alarm, the snooze, the mission and how long it took you to get up.</p>
       <p class="copy copy--small">The video shows the app in Portuguese. On phones set to other languages, the app is in English.</p>
@@ -114,7 +123,7 @@
     <div class="phone-wrap">
       <div class="phone">
         <video id="demo-video" src="../wake-wake-up-video.mp4" preload="none" playsinline poster="../assets/video-poster.jpg" width="1080" height="1920" aria-label="Wake Wake Up demo video, in Portuguese"></video>
-        <button type="button" class="phone__play" id="demo-play" aria-label="Watch the video, 0:28"><span></span><span>WATCH · 0:28</span></button>
+        <button type="button" class="phone__play" id="demo-play"><span></span><span>WATCH<span class="sr-only"> the video</span> <span aria-hidden="true">·</span> 0:28</span></button>
       </div>
     </div>
   </div>
@@ -122,17 +131,16 @@
 
 <section class="section" id="how-it-works">
   <div class="section__inner wrap steps">
-    <div class="steps__head" data-reveal>
-      <div class="label">How it works</div>
+    <div class="steps__head">
       <h2 class="h2">Three steps to getting up.</h2>
     </div>
     <div class="steps__grid">
 
-      <article class="step plate" data-reveal>
+      <article class="step plate">
         <div class="step__head"><span class="vfd">01</span><h3>It rings until you get up</h3></div>
-        <p>The volume can rise from low to full in 60 seconds. Snooze pauses it for 5 minutes, as many times as you need.</p>
+        <p>The volume can rise from low to full in 60 seconds. Need a moment? Snooze pauses the ring for 5 minutes but never turns it off: the alarm comes back on its own, and only the mission ends it.</p>
         <div class="step__demo">
-          <button type="button" class="espere" id="espere"><span><b>SNOOZE 5 MIN</b><small id="espere-count">NO LIMIT</small><span class="sr-only"> (demo)</span></span></button>
+          <button type="button" class="espere" id="espere"><span><b>SNOOZE 5 MIN</b><small id="espere-count">TAP TO SNOOZE</small><span class="sr-only"> (demo)</span></span></button>
           <div class="meter visor">
             <div class="meter__head"><span class="label">Volume</span><span class="vfd" id="vol-label">RISING</span></div>
             <div class="segs" id="vol-segs" aria-hidden="true"></div>
@@ -146,7 +154,7 @@
         </div>
       </article>
 
-      <article class="step plate" data-reveal>
+      <article class="step plate">
         <div class="step__head"><span class="vfd">02</span><h3>Only the mission turns it off</h3></div>
         <p>Solve math problems (3 difficulty levels, 1 to 10 problems) or type the phrase of the day. You have 2 minutes: if time runs out, the alarm rings again, almost at full volume. Try it here.</p>
         <div class="step__demo calc" id="calc">
@@ -162,13 +170,12 @@
             <button type="button" class="key" data-key="4">4</button>
             <button type="button" class="key" data-key="5">5</button>
             <button type="button" class="key" data-key="6">6</button>
-            <button type="button" class="key key--fn" data-key="B" aria-label="Delete">⌫</button>
+            <button type="button" class="key key--fn" data-key="B" aria-label="Delete"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5h10a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9l-6-7 6-7z"/><path d="m12 9.5 5 5m0-5-5 5"/></svg></button>
             <button type="button" class="key" data-key="1">1</button>
             <button type="button" class="key" data-key="2">2</button>
             <button type="button" class="key" data-key="3">3</button>
             <button type="button" class="key key--ok" data-key="OK">OK</button>
             <button type="button" class="key key--zero" data-key="0">0</button>
-            <button type="button" class="key" data-key="M" aria-label="Minus sign">−</button>
           </div>
         </div>
       </article>
@@ -191,18 +198,22 @@
 
     </div>
 
-    <div class="extras">
-      <article class="extra plate" data-reveal>
+    <div class="extras plate">
+      <article class="extra">
         <h3 class="extra__title"><i aria-hidden="true"></i>Day off?</h3>
         <p>Skip just the next ring of a repeating alarm. It rings again on its own the time after.</p>
       </article>
-      <article class="extra plate" data-reveal>
+      <article class="extra">
         <h3 class="extra__title"><i aria-hidden="true"></i>Up before the alarm?</h3>
-        <p>If you're already using your phone up to an hour before a morning alarm, the app asks whether to turn that alarm off just this once. To confirm, you solve a quick sum.</p>
+        <p>If you're already using your phone up to an hour before a morning alarm, the app asks whether to skip that alarm just this once. To confirm, you solve a quick sum.</p>
       </article>
-      <article class="extra plate" data-reveal>
+      <article class="extra">
         <h3 class="extra__title"><i aria-hidden="true"></i>Stuck on a problem?</h3>
         <p>Tap <strong>I can't solve this</strong> and type the phrase of the day instead, in the time left.</p>
+      </article>
+      <article class="extra">
+        <h3 class="extra__title"><i aria-hidden="true"></i>Closed the app?</h3>
+        <p>If the system closes the app mid-ring, the alarm rings again within 3 minutes. Only the mission ends it.</p>
       </article>
     </div>
   </div>
@@ -210,17 +221,16 @@
 
 <section class="section">
   <div class="section__inner wrap split">
-    <div class="split__text split__text--wide" data-reveal>
-      <div class="label">Sounds and radio</div>
+    <div class="split__text split__text--wide">
       <h2 class="h2">Wake up to the sound that works for you.</h2>
-      <p class="copy">Seven sounds made for the app, the tones and music on your phone, or an internet radio station you choose.</p>
+      <p class="copy">The app's own wake-up sounds, the tones and music on your phone, or an internet radio station you choose. Radio is the only part of the app that uses the internet.</p>
       <div class="rules visor">
         <div class="label">With radio, a regular alarm takes over if</div>
         <div class="rules__item"><i></i><span class="vfd">THE STATION DOESN'T PLAY</span></div>
         <div class="rules__item"><i></i><span class="vfd">YOU DON'T REACT IN 3 MIN</span></div>
       </div>
     </div>
-    <div class="tuner plate" data-reveal>
+    <div class="tuner plate">
       <div class="tuner__top">
         <div class="grille" aria-hidden="true"></div>
         <div class="dial">
@@ -235,8 +245,7 @@
 
 <section class="section">
   <div class="section__inner wrap split">
-    <div class="split__text" data-reveal>
-      <div class="label">Stats</div>
+    <div class="split__text">
       <h2 class="h2">How long it takes you to wake up.</h2>
       <p class="copy">The app measures the time from the first ring to the completed mission and shows the last 7 days.</p>
     </div>
@@ -246,23 +255,34 @@
       <div class="readouts">
         <div class="readout"><span class="label">Today</span><span class="vfd vfd--bright">12 MIN</span></div>
         <div class="readout"><span class="label">Average</span><span class="vfd">11 MIN</span></div>
-        <div class="readout"><span class="label">Snooze/day</span><span class="vfd">1.4×</span></div>
+        <div class="readout"><span class="label">Snooze</span><span class="vfd">1.4×</span></div>
       </div>
     </div>
   </div>
 </section>
 
 <section class="final" id="download">
-  <div class="final__inner wrap" data-reveal>
+  <div class="final__inner wrap">
     <div class="final__text">
       <h2>Good morning, for real.</h2>
       <p class="lead">Set your first alarm tonight.</p>
     </div>
     <div class="final__download">
-      <a class="download" href="../wake-wake-up.apk" download data-download aria-label="Download the APK of Wake Wake Up for Android"><span class="download__button" aria-hidden="true"></span><span class="download__label">DOWNLOAD THE APK</span></a>
-      <p class="apk-note" data-apk-note>For Android 8 or later. During installation, Android may ask you to allow apps from this source. If it won't let you install, ask for test access below.</p>
-      <p class="apk-note" data-desktop-note hidden>On a computer? Open wakewakeup.cyberhat.com.br on your Android phone to download it straight to the phone.</p>
-      <p class="apk-note" data-ios-note hidden>Wake Wake Up is for Android only. Open this site on an Android phone to download it.</p>
+      <a class="download" href="../wake-wake-up.apk" download data-download><span class="download__button" aria-hidden="true"></span><span class="download__label">DOWNLOAD THE APK</span><span class="download__meta" data-apk-meta>v1.2 · 4 MB · Android 8+</span></a>
+      <div class="final__notes visor" id="install" tabindex="-1">
+        <div data-apk-note>
+          <div class="label">How to install</div>
+          <ol class="install">
+            <li>Tap <strong>Download the APK</strong>. Your browser warns about any app downloaded outside the Play Store: confirm the download.</li>
+            <li>Open the downloaded file. If Android asks, allow your browser to install apps.</li>
+            <li>Tap <strong>Install</strong> and open Wake Wake Up. The first screen asks for the alarm and notification permissions.</li>
+          </ol>
+          <p class="apk-note">Didn't install? Ask for test access below.</p>
+          <p class="apk-note">Already have an earlier version downloaded here? Uninstall it before installing this one: Android can't update over it, and your alarms need to be set again.</p>
+        </div>
+        <p class="apk-note" data-desktop-note hidden>On a computer? Open wakewakeup.cyberhat.com.br on your Android phone to download it straight to the phone.</p>
+        <p class="apk-note" data-ios-note hidden>Wake Wake Up is for Android only. Open this site on an Android phone to download it.</p>
+      </div>
     </div>
     <div class="tester plate" id="test">
       <div class="tester__head"><i aria-hidden="true"></i><span class="label">Android test</span></div>
@@ -270,13 +290,15 @@
       <p>The app is still being tested. Want to join?</p>
       <details class="tester__reveal">
         <summary class="tester__button">JOIN THE TEST</summary>
-        <p class="tester__text">Just send an email to <a href="mailto:vinicostamaga@outlook.com?subject=Wake%20Wake%20Up%20test%20access">vinicostamaga@<wbr>outlook.com</a> asking for test access to Wake Wake Up.</p>
+        <p class="tester__text">Just send an email to <a data-contact-link data-subject="Wake Wake Up test access" href="mailto:vinicostamaga@outlook.com?subject=Wake%20Wake%20Up%20test%20access">vinicostamaga@<wbr>outlook.com</a> asking for test access to Wake Wake Up.</p>
       </details>
     </div>
   </div>
 </section>
 
 </main>
+
+<div class="dock" id="dock" hidden><a class="dock__key" href="../wake-wake-up.apk" download data-download><span class="download__label">DOWNLOAD THE APK</span></a></div>
 
 <footer class="footer">
   <div class="footer__inner wrap">
@@ -288,7 +310,7 @@
   </div>
 </footer>
 
-<script src="../site-config.js?v=20261028" defer></script>
-<script src="../main.js?v=20261028" defer></script>
+<script src="../site-config.js?v=20261126" defer></script>
+<script src="../main.js?v=20261126" defer></script>
 </body>
 </html>

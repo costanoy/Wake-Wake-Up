@@ -1,6 +1,7 @@
 package com.wakewakeup.ui.components
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
@@ -22,7 +23,10 @@ fun difficultyName(difficulty: Difficulty): String = stringResource(
     },
 )
 
-/** Short screen-print task label on an alarm card (MATEMÁTICA / FRASE). */
+/**
+ * Short screen-print task label on an alarm card (CONTAS / FRASE): one short word, so it never
+ * breaks inside the card's narrow text column on a 360 dp phone.
+ */
 @Composable
 fun taskCardLabel(type: TaskType): String = stringResource(
     when (type) {
@@ -31,7 +35,7 @@ fun taskCardLabel(type: TaskType): String = stringResource(
     },
 )
 
-/** "Matemática, 3 contas" / "Digitar uma frase" on the edit screen's TAREFA row. */
+/** "Matemática, 3 contas" / "Digitar uma frase" on the edit screen's MISSÃO row. */
 @Composable
 fun taskSummary(type: TaskType, count: Int): String = when (type) {
     TaskType.MATH -> pluralStringResource(R.plurals.task_summary_math, count, count)
@@ -67,9 +71,11 @@ fun weekdayName(date: LocalDate, today: LocalDate = LocalDate.now()): String {
 /** "QUARTA, 30 SET" / "WEDNESDAY, SEP 30" date line on the ringing and good-morning screens. */
 @Composable
 fun panelDate(date: LocalDate = LocalDate.now()): String {
-    val locale = Locale.getDefault()
+    val tag = stringResource(R.string.date_locale)
+    val locale = remember(tag) { Locale.forLanguageTag(tag) }
     val dayName = stringArrayResource(R.array.day_full).getOrElse(isoDayIndexOf(date)) { "" }
-    val pattern = if (locale.language == "pt") "d MMM" else "MMM d"
-    val rest = date.format(DateTimeFormatter.ofPattern(pattern, locale)).replace(".", "")
+    // Runs on every recomposition of the ringing screen; the formatter only depends on the language.
+    val format = remember(locale) { DateTimeFormatter.ofPattern(if (locale.language == "pt") "d MMM" else "MMM d", locale) }
+    val rest = date.format(format).replace(".", "")
     return "$dayName, $rest".uppercase(locale)
 }

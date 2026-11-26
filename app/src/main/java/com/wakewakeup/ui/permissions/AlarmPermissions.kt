@@ -13,9 +13,14 @@ import android.os.PowerManager
 import android.provider.Settings
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
+import com.wakewakeup.ALARM_NOTIFICATION_CHANNEL_ID
 
-/** The four things Android must allow for an alarm to really ring on a locked, idle phone. */
-enum class AlarmPermission { NOTIFICATIONS, EXACT_ALARMS, FULL_SCREEN, BATTERY }
+/**
+ * What Android must allow for an alarm to really ring on a locked, idle phone. Battery is only
+ * recommended ([required] false): alarm clocks ring through battery saving anyway (setAlarmClock),
+ * it just helps on phones whose makers close apps at night.
+ */
+enum class AlarmPermission(val required: Boolean = true) { NOTIFICATIONS, EXACT_ALARMS, FULL_SCREEN, BATTERY(required = false) }
 
 object AlarmPermissions {
     private const val PREFS = "wwu_prefs"
@@ -23,12 +28,7 @@ object AlarmPermissions {
     private const val KEY_ASKED_NOTIFICATIONS = "asked_notification_permission"
 
     fun isGranted(context: Context, permission: AlarmPermission): Boolean = when (permission) {
-        AlarmPermission.NOTIFICATIONS ->
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
-            } else {
-                NotificationManagerCompat.from(context).areNotificationsEnabled()
-            }
+        AlarmPermission.NOTIFICATIONS -> appNotificationsAllowed(context) && ringingChannelAllowed(context)
         AlarmPermission.EXACT_ALARMS ->
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 context.getSystemService(AlarmManager::class.java).canScheduleExactAlarms()
@@ -41,9 +41,27 @@ object AlarmPermissions {
             context.getSystemService(PowerManager::class.java).isIgnoringBatteryOptimizations(context.packageName)
     }
 
-    fun allGranted(context: Context) = AlarmPermission.entries.all { isGranted(context, it) }
+    /** The app-level permission (Android 13+) and the "notifications on" switch. */
+    private fun appNotificationsAllowed(context: Context): Boolean {
+        val permission = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+        return permission && NotificationManagerCompat.from(context).areNotificationsEnabled()
+    }
 
-    /** Shown once, at first launch, unless everything is already allowed. */
+    /** The "ringing" channel carries the full-screen alarm: it must stay at high importance. A missing channel counts as fine. */
+    private fun ringingChannelAllowed(context: Context): Boolean {
+        val importance = NotificationManagerCompat.from(context).getNotificationChannelCompat(ALARM_NOTIFICATION_CHANNEL_ID)?.importance
+        return importance == null || importance >= NotificationManagerCompat.IMPORTANCE_HIGH
+    }
+
+    /** The required ones Android doesn't allow right now; the alarm list warns while there are any. */
+    fun missingRequired(context: Context): List<AlarmPermission> =
+        AlarmPermission.entries.filter { it.required && !isGranted(context, it) }
+
+    /** Everything required is allowed (battery, only recommended, doesn't count). */
+    fun allGranted(context: Context) = missingRequired(context).isEmpty()
+
+    /** Shown once, at first launch, unless everything required is already allowed. */
     fun shouldShowOnboarding(context: Context): Boolean =
         !prefs(context).getBoolean(KEY_ONBOARDED, false) && !allGranted(context)
 
@@ -67,7 +85,14 @@ object AlarmPermissions {
         val pkg = context.packageName
         val packageUri = Uri.parse("package:$pkg")
         val intent = when (permission) {
-            AlarmPermission.NOTIFICATIONS -> Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, pkg)
+            AlarmPermission.NOTIFICATIONS ->
+                if (appNotificationsAllowed(context) && !ringingChannelAllowed(context)) {
+                    Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS)
+                        .putExtra(Settings.EXTRA_APP_PACKAGE, pkg)
+                        .putExtra(Settings.EXTRA_CHANNEL_ID, ALARM_NOTIFICATION_CHANNEL_ID)
+                } else {
+                    Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, pkg)
+                }
             AlarmPermission.EXACT_ALARMS ->
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, packageUri)
                 else Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, packageUri)

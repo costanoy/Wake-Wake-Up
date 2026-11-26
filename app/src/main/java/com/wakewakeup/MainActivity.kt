@@ -3,16 +3,20 @@ package com.wakewakeup
 import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.lifecycle.lifecycleScope
 import com.wakewakeup.session.ACTION_CONFIRM_SKIP
 import com.wakewakeup.session.AlarmSessionState
 import com.wakewakeup.session.EXTRA_SKIP_ATS
 import com.wakewakeup.session.EXTRA_SKIP_IDS
+import com.wakewakeup.session.EXTRA_SKIP_TOKEN
+import com.wakewakeup.session.PreAlarmCheck
 import com.wakewakeup.session.RingActivity
+import com.wakewakeup.session.RingWatchdog
 import com.wakewakeup.session.SessionScreen
 import com.wakewakeup.ui.navigation.SkipRequest
 import com.wakewakeup.ui.navigation.WwuNavGraph
@@ -33,12 +37,13 @@ class MainActivity : ComponentActivity() {
             navigationBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
         )
         rearmAlarmsOnce()
+        resumeInterruptedRing()
         // What the launching intent asks for is acted on once: a recreated activity (rotation,
         // process death) gets its screens back from the saved navigation state instead.
         val fresh = savedInstanceState == null
         val openStats = fresh && intent?.getBooleanExtra(EXTRA_OPEN_STATS, false) == true
         val skipRequest = if (fresh) skipRequestOf(intent) else null
-        if (skipRequest != null) app.container.preAlarm.cancelOffer()
+        if (skipRequest != null) app.container.appScope.launch { app.container.preAlarm.cancelOffer() }
         // First launch: walk through the permissions an alarm needs (notifications are asked
         // from there too) unless they're all already allowed.
         val showPermissions = !openStats && skipRequest == null && AlarmPermissions.shouldShowOnboarding(this)
@@ -51,9 +56,12 @@ class MainActivity : ComponentActivity() {
 
     override fun onStart() {
         super.onStart()
-        app.container.preAlarm.appSeen()
-        // Picks up a notification permission or channel the user just changed in Settings.
-        lifecycleScope.launch { app.container.preAlarm.reschedule() }
+        // Preferences, database and AlarmManager: off the main thread, in a scope the screen can't cancel.
+        app.container.appScope.launch {
+            app.container.preAlarm.appSeen()
+            // Picks up a notification permission or channel the user just changed in Settings.
+            app.container.preAlarm.reschedule()
+        }
     }
 
     override fun onResume() {
@@ -66,7 +74,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onStop() {
-        app.container.preAlarm.appSeen()
+        app.container.appScope.launch { app.container.preAlarm.appSeen() }
         super.onStop()
     }
 
@@ -77,11 +85,35 @@ class MainActivity : ComponentActivity() {
     private fun rearmAlarmsOnce() {
         if (app.rearmedThisProcess) return
         app.rearmedThisProcess = true
-        lifecycleScope.launch { app.container.alarmRepository.rescheduleAll(sparingDue = true) }
+        // The app scope, not the activity's: leaving the screen must not cancel the second pass.
+        app.container.appScope.launch { app.container.alarmRepository.rescheduleAll(sparingDue = true) }
+        // An alarm spared above (its ring may have been in flight) is armed once that is surely over.
+        // A Handler, not a delay() in the app scope: the scope's children would hold up every test.
+        // The container is read first: the lambda must not capture this activity (it outlives it by 2 min).
+        val container = app.container
+        Handler(Looper.getMainLooper()).postDelayed(
+            { container.appScope.launch { container.alarmRepository.rescheduleAll() } },
+            SECOND_PASS_MS,
+        )
+    }
+
+    /**
+     * A ring the process lost (killed, crashed) comes back when the app is opened, even if the
+     * watchdog's wake has not come yet. Off the main thread: the saved session is a preferences read.
+     */
+    private fun resumeInterruptedRing() {
+        val context = applicationContext
+        app.container.appScope.launch {
+            if (AlarmSessionState.session.value == null && RingWatchdog.saved(context) != null) {
+                RingWatchdog.resumeIfInterrupted(context)
+            }
+        }
     }
 
     private fun skipRequestOf(intent: Intent?): SkipRequest? {
         if (intent?.action != ACTION_CONFIRM_SKIP) return null
+        // MainActivity is exported: only the notification's own intent carries the saved token.
+        if (!PreAlarmCheck.isSkipTokenValid(this, intent.getStringExtra(EXTRA_SKIP_TOKEN))) return null
         val ids = intent.getLongArrayExtra(EXTRA_SKIP_IDS) ?: return null
         val ats = intent.getLongArrayExtra(EXTRA_SKIP_ATS) ?: return null
         if (ids.isEmpty() || ids.size != ats.size) return null
@@ -90,5 +122,6 @@ class MainActivity : ComponentActivity() {
 
     companion object {
         const val EXTRA_OPEN_STATS = "extra_open_stats"
+        private const val SECOND_PASS_MS = 125_000L
     }
 }

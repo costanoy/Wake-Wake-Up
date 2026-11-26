@@ -4,8 +4,11 @@ import android.app.AlarmManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
 import android.os.Build
 import androidx.core.content.ContextCompat
+import androidx.core.os.UserManagerCompat
+import java.io.File
 
 const val ACTION_RING_WATCHDOG = "com.wakewakeup.action.RING_WATCHDOG"
 const val EXTRA_RESUMED_SESSION = "extra_resumed_session"
@@ -21,6 +24,7 @@ private const val KEY_ALARM = "alarm_id"
 private const val KEY_STARTED = "started_at"
 private const val KEY_WAITS = "waits"
 private const val KEY_HOLD = "hold_until"
+private const val KEY_ORIGINAL_VOLUME = "orig_volume"
 
 /**
  * Keeps a ringing alarm from dying with the app's process. While a session is open (ringing,
@@ -54,6 +58,21 @@ object RingWatchdog {
         val startedAt = prefs.getLong(KEY_STARTED, 0L)
         if (alarmId < 0 || now - startedAt !in 0..MAX_AGE_MS) return null
         return Saved(alarmId, startedAt, prefs.getInt(KEY_WAITS, 0), prefs.getLong(KEY_HOLD, 0L).takeIf { it > 0L })
+    }
+
+    /**
+     * The alarm volume the person had before the ring lifted it, kept here so a service that
+     * takes over after the process died can still put it back. Cleared with the session.
+     */
+    fun saveOriginalVolume(context: Context, volume: Int) {
+        prefs(context).edit().putInt(KEY_ORIGINAL_VOLUME, volume).commit()
+    }
+
+    fun originalVolume(context: Context): Int? =
+        prefs(context).takeIf { it.contains(KEY_ORIGINAL_VOLUME) }?.getInt(KEY_ORIGINAL_VOLUME, 0)
+
+    fun forgetOriginalVolume(context: Context) {
+        prefs(context).edit().remove(KEY_ORIGINAL_VOLUME).commit()
     }
 
     /** The watchdog's wake: re-arm while the service is alive, bring the alarm back if it isn't. */
@@ -106,5 +125,31 @@ object RingWatchdog {
 
     private fun alarmManager(context: Context) = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
 
-    private fun prefs(context: Context) = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+    /**
+     * Device-protected storage: it opens before the first unlock after a restart, when the
+     * watchdog and the ringing service already have to work. The file used to live in the
+     * ordinary storage; it is moved over the first time the phone is found unlocked.
+     */
+    /**
+     * Moves the old file over only when the device-protected one doesn't exist yet. If a session
+     * was already written there (a ring while the phone was locked after the update), the old file
+     * is stale: it is dropped instead of overwriting the newer session.
+     */
+    private fun migrateOldFile(context: Context, store: Context) {
+        val old = File(context.dataDir, "shared_prefs/$PREFS.xml")
+        if (!old.exists()) return
+        if (File(store.dataDir, "shared_prefs/$PREFS.xml").exists()) {
+            context.deleteSharedPreferences(PREFS)
+        } else {
+            store.moveSharedPreferencesFrom(context, PREFS)
+        }
+    }
+
+    private fun prefs(context: Context): SharedPreferences {
+        val store = context.createDeviceProtectedStorageContext()
+        if (UserManagerCompat.isUserUnlocked(context)) {
+            runCatching { migrateOldFile(context, store) }
+        }
+        return store.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+    }
 }

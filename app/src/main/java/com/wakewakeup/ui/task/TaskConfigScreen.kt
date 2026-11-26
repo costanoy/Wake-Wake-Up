@@ -13,15 +13,20 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.wakewakeup.R
@@ -67,13 +72,14 @@ fun TaskConfigScreen(onBack: () -> Unit, viewModel: EditAlarmViewModel) {
         )
 
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
-            // Mode selector: two latching keys in one well.
+            // Mode selector: two latching keys in one well, one of them always down.
             Row(
                 Modifier
                     .padding(start = 16.dp, end = 16.dp, top = 12.dp)
                     .fillMaxWidth()
                     .visor(WwuShape.visorMedium, lip = false)
-                    .padding(8.dp),
+                    .padding(8.dp)
+                    .selectableGroup(),
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 listOf(TaskType.MATH to R.string.mode_math, TaskType.PHRASE to R.string.mode_phrase).forEach { (type, res) ->
@@ -84,6 +90,7 @@ fun TaskConfigScreen(onBack: () -> Unit, viewModel: EditAlarmViewModel) {
                         modifier = Modifier.weight(1f).height(72.dp),
                         shape = RoundedCornerShape(7.dp),
                         description = label,
+                        role = Role.RadioButton,
                     ) { down ->
                         Column(
                             Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 10.dp),
@@ -108,8 +115,9 @@ fun TaskConfigScreen(onBack: () -> Unit, viewModel: EditAlarmViewModel) {
             }
         }
 
+        // Nothing is stored until the editor's SALVAR, so this key only says the setup is done.
         LabeledRoundButton(
-            label = stringResource(R.string.save),
+            label = stringResource(R.string.ready),
             onClick = onBack,
             size = 76.dp,
             style = RoundStyle.Action,
@@ -142,7 +150,8 @@ private fun MathPlate(
             Modifier
                 .fillMaxWidth()
                 .visor(WwuShape.visor, lip = false)
-                .padding(6.dp),
+                .padding(6.dp)
+                .selectableGroup(),
             horizontalArrangement = Arrangement.spacedBy(5.dp),
         ) {
             Difficulty.entries.forEach { level ->
@@ -153,6 +162,7 @@ private fun MathPlate(
                     modifier = Modifier.weight(1f).height(76.dp),
                     shape = WwuShape.key,
                     description = name,
+                    role = Role.RadioButton,
                 ) { down ->
                     Column(
                         Modifier.fillMaxSize().padding(top = 8.dp, bottom = 10.dp),
@@ -181,11 +191,16 @@ private fun MathPlate(
                 baseDepth = 3.dp,
                 softShadow = softShadow(10.dp, 6.dp, 0.45f),
             ) { MinusGlyph(16.dp, 3.dp) }
+            val spokenCount = pluralStringResource(R.plurals.task_count_spoken, count, count)
             Box(
                 Modifier
                     .size(width = 120.dp, height = 60.dp)
                     .visor(WwuShape.visorSmall, lip = false)
-                    .clearAndSetSemantics { contentDescription = "$count" },
+                    // "3 contas", said again each time − or + changes it.
+                    .clearAndSetSemantics {
+                        contentDescription = spokenCount
+                        liveRegion = LiveRegionMode.Polite
+                    },
                 contentAlignment = Alignment.Center,
             ) {
                 VfdText("$count", 44.sp.nonScaling(), color = VfdBright, glowRadius = 8.dp, glowAlpha = 0.6f)

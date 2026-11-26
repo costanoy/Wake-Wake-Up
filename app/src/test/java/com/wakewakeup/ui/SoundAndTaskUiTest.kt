@@ -7,10 +7,18 @@ import android.database.Cursor
 import android.database.MatrixCursor
 import android.net.Uri
 import android.provider.OpenableColumns
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isSelectable
+import androidx.compose.ui.test.isSelected
 import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
@@ -66,9 +74,15 @@ class SoundAndTaskUiTest {
         scenario = ActivityScenario.launch(MainActivity::class.java)
         compose.waitForText(saved.label)
         compose.onNodeWithText(saved.label).performClick()
-        compose.waitForDescription("${str(R.string.hour)} %02d".format(saved.hour))
+        // The hour drum, which TalkBack reads as "Hour", "06".
+        compose.waitFor("editor") {
+            compose.onAllNodes(hasContentDescription(str(R.string.hour)) and hasStateDescription("%02d".format(saved.hour)))
+                .fetchSemanticsNodes().isNotEmpty()
+        }
         return saved
     }
+
+    private fun countSpoken(n: Int) = context.resources.getQuantityString(R.plurals.task_count_spoken, n, n)
 
     private fun saveAndWait(alarm: Alarm, check: (Alarm) -> Boolean) {
         compose.onNodeWithContentDescription(str(R.string.save)).performClick()
@@ -89,6 +103,9 @@ class SoundAndTaskUiTest {
 
         compose.onNodeWithText(str(R.string.sound_phone_name)).performClick()
         compose.waitForText(str(R.string.sound_phone_name).uppercase())
+        // TalkBack hears which sound is the chosen one, not just another button.
+        compose.onNode(hasText(str(R.string.sound_phone_name)) and isSelectable()).assertIsSelected()
+        compose.onNode(hasText(str(R.string.sound_bell_name)) and isSelectable()).assertIsNotSelected()
         compose.onNodeWithText(str(R.string.preview_label).uppercase()).assertIsDisplayed()
         // The preview stops by itself after a couple of seconds.
         compose.mainClock.advanceTimeBy(3_000)
@@ -106,6 +123,23 @@ class SoundAndTaskUiTest {
         val saved = env.reload(alarm)!!
         assertEquals("android.resource://${context.packageName}/raw/telefone_de_disco", saved.soundUri)
         assertFalse(saved.rampUp)
+    }
+
+    @Test
+    fun theSoundPreviewKeyTurnsIntoStopWhileItPlays() {
+        openEditor()
+        compose.onNodeWithText(str(R.string.sound_default)).performClick()
+        compose.waitForText(str(R.string.sound_bell_name))
+        val name = str(R.string.sound_phone_name)
+        // Choosing a sound plays it for a moment.
+        compose.onNodeWithText(name).performClick()
+        // Playing: the key says stop, and the display says preview.
+        compose.waitForDescription(str(R.string.cd_stop_preview, name))
+        compose.onNodeWithText(str(R.string.preview_label).uppercase()).assertIsDisplayed()
+
+        compose.onNodeWithContentDescription(str(R.string.cd_stop_preview, name)).performClick()
+        compose.waitForDescription(str(R.string.cd_play_preview, name))
+        compose.waitForNoText(str(R.string.preview_label).uppercase())
     }
 
     @Test
@@ -158,9 +192,21 @@ class SoundAndTaskUiTest {
         compose.onNodeWithText("Radio Dois").assertExists()
         assertTrue(compose.onAllNodesWithTextCount("Radio Insegura") == 0)
         assertTrue(FakeRadio.requests.last().toString().contains("countrycode=US"))
+        // A station from abroad names its country in the phone's language; one from the phone's
+        // own country (the popular list) goes straight to its genres.
+        compose.onNodeWithText("Brazil · pop, rock").assertExists()
+        compose.onNodeWithText("talk").assertExists()
+
+        // The play key only previews: the station isn't picked.
+        compose.onNodeWithContentDescription(str(R.string.cd_play_preview, "Radio Dois")).performClick()
+        compose.waitForIdle()
+        compose.onNode(hasText("Radio Dois") and isSelectable()).assertIsNotSelected()
 
         compose.onNodeWithText("Radio Um").performClick()
-        compose.waitFor("station chosen") { compose.onAllNodesWithTextCount("Radio Um") >= 1 }
+        compose.waitFor("station chosen") {
+            compose.onAllNodes(hasText("Radio Um") and isSelected()).fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNode(hasText("Radio Dois") and isSelectable()).assertIsNotSelected()
         compose.onNodeWithContentDescription(str(R.string.cd_back)).performClick()
         // The sound screen names the station on the radio row.
         compose.waitForText(str(R.string.ramp_title))
@@ -197,19 +243,65 @@ class SoundAndTaskUiTest {
     }
 
     @Test
+    fun doneAfterPickingAStationGoesStraightBackToTheEditor() {
+        val alarm = openEditor()
+        compose.onNodeWithText(str(R.string.sound_default)).performClick()
+        compose.waitForText(str(R.string.radio_row_desc))
+        compose.onNodeWithText(str(R.string.radio_row_desc)).performClick()
+        compose.waitForText("Radio Um")
+        // Nothing chosen yet: no DONE plate.
+        assertTrue(compose.onAllNodesWithTextCount(str(R.string.ready).uppercase()) == 0)
+
+        compose.onNodeWithText("Radio Um").performClick()
+        compose.waitForText(str(R.string.ready).uppercase())
+        compose.onNodeWithText(str(R.string.ready).uppercase()).performClick()
+
+        // Past the sound screen too: the editor's sound row names the station.
+        compose.waitFor("editor") {
+            compose.onAllNodes(hasContentDescription(str(R.string.hour)) and hasStateDescription("%02d".format(alarm.hour)))
+                .fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithText("Radio Um").assertExists()
+        saveAndWait(alarm) { it.soundUri == "https://um.example/stream" }
+    }
+
+    @Test
+    fun theSearchFieldHasAKeyToClearIt() {
+        openEditor()
+        compose.onNodeWithText(str(R.string.sound_default)).performClick()
+        compose.waitForText(str(R.string.radio_row_desc))
+        compose.onNodeWithText(str(R.string.radio_row_desc)).performClick()
+        compose.waitForText(str(R.string.radio_popular).uppercase())
+        assertTrue(compose.onAllNodes(hasContentDescription(str(R.string.cd_clear_search))).fetchSemanticsNodes().isEmpty())
+
+        compose.onNode(hasSetTextAction()).performTextInput("jazz")
+        compose.mainClock.advanceTimeBy(600)
+        compose.waitForText(str(R.string.radio_results).uppercase())
+        compose.onNodeWithContentDescription(str(R.string.cd_clear_search)).performClick()
+        compose.waitForText(str(R.string.radio_popular).uppercase())
+        assertTrue(compose.onAllNodes(hasContentDescription(str(R.string.cd_clear_search))).fetchSemanticsNodes().isEmpty())
+    }
+
+    @Test
     fun taskSetupDifficultyAndHowManyProblems() {
         val alarm = openEditor()
         compose.onNodeWithText(context.resources.getQuantityString(R.plurals.task_summary_math, 3, 3)).performClick()
         compose.waitForText(str(R.string.task_setup_title))
 
         repeat(5) { compose.onNodeWithContentDescription(str(R.string.cd_fewer)).performClick() }
-        compose.onNodeWithContentDescription("1").assertIsDisplayed()
+        compose.onNodeWithContentDescription(countSpoken(1)).assertIsDisplayed()
         repeat(12) { compose.onNodeWithContentDescription(str(R.string.cd_more)).performClick() }
-        compose.onNodeWithContentDescription("10").assertIsDisplayed()
+        // "10 problems", said again as it changes.
+        compose.onNodeWithContentDescription(countSpoken(10))
+            .assertIsDisplayed()
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.LiveRegion, LiveRegionMode.Polite))
 
+        // One level of three, like radio buttons.
         compose.onNodeWithContentDescription(str(R.string.hard)).performClick()
         compose.onNodeWithContentDescription(str(R.string.hard)).assertIsSelected()
-        compose.onNodeWithContentDescription(str(R.string.save)).performClick()
+        compose.onNodeWithContentDescription(str(R.string.medium)).assertIsNotSelected()
+        // DONE only goes back: the editor's SAVE stores it.
+        compose.onNodeWithContentDescription(str(R.string.ready)).performClick()
 
         compose.waitForText(context.resources.getQuantityString(R.plurals.task_summary_math, 10, 10))
         saveAndWait(alarm) { it.taskCount == 10 }
@@ -224,6 +316,8 @@ class SoundAndTaskUiTest {
         compose.onNodeWithContentDescription(str(R.string.mode_phrase)).performClick()
         compose.waitForText(com.wakewakeup.session.MissionGenerator.phraseOfTheDay())
         compose.onNodeWithText(str(R.string.phrase_note)).assertIsDisplayed()
+        compose.onNodeWithContentDescription(str(R.string.mode_phrase)).assertIsSelected()
+        compose.onNodeWithContentDescription(str(R.string.mode_math)).assertIsNotSelected()
         compose.onNodeWithContentDescription(str(R.string.mode_math)).performClick()
         compose.waitForText(str(R.string.how_many).uppercase())
     }

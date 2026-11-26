@@ -7,7 +7,15 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
 
-data class RadioStation(val name: String, val streamUrl: String, val country: String, val tags: String)
+data class RadioStation(
+    val name: String,
+    val streamUrl: String,
+    /** The directory's own name for the country, in English ("Brazil"). */
+    val country: String,
+    /** ISO 3166 code ("BR"), so the app can name the country in the phone's language. */
+    val countryCode: String,
+    val tags: String,
+)
 
 /**
  * Station search on Radio Browser (radio-browser.info), a free community directory of
@@ -45,6 +53,7 @@ object RadioBrowser {
                         name = name,
                         streamUrl = stream,
                         country = o.optString("country").trim(),
+                        countryCode = o.optString("countrycode").trim().uppercase(),
                         tags = o.optString("tags").split(',').map { it.trim() }.filter { it.isNotEmpty() }.take(2).joinToString(", "),
                     )
                 }

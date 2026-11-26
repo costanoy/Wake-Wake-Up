@@ -5,6 +5,7 @@ import android.content.Intent
 import android.media.RingtoneManager
 import android.net.Uri
 import android.provider.OpenableColumns
+import androidx.annotation.StringRes
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.Animatable
@@ -30,7 +31,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -46,6 +51,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.wakewakeup.R
@@ -63,9 +69,11 @@ import com.wakewakeup.ui.components.faceplate
 import com.wakewakeup.ui.components.glow
 import com.wakewakeup.ui.components.nonScaling
 import com.wakewakeup.ui.components.rememberReduceMotion
+import com.wakewakeup.ui.components.topFade
 import com.wakewakeup.ui.components.visor
 import com.wakewakeup.ui.edit.EditAlarmViewModel
 import com.wakewakeup.ui.theme.Action
+import com.wakewakeup.ui.theme.ErrorText
 import com.wakewakeup.ui.theme.Housing
 import com.wakewakeup.ui.theme.Ink
 import com.wakewakeup.ui.theme.InkMuted
@@ -119,8 +127,13 @@ fun SoundPickerScreen(onBack: () -> Unit, onOpenRadio: () -> Unit, viewModel: Ed
     val selectedIndex = options.indexOfFirst { it.uri == draft.soundUri }.coerceAtLeast(0)
 
     val player = rememberSoundPreview()
+    val selectedRequester = remember { BringIntoViewRequester() }
+    // Once the phone's sounds are in, bring the chosen row into view (a station has no row here).
+    LaunchedEffect(systemSounds != null) { if (systemSounds != null) selectedRequester.bringIntoView() }
     fun preview(option: SoundOption) =
         player.play(option.uri, if (option.uri.isStreamUrl()) STREAM_PREVIEW_MS else PREVIEW_MS)
+    fun toggle(option: SoundOption) =
+        player.toggle(option.uri, if (option.uri.isStreamUrl()) STREAM_PREVIEW_MS else PREVIEW_MS)
     fun select(option: SoundOption) {
         viewModel.setSound(option.uri, if (option.uri == null) null else option.name)
         preview(option)
@@ -152,7 +165,31 @@ fun SoundPickerScreen(onBack: () -> Unit, onOpenRadio: () -> Unit, viewModel: Ed
             modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp),
         )
 
-        Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
+        val listScroll = rememberScrollState()
+        Column(Modifier.weight(1f).topFade(listScroll).verticalScroll(listScroll).selectableGroup()) {
+            Row(
+                Modifier
+                    .padding(start = 16.dp, end = 16.dp, top = 12.dp)
+                    .fillMaxWidth()
+                    .faceplate(softShadow = false)
+                    .padding(start = 14.dp, end = 10.dp, top = 12.dp, bottom = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(stringResource(R.string.ramp_title), style = WwuType.body, color = Ink)
+                    Text(stringResource(R.string.ramp_desc), style = WwuType.caption, color = InkMuted)
+                }
+                SlideSwitch(
+                    checked = draft.rampUp,
+                    onCheckedChange = viewModel::setRampUp,
+                    description = stringResource(R.string.ramp_title),
+                    onLabel = stringResource(R.string.switch_on),
+                    offLabel = stringResource(R.string.switch_off),
+                )
+            }
+
+            // Sources: both rows open something else, so they sit apart from the sounds themselves.
             Column(
                 Modifier
                     .padding(start = 16.dp, end = 16.dp, top = 12.dp)
@@ -191,17 +228,6 @@ fun SoundPickerScreen(onBack: () -> Unit, onOpenRadio: () -> Unit, viewModel: Ed
                     Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) { Chevron(size = 14.dp) }
                 }
                 PlateDivider()
-                options.filterNot { it.uri.isStreamUrl() }.forEach { option ->
-                    val selected = option.uri == draft.soundUri
-                    SoundRow(
-                        option = option,
-                        selected = selected,
-                        playing = player.isPreviewing(option.uri),
-                        onSelect = { select(option) },
-                        onPlay = { preview(option) },
-                    )
-                    PlateDivider()
-                }
                 Row(
                     Modifier
                         .fillMaxWidth()
@@ -216,27 +242,10 @@ fun SoundPickerScreen(onBack: () -> Unit, onOpenRadio: () -> Unit, viewModel: Ed
                 }
             }
 
-            Row(
-                Modifier
-                    .padding(start = 16.dp, end = 16.dp, top = 12.dp)
-                    .fillMaxWidth()
-                    .faceplate(softShadow = false)
-                    .padding(start = 14.dp, end = 10.dp, top = 12.dp, bottom = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text(stringResource(R.string.ramp_title), style = WwuType.body, color = Ink)
-                    Text(stringResource(R.string.ramp_desc), style = WwuType.caption, color = InkMuted)
-                }
-                SlideSwitch(
-                    checked = draft.rampUp,
-                    onCheckedChange = viewModel::setRampUp,
-                    description = stringResource(R.string.ramp_title),
-                    onLabel = stringResource(R.string.switch_on),
-                    offLabel = stringResource(R.string.switch_off),
-                )
-            }
+            val bundledUris = bundled.mapTo(HashSet()) { it.uri }
+            val phoneOptions = options.filterNot { it.uri.isStreamUrl() || it.uri in bundledUris }
+            SoundSection(R.string.sounds_app, bundled, draft.soundUri, player, selectedRequester, ::select, ::toggle)
+            SoundSection(R.string.sounds_phone, phoneOptions, draft.soundUri, player, selectedRequester, ::select, ::toggle)
             Spacer(Modifier.height(24.dp))
         }
     }
@@ -267,10 +276,14 @@ private fun TunerVisor(name: String, previewing: Boolean, position: Float, modif
                 maxLines = 1,
                 modifier = Modifier.weight(1f),
             )
-            PrintLabel(
-                stringResource(if (previewing) R.string.preview_label else R.string.selected_label),
-                color = if (previewing) Action else InkMuted,
-            )
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                // The lamp marks a preview on air; TalkBack only says "Prévia".
+                if (previewing) Lamp(Action, size = 6.dp)
+                PrintLabel(
+                    stringResource(if (previewing) R.string.preview_label else R.string.selected_label),
+                    color = if (previewing) Action else InkMuted,
+                )
+            }
         }
         BoxWithConstraints(Modifier.fillMaxWidth().height(30.dp)) {
             val width = maxWidth
@@ -289,7 +302,7 @@ private fun TunerVisor(name: String, previewing: Boolean, position: Float, modif
             }
             Box(
                 Modifier
-                    .offset(x = width * needle.value - 1.dp)
+                    .offset { IntOffset((width * needle.value - 1.dp).roundToPx(), 0) }
                     .width(2.dp)
                     .fillMaxHeight()
                     .glow(WwuShape.segmentThin, Action, 6.dp, 0.8f)
@@ -299,13 +312,59 @@ private fun TunerVisor(name: String, previewing: Boolean, position: Float, modif
     }
 }
 
+/** A serigraphed title and a plate with its sounds; the selected one answers to [selectedRequester]. */
 @Composable
-private fun SoundRow(option: SoundOption, selected: Boolean, playing: Boolean, onSelect: () -> Unit, onPlay: () -> Unit) {
-    Row(
+private fun SoundSection(
+    @StringRes title: Int,
+    options: List<SoundOption>,
+    selectedUri: String?,
+    player: SoundPreview,
+    selectedRequester: BringIntoViewRequester,
+    onSelect: (SoundOption) -> Unit,
+    onPlay: (SoundOption) -> Unit,
+) {
+    PrintLabel(
+        stringResource(title),
+        modifier = Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 8.dp),
+    )
+    Column(
         Modifier
+            .padding(horizontal = 16.dp)
+            .fillMaxWidth()
+            .faceplate(softShadow = false)
+            .padding(start = 14.dp, end = 6.dp, top = 4.dp, bottom = 4.dp),
+    ) {
+        options.forEachIndexed { index, option ->
+            val selected = option.uri == selectedUri
+            SoundRow(
+                option = option,
+                selected = selected,
+                playing = player.isPreviewing(option.uri),
+                failed = player.isFailed(option.uri),
+                onSelect = { onSelect(option) },
+                onPlay = { onPlay(option) },
+                modifier = if (selected) Modifier.bringIntoViewRequester(selectedRequester) else Modifier,
+            )
+            if (index < options.lastIndex) PlateDivider()
+        }
+    }
+}
+
+@Composable
+private fun SoundRow(
+    option: SoundOption,
+    selected: Boolean,
+    playing: Boolean,
+    failed: Boolean,
+    onSelect: () -> Unit,
+    onPlay: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier
             .fillMaxWidth()
             .heightIn(min = 56.dp)
-            .clickable(role = Role.RadioButton, onClick = onSelect),
+            .selectable(selected = selected, role = Role.RadioButton, onClick = onSelect),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
@@ -318,7 +377,9 @@ private fun SoundRow(option: SoundOption, selected: Boolean, playing: Boolean, o
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
-            if (option.description != null) {
+            if (failed) {
+                Text(stringResource(R.string.sound_failed), style = WwuType.caption, color = ErrorText)
+            } else if (option.description != null) {
                 Text(option.description, style = WwuType.caption, color = InkMuted)
             }
         }
@@ -327,21 +388,23 @@ private fun SoundRow(option: SoundOption, selected: Boolean, playing: Boolean, o
                 onClick = onPlay,
                 size = 36.dp,
                 style = RoundStyle.Graphite,
-                contentDescription = stringResource(R.string.cd_play_preview, option.name),
+                contentDescription = stringResource(if (playing) R.string.cd_stop_preview else R.string.cd_play_preview, option.name),
                 baseDepth = 2.dp,
-            ) { PlayGlyph(9.dp, 12.dp, if (playing) Vfd else Ink, nudge = 1.dp) }
+            ) { if (playing) StopGlyph(10.dp, Vfd) else PlayGlyph(9.dp, 12.dp, Ink, nudge = 1.dp) }
         }
     }
 }
 
 private fun loadAlarmSounds(context: Context): List<SoundOption> = runCatching {
     val manager = RingtoneManager(context).apply { setType(RingtoneManager.TYPE_ALARM) }
-    val cursor = manager.cursor
     val result = mutableListOf<SoundOption>()
-    while (cursor.moveToNext()) {
-        val title = cursor.getString(RingtoneManager.TITLE_COLUMN_INDEX) ?: continue
-        val uri = manager.getRingtoneUri(cursor.position) ?: continue
-        result += SoundOption(uri.toString(), title)
+    // Made from a Context rather than an Activity, the manager leaves its cursor open.
+    manager.cursor.use { cursor ->
+        while (cursor.moveToNext()) {
+            val title = cursor.getString(RingtoneManager.TITLE_COLUMN_INDEX) ?: continue
+            val uri = manager.getRingtoneUri(cursor.position) ?: continue
+            result += SoundOption(uri.toString(), title)
+        }
     }
     result.distinctBy { it.uri }
 }.getOrDefault(emptyList())

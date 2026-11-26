@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Imagem de compartilhamento (1200x630)</title>
+<!--
+  Gera site/og-image.png (padrao, em portugues) e site/og-image-en.png (?lang=en) a partir do CSS do proprio site.
+  Nao e carregada pelo site. Para capturar (Chrome sem interface), da raiz do projeto:
+    chrome --headless --hide-scrollbars --window-size=1200,630 --virtual-time-budget=3000 \
+      --screenshot=site/og-image-en.png "file:///CAMINHO/ferramentas/og-image.html?lang=en"
+  Nao regrave a og-image.png em portugues: o arquivo ja esta publicado.
+-->
+<link rel="stylesheet" href="../site/styles.css">
+<style>
+  html, body { margin: 0; width: 1200px; height: 630px; overflow: hidden; }
+  body { display: flex; flex-direction: column; align-items: center; background: radial-gradient(120% 50% at 50% 114%, #F7D46B 0%, #E8663C 30%, #6B2433 62%, #141017 100%); }
+  .card { --w: 128px; display: flex; flex-direction: column; align-items: center; padding-top: 95px; }
+  .clock { --w: 128px; padding: 11px; gap: 12px; border-radius: 14px; }
+  .clock__colon { padding: 0 7px; gap: 22px; }
+  .clock__colon i { width: 14px; height: 14px; }
+  .tagline { margin-top: 48px; font-size: 96px; font-weight: 600; letter-spacing: -.02em; line-height: 1; color: var(--ink); }
+  .support { margin-top: 44px; font-size: 26px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--ink); }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="clock" aria-hidden="true">
+    <div class="flip"><div class="flip__half flip__half--top"><span>0</span></div><div class="flip__half flip__half--bottom"><span>0</span></div><div class="flip__hinge"></div></div>
+    <div class="flip"><div class="flip__half flip__half--top"><span>6</span></div><div class="flip__half flip__half--bottom"><span>6</span></div><div class="flip__hinge"></div></div>
+    <div class="clock__colon"><i></i><i></i></div>
+    <div class="flip"><div class="flip__half flip__half--top"><span>3</span></div><div class="flip__half flip__half--bottom"><span>3</span></div><div class="flip__hinge"></div></div>
+    <div class="flip"><div class="flip__half flip__half--top"><span>0</span></div><div class="flip__half flip__half--bottom"><span>0</span></div><div class="flip__hinge"></div></div>
+  </div>
+  <div class="tagline" id="tagline">Acorde de verdade.</div>
+  <div class="support" id="support">Wake Wake Up · Despertador para Android</div>
+</div>
+<script>
+  if (new URLSearchParams(location.search).get('lang') === 'en') {
+    document.documentElement.lang = 'en';
+    document.getElementById('tagline').textContent = 'Wake up for real.';
+    document.getElementById('support').textContent = 'Wake Wake Up · Alarm clock for Android';
+  }
+</script>
+</body>
+</html>
