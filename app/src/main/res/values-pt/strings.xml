@@ -171,7 +171,7 @@
     <string name="perm_fullscreen_title">Tela cheia no bloqueio</string>
     <string name="perm_fullscreen_desc">Abre a missão por cima da tela de bloqueio.</string>
     <string name="perm_battery_title">Sem limite de bateria</string>
-    <string name="perm_battery_desc">Impede o sistema de desligar o app à noite.</string>
+    <string name="perm_battery_desc">Impede o sistema de fechar o app à noite. Na lista que abrir, procure Wake Wake Up e desligue a otimização de bateria.</string>
     <string name="perm_recommended">Recomendado</string>
     <string name="allow">Permitir</string>
     <string name="cd_allow">Permitir %1$s</string>

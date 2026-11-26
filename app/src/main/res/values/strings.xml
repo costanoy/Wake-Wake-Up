@@ -167,7 +167,7 @@
     <string name="perm_fullscreen_title">Full screen when locked</string>
     <string name="perm_fullscreen_desc">Opens the mission over the lock screen.</string>
     <string name="perm_battery_title">No battery limit</string>
-    <string name="perm_battery_desc">Keeps the system from shutting the app down at night.</string>
+    <string name="perm_battery_desc">Keeps the system from closing the app at night. In the list that opens, find Wake Wake Up and turn battery optimization off.</string>
     <string name="perm_recommended">Recommended</string>
     <string name="allow">Allow</string>
     <string name="cd_allow">Allow %1$s</string>
