@@ -8,6 +8,7 @@ import android.content.SharedPreferences
 import android.os.Build
 import androidx.core.content.ContextCompat
 import androidx.core.os.UserManagerCompat
+import java.io.File
 
 const val ACTION_RING_WATCHDOG = "com.wakewakeup.action.RING_WATCHDOG"
 const val EXTRA_RESUMED_SESSION = "extra_resumed_session"
@@ -113,10 +114,25 @@ object RingWatchdog {
      * watchdog and the ringing service already have to work. The file used to live in the
      * ordinary storage; it is moved over the first time the phone is found unlocked.
      */
+    /**
+     * Moves the old file over only when the device-protected one doesn't exist yet. If a session
+     * was already written there (a ring while the phone was locked after the update), the old file
+     * is stale: it is dropped instead of overwriting the newer session.
+     */
+    private fun migrateOldFile(context: Context, store: Context) {
+        val old = File(context.dataDir, "shared_prefs/$PREFS.xml")
+        if (!old.exists()) return
+        if (File(store.dataDir, "shared_prefs/$PREFS.xml").exists()) {
+            context.deleteSharedPreferences(PREFS)
+        } else {
+            store.moveSharedPreferencesFrom(context, PREFS)
+        }
+    }
+
     private fun prefs(context: Context): SharedPreferences {
         val store = context.createDeviceProtectedStorageContext()
         if (UserManagerCompat.isUserUnlocked(context)) {
-            runCatching { store.moveSharedPreferencesFrom(context, PREFS) }
+            runCatching { migrateOldFile(context, store) }
         }
         return store.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
     }
