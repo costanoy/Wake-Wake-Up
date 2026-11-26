@@ -176,6 +176,15 @@ a.download:active { transform: translateY(3px); }
 [data-apk-note] { display: flex; flex-direction: column; gap: 10px; }
 .final__notes:focus-visible { outline-offset: 4px; }
 
+/* Fixed download key on phones, shown only while the top button and the final call are off screen. */
+.dock { position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; padding: 10px var(--side) calc(10px + env(safe-area-inset-bottom)); background: var(--housing-deep); box-shadow: 0 -1px 0 var(--seam-light); }
+.dock__key { min-height: 52px; border-radius: 26px; display: flex; align-items: center; justify-content: center; background: var(--action); color: var(--on-action); box-shadow: 0 3px 0 var(--action-base), inset 0 1px 0 rgba(255, 255, 255, .2); font-size: 13px; font-weight: 600; letter-spacing: .14em; text-decoration: none; }
+.dock__key:hover { color: var(--on-action); }
+.dock__key:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--action-base); }
+.dock .download__label { background: none; padding: 0; color: inherit; }
+@media (min-width: 900px) { .dock { display: none; } }
+@media (max-width: 899px) { .footer__inner { padding-bottom: 96px; } }
+
 /* ------------------------------------------------------------------ Video */
 .phone-wrap { display: flex; justify-content: center; }
 .phone { position: relative; width: min(300px, 78vw); aspect-ratio: 9 / 16; border-radius: 36px; overflow: hidden; background: repeating-linear-gradient(135deg, #1C171C 0 10px, #211B21 10px 20px); box-shadow: 0 0 0 8px var(--housing-deep), 0 0 0 9px #2A2328, 0 30px 70px rgba(0, 0, 0, .6); }

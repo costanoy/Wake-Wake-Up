@@ -138,6 +138,10 @@
     return node;
   }
 
+  // The fixed phone key has no use when there is no APK to offer (iPhone, "coming soon").
+  var dock = $('dock');
+  if (dock && (mode === 'ios' || mode === 'soon')) { dock.remove(); dock = null; }
+
   // Under each button: version and size, from site-config.js (change them together with the APK).
   var apkMeta = [config.apkVersion && 'v' + config.apkVersion, config.apkSize, 'Android 8+'].filter(Boolean).join(' · ');
   var installBox = $(EN ? 'install' : 'instalar');
@@ -169,6 +173,18 @@
   document.querySelectorAll('[data-apk-note]').forEach(function (note) { note.hidden = mode !== 'apk'; });
   document.querySelectorAll('[data-desktop-note]').forEach(function (note) { note.hidden = mode !== 'apk' || isAndroid; });
   document.querySelectorAll('[data-ios-note]').forEach(function (note) { note.hidden = mode !== 'ios'; });
+
+  // Show the dock only while neither the top button nor the final call is on screen.
+  if (dock && 'IntersectionObserver' in window) {
+    var covered = [false, false];
+    var dockWatch = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) { covered[entry.target === finalCall ? 1 : 0] = entry.isIntersecting; });
+      dock.hidden = covered[0] || covered[1];
+    });
+    var finalCall = document.querySelector('.final');
+    dockWatch.observe(document.querySelector('.hero__cta'));
+    if (finalCall) dockWatch.observe(finalCall);
+  }
 
   // "How to install" has nothing to show once the button is a store link or a plate.
   if (mode === 'store' || mode === 'soon') {
